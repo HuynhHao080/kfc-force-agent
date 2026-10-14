@@ -1,3 +1,5 @@
+import { ActionExecutionResult, ProposedAction } from "@/lib/types/agent";
+
 export type OrderStatus =
   | "BROWSING"
   | "SELECTING"
@@ -42,22 +44,6 @@ export interface MenuItem {
   available: boolean;
 }
 
-export interface CartItem {
-  menuItemId: string;
-  name: string;
-  quantity: number;
-  unitPrice: number;
-  options: Record<string, string>;
-}
-
-export interface Cart {
-  id: string;
-  userId: string;
-  items: CartItem[];
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface Order {
   id: string;
   userId: string;
@@ -84,15 +70,20 @@ export interface ChatRequest {
   userId: string;
   sessionId: string;
   message: string;
+  /**
+   * Explicit confirmation of the previously proposed mutation.
+   * A boolean only — never inferred from message text or identifiers.
+   */
+  confirm?: boolean;
 }
 
 export interface ChatResponse {
   reply: string;
   sessionId: string;
-  action?: ProposedAction;
+  actions: ProposedAction[];
+  requiresConfirmation: boolean;
+  execution: ActionExecutionResult[];
+  /** Populated instead of `reply` when the request is a controlled failure. */
+  error?: string;
 }
 
-export interface ProposedAction {
-  type: string;
-  payload: Record<string, unknown>;
-}
