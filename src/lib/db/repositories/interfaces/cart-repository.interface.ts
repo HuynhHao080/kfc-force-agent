@@ -1,6 +1,13 @@
 import { Cart, CartItem } from "@/lib/types/cart";
 
 export interface CartRepository {
+  /** One atomic cart/items/totals commit. null creates; legacy matches a cart without revision. */
+  saveCartView(cart: Cart, items: CartItem[], expectedRevision: string | null): Promise<void>;
+  completeReorder(
+    cart: Cart,
+    items: CartItem[],
+    expectedCartId: string | null,
+  ): Promise<void>;
   /** Most recently updated ACTIVE cart owned by the user, or null. */
   getActiveCart(userId: string): Promise<Cart | null>;
   getCartById(cartId: string): Promise<Cart | null>;
@@ -19,4 +26,3 @@ export interface CartRepository {
   removeItem(cartId: string, itemId: string): Promise<void>;
   clearCart(cartId: string): Promise<void>;
 }
-

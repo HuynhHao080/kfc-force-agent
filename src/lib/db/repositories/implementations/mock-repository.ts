@@ -1,3 +1,12 @@
+import { assertCartCommit } from "@/lib/db/cart-commit";
+import { DomainError } from "@/lib/domain-error";
+import type { CatalogAuditEntry } from "@/lib/types/catalog-audit";
+import { addressRevision } from "@/lib/server/address-revision";
+import type { CustomerAccount } from "@/lib/types/account";
+import type {
+  AccountPatch,
+  AccountRepository,
+} from "../interfaces/account-repository.interface";
 import { User, UserProfile, UserPreferences, Address } from "@/lib/types/user";
 import { Session, Message, ConversationContext } from "@/lib/types/session";
 import {
@@ -16,7 +25,72 @@ import { IMenuRepository } from "../interfaces/menu-repository.interface";
 import { CartRepository } from "../interfaces/cart-repository.interface";
 import { OrderRepository } from "../interfaces/order-repository.interface";
 
+export class MockAccountRepository implements AccountRepository {
+  async updateAccount(
+    id: string,
+    patch: AccountPatch,
+    expectedPasswordHash: string,
+  ) {
+    const previous = this.accounts.get(id);
+    if (!previous || previous.passwordHash !== expectedPasswordHash)
+      throw new DomainError(
+        "ACCOUNT_CHANGED",
+        "Tài khoản đã thay đổi. Vui lòng đăng nhập lại.",
+        409,
+      );
+    const updated = { ...previous, ...patch };
+    this.accounts.set(id, updated);
+    return updated;
+  }
+  private authSessions = new Map<
+    string,
+    { accountId: string; expires: number }
+  >();
+  async createAuthSession(id: string, accountId: string, expires: number) {
+    for (const [key, value] of this.authSessions)
+      if (value.expires <= Date.now()) this.authSessions.delete(key);
+    this.authSessions.set(id, { accountId, expires });
+  }
+  async getAuthSession(id: string) {
+    const session = this.authSessions.get(id);
+    return session && session.expires > Date.now() ? session : null;
+  }
+  async removeAuthSession(id: string) {
+    this.authSessions.delete(id);
+  }
+  private accounts = new Map<string, CustomerAccount>();
+  private emails = new Map<string, string>();
+  async createAccount(account: CustomerAccount) {
+    if (this.emails.has(account.email))
+      throw new DomainError("EMAIL_EXISTS", "Email đã được đăng ký.", 409);
+    this.accounts.set(account.id, account);
+    this.emails.set(account.email, account.id);
+  }
+  async getAccountById(id: string) {
+    return this.accounts.get(id) ?? null;
+  }
+  async getAccountByEmail(email: string) {
+    return this.accounts.get(this.emails.get(email) ?? "") ?? null;
+  }
+}
+
 export class MockUserRepository implements UserRepository {
+  async saveUserAddresses(
+    userId: string,
+    addresses: Address[],
+    expectedRevision: string,
+  ) {
+    if (
+      addressRevision(userId, this.addresses.get(userId) ?? []) !==
+      expectedRevision
+    )
+      throw new DomainError(
+        "ADDRESS_BOOK_CHANGED",
+        "Sổ địa chỉ đã thay đổi. Vui lòng làm mới trước khi lưu.",
+        409,
+      );
+    this.addresses.set(userId, addresses);
+  }
   private users: Map<string, User> = new Map();
   private userProfiles: Map<string, UserProfile> = new Map();
   private userPreferences: Map<string, UserPreferences> = new Map();
@@ -94,7 +168,10 @@ export class MockSessionRepository implements SessionRepository {
 
     const session = this.sessions.get(message.sessionId);
     if (session) {
-      this.sessions.set(message.sessionId, { ...session, updatedAt: message.createdAt });
+      this.sessions.set(message.sessionId, {
+        ...session,
+        updatedAt: message.createdAt,
+      });
     }
   }
 
@@ -102,7 +179,9 @@ export class MockSessionRepository implements SessionRepository {
     return this.messages.get(sessionId) || [];
   }
 
-  async getConversationContext(sessionId: string): Promise<ConversationContext | null> {
+  async getConversationContext(
+    sessionId: string,
+  ): Promise<ConversationContext | null> {
     return this.conversationContexts.get(sessionId) || null;
   }
 
@@ -113,6 +192,59 @@ export class MockSessionRepository implements SessionRepository {
 }
 
 export class MockMenuRepository implements IMenuRepository {
+  private shopSettings = new Map<string, import("@/lib/types/shop").ShopSettings>();
+  async getShopSettings() { return this.shopSettings.get("main") ?? null; }
+  async saveShopSettings(settings: import("@/lib/types/shop").ShopSettings, expectedRevision: string) {
+    if ((this.shopSettings.get("main")?.revision ?? "default") !== expectedRevision)
+      throw new DomainError("SHOP_CHANGED", "Cấu hình đã thay đổi. Hãy tải lại trước khi lưu.", 409);
+    this.shopSettings.set("main", settings);
+  }
+  private promotions = new Map<
+    string,
+    import("@/lib/types/promotion").Promotion
+  >();
+  async getPromotions() {
+    return [...this.promotions.values()];
+  }
+  async getPromotion(code: string) {
+    return this.promotions.get(code) ?? null;
+  }
+  async savePromotion(
+    entry: import("@/lib/types/promotion").Promotion,
+    expectedRevision?: string,
+  ) {
+    const previous = this.promotions.get(entry.code);
+    if (expectedRevision ? previous?.revision !== expectedRevision : !!previous)
+      throw new DomainError(
+        "PROMOTION_CHANGED",
+        "Mã giảm giá đã thay đổi. Vui lòng làm mới.",
+        409,
+      );
+    this.promotions.set(entry.code, entry);
+  }
+  private catalogAudit = new Map<string, CatalogAuditEntry>();
+  async getCatalogAudit(limit: number) {
+    return [...this.catalogAudit.values()]
+      .sort(
+        (a, b) =>
+          b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id),
+      )
+      .slice(0, limit);
+  }
+  private assertNewAudit(audit?: CatalogAuditEntry) {
+    if (audit && this.catalogAudit.has(audit.id))
+      throw new DomainError("AUDIT_CONFLICT", "Mã nhật ký đã tồn tại.", 409);
+  }
+  async saveCategory(category: MenuCategory, audit?: CatalogAuditEntry) {
+    this.assertNewAudit(audit);
+    this.categories.set(category.id, category);
+    if (audit) this.catalogAudit.set(audit.id, audit);
+  }
+  async saveMenuItem(item: MenuItem, audit?: CatalogAuditEntry) {
+    this.assertNewAudit(audit);
+    this.items.set(item.id, item);
+    if (audit) this.catalogAudit.set(audit.id, audit);
+  }
   private categories: Map<string, MenuCategory> = new Map();
   private items: Map<string, MenuItem> = new Map();
   private itemOptions: Map<string, MenuItemOption[]> = new Map();
@@ -551,7 +683,9 @@ export class MockMenuRepository implements IMenuRepository {
   }
 
   async getCategories(): Promise<MenuCategory[]> {
-    return Array.from(this.categories.values());
+    return Array.from(this.categories.values()).sort(
+      (a, b) => a.displayOrder - b.displayOrder || a.id.localeCompare(b.id),
+    );
   }
 
   async getCategoryById(categoryId: string): Promise<MenuCategory | null> {
@@ -567,7 +701,9 @@ export class MockMenuRepository implements IMenuRepository {
   }
 
   async getItemsByCategory(categoryId: string): Promise<MenuItem[]> {
-    return Array.from(this.items.values()).filter((item) => item.categoryId === categoryId);
+    return Array.from(this.items.values()).filter(
+      (item) => item.categoryId === categoryId,
+    );
   }
 
   async searchMenuItems(query: string): Promise<MenuItem[]> {
@@ -622,15 +758,59 @@ export class MockMenuRepository implements IMenuRepository {
   }
 
   async getAvailableMenuItems(): Promise<MenuItem[]> {
-    return Array.from(this.items.values()).filter((item) => item.isActive && item.isAvailable);
+    return Array.from(this.items.values()).filter(
+      (item) => item.isActive && item.isAvailable,
+    );
   }
 
   async getActiveCategories(): Promise<MenuCategory[]> {
-    return Array.from(this.categories.values()).filter((category) => category.isActive);
+    return (await this.getCategories()).filter((category) => category.isActive);
   }
 }
 
 export class MockCartRepository implements CartRepository {
+  async saveCartView(cart: Cart, items: CartItem[], expectedRevision: string | null) {
+    assertCartCommit(cart, items);
+    const current = this.carts.get(cart.id);
+    if (expectedRevision === null
+      ? !!current || [...this.carts.values()].some(entry => entry.userId === cart.userId && entry.status === "ACTIVE")
+      : !current || current.userId !== cart.userId || current.status !== "ACTIVE" || (current.revision ?? "legacy") !== expectedRevision)
+      throw new DomainError("CART_CHANGED", "Giỏ hàng đã thay đổi. Hãy tải lại trước khi thao tác tiếp.", 409);
+    this.carts.set(cart.id, cart);
+    this.cartItems.set(cart.id, items);
+  }
+  async completeReorder(
+    cart: Cart,
+    items: CartItem[],
+    expectedCartId: string | null,
+  ) {
+    let current: Cart | null = null;
+    for (const candidate of this.carts.values())
+      if (
+        candidate.userId === cart.userId &&
+        candidate.status === "ACTIVE" &&
+        (!current || candidate.updatedAt > current.updatedAt)
+      )
+        current = candidate;
+    if (
+      (current?.id ?? null) !== expectedCartId ||
+      (current && (this.cartItems.get(current.id)?.length ?? 0) > 0) ||
+      this.carts.has(cart.id)
+    )
+      throw new DomainError(
+        "REORDER_CHANGED",
+        "Giỏ đã thay đổi. Vui lòng xem lại trước khi đặt lại.",
+        409,
+      );
+    if (current)
+      this.carts.set(current.id, {
+        ...current,
+        status: "ABANDONED",
+        updatedAt: cart.updatedAt,
+      });
+    this.carts.set(cart.id, cart);
+    this.cartItems.set(cart.id, items);
+  }
   private carts: Map<string, Cart> = new Map();
   private cartItems: Map<string, CartItem[]> = new Map();
 
@@ -663,7 +843,10 @@ export class MockCartRepository implements CartRepository {
     return this.cartItems.get(cartId) || [];
   }
 
-  async getCartItemById(cartId: string, itemId: string): Promise<CartItem | null> {
+  async getCartItemById(
+    cartId: string,
+    itemId: string,
+  ): Promise<CartItem | null> {
     // The line item is always resolved through its owning cartId.
     const items = this.cartItems.get(cartId) || [];
     return items.find((item) => item.id === itemId) || null;
@@ -697,6 +880,32 @@ export class MockCartRepository implements CartRepository {
 }
 
 export class MockOrderRepository implements OrderRepository {
+  async getRecentFeedback(limit: number) {
+    return [...this.orders.values()].filter(order => order.status === "COMPLETED" && order.feedback)
+      .sort((a, b) => b.feedback!.updatedAt.localeCompare(a.feedback!.updatedAt) || b.id.localeCompare(a.id)).slice(0, limit);
+  }
+  async saveFeedback(orderId: string, userId: string, feedback: import("@/lib/types/feedback").OrderFeedback, expectedRevision: string | null) {
+    const order = this.orders.get(orderId);
+    if (!order || order.userId !== userId || order.status !== "COMPLETED" || (order.feedback?.revision ?? null) !== expectedRevision)
+      throw new DomainError("FEEDBACK_CHANGED", "Đánh giá đã thay đổi. Vui lòng tải lại.", 409);
+    this.orders.set(orderId, { ...order, feedback, updatedAt: feedback.updatedAt });
+  }
+  constructor(private cartRepository: MockCartRepository) {}
+  async completeCheckout(
+    order: Order,
+    items: OrderItem[],
+    event: OrderEvent,
+    cart: Cart,
+  ): Promise<void> {
+    const existing = await this.cartRepository.getCartById(cart.id);
+    if (!existing || existing.status !== "ACTIVE" || existing.userId !== order.userId ||
+        (existing.revision ?? "legacy") !== (cart.revision ?? "legacy") || this.orders.has(order.id))
+      throw new DomainError("CART_CHANGED", "Giỏ đã thay đổi hoặc đã được đặt. Hãy tải lại trước khi tiếp tục.", 409);
+    await this.cartRepository.updateCart(cart);
+    this.orders.set(order.id, order);
+    this.orderItems.set(order.id, items);
+    this.orderEvents.set(order.id, [event]);
+  }
   private orders: Map<string, Order> = new Map();
   private orderItems: Map<string, OrderItem[]> = new Map();
   private orderEvents: Map<string, OrderEvent[]> = new Map();
@@ -707,6 +916,34 @@ export class MockOrderRepository implements OrderRepository {
     this.orderEvents.set(order.id, []);
   }
 
+  async getRecentOrders(limit: number): Promise<Order[]> {
+    return [...this.orders.values()]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit);
+  }
+  async transitionOrder(
+    order: Order,
+    event: OrderEvent,
+    expectedStatus: Order["status"],
+  ): Promise<void> {
+    if (this.orders.get(order.id)?.status !== expectedStatus)
+      throw new DomainError(
+        "ORDER_CONFLICT",
+        "Đơn đã thay đổi. Vui lòng tải lại.",
+        409,
+      );
+    this.orders.set(order.id, order);
+    this.orderEvents.set(order.id, [
+      ...(this.orderEvents.get(order.id) ?? []),
+      event,
+    ]);
+  }
+  async cancelOrder(order: Order, event: OrderEvent): Promise<void> {
+    return this.transitionOrder(order, event, "CONFIRMED");
+  }
+  async getOrderEvents(orderId: string): Promise<OrderEvent[]> {
+    return this.orderEvents.get(orderId) ?? [];
+  }
   async getOrderById(orderId: string): Promise<Order | null> {
     return this.orders.get(orderId) || null;
   }
@@ -726,10 +963,12 @@ export class MockOrderRepository implements OrderRepository {
   }
 }
 
+const sharedCartRepository = new MockCartRepository();
 export const mockRepositories = {
+  accountRepository: new MockAccountRepository(),
   userRepository: new MockUserRepository(),
   sessionRepository: new MockSessionRepository(),
   menuRepository: new MockMenuRepository(),
-  cartRepository: new MockCartRepository(),
-  orderRepository: new MockOrderRepository(),
+  cartRepository: sharedCartRepository,
+  orderRepository: new MockOrderRepository(sharedCartRepository),
 };

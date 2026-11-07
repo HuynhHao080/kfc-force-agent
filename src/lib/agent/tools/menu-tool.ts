@@ -1,4 +1,4 @@
-import { AgentTool, ToolExecutionContext } from "./agent-tool";
+import { AgentTool } from "./agent-tool";
 import { MenuService } from "@/lib/services/menu-service";
 import {
   MenuCategory,
@@ -41,7 +41,8 @@ export interface MenuToolOutput {
 
 export class MenuTool extends AgentTool<MenuToolInput, MenuToolOutput> {
   readonly name = "menu";
-  readonly description = "Menu operations including categories, items, search, and bundles";
+  readonly description =
+    "Menu operations including categories, items, search, and bundles";
 
   constructor(private menuService: MenuService) {
     super();
@@ -80,7 +81,6 @@ export class MenuTool extends AgentTool<MenuToolInput, MenuToolOutput> {
 
   protected async executeInternal(
     input: MenuToolInput,
-    context: ToolExecutionContext,
   ): Promise<MenuToolOutput> {
     switch (input.operation) {
       case "list_categories":
@@ -92,13 +92,20 @@ export class MenuTool extends AgentTool<MenuToolInput, MenuToolOutput> {
           ? await this.menuService.getItemsByCategory(input.categoryId)
           : await this.menuService.getMenuItems();
         // Never surface inactive/unavailable products to the customer.
-        return { items: allItems.filter((item) => item.isActive && item.isAvailable) };
+        return {
+          items: allItems.filter((item) => item.isActive && item.isAvailable),
+        };
 
       case "search":
-        const searchResults = await this.menuService.searchMenuItemsForCustomer(input.query || "");
+        const searchResults = await this.menuService.searchMenuItemsForCustomer(
+          input.query || "",
+        );
         return {
           items: searchResults,
-          message: searchResults.length === 0 ? "Không tìm thấy món phù hợp." : undefined,
+          message:
+            searchResults.length === 0
+              ? "Không tìm thấy món phù hợp."
+              : undefined,
         };
 
       case "get_item":
@@ -107,7 +114,10 @@ export class MenuTool extends AgentTool<MenuToolInput, MenuToolOutput> {
         }
         const item = await this.menuService.getMenuItemById(input.itemId);
         if (!item || !item.isActive || !item.isAvailable) {
-          return { item: null, message: "Món ăn không tồn tại hoặc không có sẵn." };
+          return {
+            item: null,
+            message: "Món ăn không tồn tại hoặc không có sẵn.",
+          };
         }
         return { item };
 
@@ -128,9 +138,14 @@ export class MenuTool extends AgentTool<MenuToolInput, MenuToolOutput> {
         if (!input.bundleId) {
           throw new Error("Thiếu ID combo.");
         }
-        const bundle = await this.menuService.getProductBundleById(input.bundleId);
+        const bundle = await this.menuService.getProductBundleById(
+          input.bundleId,
+        );
         if (!bundle || !bundle.isActive || !bundle.isAvailable) {
-          return { bundle: null, message: "Combo không tồn tại hoặc không có sẵn." };
+          return {
+            bundle: null,
+            message: "Combo không tồn tại hoặc không có sẵn.",
+          };
         }
         return { bundle };
 

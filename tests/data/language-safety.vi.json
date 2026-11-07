@@ -1,0 +1,387 @@
+[
+  {
+    "id": "LS-001",
+    "message": "Thêm hai Pepsi",
+    "expectedAction": "ADD_TO_CART",
+    "expectedPreview": true,
+    "expectedQuantity": 2
+  },
+  {
+    "id": "LS-002",
+    "message": "Cho mình mười hai Pepsi",
+    "expectedAction": "ADD_TO_CART",
+    "expectedPreview": true,
+    "expectedQuantity": 12
+  },
+  {
+    "id": "LS-003",
+    "message": "Mua giúp tôi hai mươi mốt Pepsi",
+    "expectedAction": "ADD_TO_CART",
+    "expectedPreview": true,
+    "expectedQuantity": 21
+  },
+  {
+    "id": "LS-004",
+    "message": "Cho em một trăm Pepsi",
+    "expectedAction": "ADD_TO_CART",
+    "expectedPreview": true,
+    "expectedQuantity": 100
+  },
+  {
+    "id": "LS-005",
+    "message": "Thêm tám Pepsi",
+    "expectedAction": "ADD_TO_CART",
+    "expectedPreview": true,
+    "expectedQuantity": 8
+  },
+  {
+    "id": "LS-006",
+    "message": "Đổi Pepsi thành năm phần",
+    "expectedAction": "UPDATE_CART",
+    "expectedPreview": true,
+    "expectedQuantity": 5
+  },
+  {
+    "id": "LS-007",
+    "message": "Đổi Pepsi thành ba mươi lăm",
+    "expectedAction": "UPDATE_CART",
+    "expectedPreview": true,
+    "expectedQuantity": 35
+  },
+  {
+    "id": "LS-008",
+    "message": "Giảm Pepsi còn hai",
+    "expectedAction": "UPDATE_CART",
+    "expectedPreview": true,
+    "expectedQuantity": 2
+  },
+  {
+    "id": "LS-009",
+    "message": "Tăng Pepsi lên mười bốn",
+    "expectedAction": "UPDATE_CART",
+    "expectedPreview": true,
+    "expectedQuantity": 14
+  },
+  {
+    "id": "LS-010",
+    "message": "Cho mình hai chai Pepsi 1,5 lít",
+    "expectedAction": "ADD_TO_CART",
+    "expectedPreview": true,
+    "expectedQuantity": 2
+  },
+  {
+    "id": "LS-011",
+    "message": "Cho mình hai chai Pepsi 1.5L",
+    "expectedAction": "ADD_TO_CART",
+    "expectedPreview": true,
+    "expectedQuantity": 2
+  },
+  {
+    "id": "LS-012",
+    "message": "Vui lòng cho tôi bảy Pepsi nhé",
+    "expectedAction": "ADD_TO_CART",
+    "expectedPreview": true,
+    "expectedQuantity": 7
+  },
+  {
+    "id": "LS-013",
+    "message": "Bạn ơi huỷ món Pepsi trong giỏ hàng",
+    "expectedAction": "REMOVE_FROM_CART",
+    "expectedPreview": true
+  },
+  {
+    "id": "LS-014",
+    "message": "Xoá Pepsi trong giỏ hàng",
+    "expectedAction": "REMOVE_FROM_CART",
+    "expectedPreview": true
+  },
+  {
+    "id": "LS-015",
+    "message": "Xoá Pepsi khỏi giỏ hàng",
+    "expectedAction": "REMOVE_FROM_CART",
+    "expectedPreview": true
+  },
+  {
+    "id": "LS-016",
+    "message": "Làm rỗng giỏ",
+    "expectedAction": "CLEAR_CART",
+    "expectedPreview": true
+  },
+  {
+    "id": "LS-017",
+    "message": "lam trong gio hang",
+    "expectedAction": "CLEAR_CART",
+    "expectedPreview": true
+  },
+  {
+    "id": "LS-018",
+    "message": "Hãy bỏ toàn bộ món trong giỏ",
+    "expectedAction": "CLEAR_CART",
+    "expectedPreview": true
+  },
+  {
+    "id": "LS-019",
+    "message": "Kiểm tra tiền trong giỏ",
+    "expectedAction": "VIEW_CART",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-020",
+    "message": "Đừng thêm hai Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-021",
+    "message": "Cho mình hai Pepsi nhưng đừng xoá giỏ",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-022",
+    "message": "Thêm hai Pepsi và một burger",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-023",
+    "message": "Thêm Pepsi và Burger",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-024",
+    "message": "Thêm 2 Pepsi, 1 Burger",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-025",
+    "message": "Thêm 2 Pepsi; xoá giỏ",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-026",
+    "message": "Thêm hai hoặc ba Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-027",
+    "message": "Thêm 2-3 Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-028",
+    "message": "Thêm 2/3 Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-029",
+    "message": "Thêm .5 Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-030",
+    "message": "Thêm 1e2 Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-031",
+    "message": "Thêm 1.000 Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-032",
+    "message": "Thêm một ít Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-033",
+    "message": "Thêm vài Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-034",
+    "message": "Thêm nửa Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-035",
+    "message": "Thêm hai cặp Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-036",
+    "message": "Thêm hai Pepsi rưỡi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-037",
+    "message": "Thêm hai Pepsi 3",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-038",
+    "message": "Đổi Pepsi từ 2 thành 3",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-039",
+    "message": "Đổi Pepsi thành hai ba",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-040",
+    "message": "Giảm Pepsi bớt hai",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-041",
+    "message": "Tăng Pepsi thêm hai",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-042",
+    "message": "Xoá hai Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-043",
+    "message": "Bỏ một Pepsi trong giỏ",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-044",
+    "message": "Nếu rẻ thì thêm hai Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-045",
+    "message": "Bạn ơi đừng xoá Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-046",
+    "message": "Đừng xoá toàn bộ giỏ",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-047",
+    "message": "Xem giỏ rồi xoá toàn bộ",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-048",
+    "message": "Huỷ đơn của tôi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-049",
+    "message": "Thêm hai Pepsi\nXoá giỏ",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-050",
+    "message": "Thêm kfcqty0token Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-051",
+    "message": "Thêm kfcsize0token Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-052",
+    "message": "Thêm Pepsi hai",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-053",
+    "message": "Đổi Pepsi 3",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-054",
+    "message": "Thêm 1,000 Pepsi",
+    "expectedAction": "NONE",
+    "expectedPreview": false
+  },
+  {
+    "id": "LS-055",
+    "message": "Thêm 2 phần Pepsi 500ml",
+    "expectedAction": "ADD_TO_CART",
+    "expectedPreview": false,
+    "expectedQuantity": 2
+  },
+  {
+    "id": "LS-056",
+    "message": "Thêm Pepsi 2L",
+    "expectedAction": "ADD_TO_CART",
+    "expectedPreview": false,
+    "expectedQuantity": 1
+  },
+  {
+    "id": "LS-057",
+    "message": "Thêm 2 chai Pepsi 1500ml",
+    "expectedAction": "ADD_TO_CART",
+    "expectedPreview": false,
+    "expectedQuantity": 2
+  },
+  {
+    "id": "LS-058",
+    "message": "Thêm 0 Pepsi",
+    "expectedAction": "ADD_TO_CART",
+    "expectedPreview": false,
+    "expectedQuantity": 0
+  },
+  {
+    "id": "LS-059",
+    "message": "Thêm âm hai Pepsi",
+    "expectedAction": "ADD_TO_CART",
+    "expectedPreview": false,
+    "expectedQuantity": -2
+  },
+  {
+    "id": "LS-060",
+    "message": "Thêm một trăm linh một Pepsi",
+    "expectedAction": "ADD_TO_CART",
+    "expectedPreview": false,
+    "expectedQuantity": 101
+  },
+  {
+    "id": "LS-061",
+    "message": "Thêm 2.5 Pepsi",
+    "expectedAction": "ADD_TO_CART",
+    "expectedPreview": false,
+    "expectedQuantity": 2.5
+  }
+]

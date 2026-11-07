@@ -1,3 +1,4 @@
+import { localRepositories } from "./implementations/local-repository";
 import { mockRepositories } from "./implementations/mock-repository";
 import { dynamodbRepositories } from "./implementations/dynamodb-repository";
 import { CartRepository } from "./interfaces/cart-repository.interface";
@@ -7,6 +8,7 @@ import { SessionRepository } from "./interfaces/session-repository.interface";
 import { UserRepository } from "./interfaces/user-repository.interface";
 
 export interface RepositorySet {
+  accountRepository: import("./interfaces/account-repository.interface").AccountRepository;
   userRepository: UserRepository;
   sessionRepository: SessionRepository;
   menuRepository: IMenuRepository;
@@ -14,21 +16,16 @@ export interface RepositorySet {
   orderRepository: OrderRepository;
 }
 
-export type PersistenceDriver = "mock" | "dynamodb";
+export type PersistenceDriver = "mock" | "local" | "dynamodb";
 
-/**
- * Resolves the persistence driver.
- *
- * Defaults to the in-memory mock repositories so local development and tests
- * never require AWS credentials. DynamoDB is only used when explicitly
- * selected via PERSISTENCE_DRIVER=dynamodb (or when running a production
- * build), and even then clients are created lazily on first use.
- */
+/** Local durable storage is the default. Cloud persistence is always explicit. */
 export function resolvePersistenceDriver(): PersistenceDriver {
   const configured = process.env.PERSISTENCE_DRIVER?.toLowerCase();
+  if (configured === "local") return "local";
   if (configured === "mock") return "mock";
   if (configured === "dynamodb") return "dynamodb";
-  return process.env.NODE_ENV === "production" ? "dynamodb" : "mock";
+  if (configured) throw new Error(`Unknown PERSISTENCE_DRIVER: ${configured}`);
+  return "local";
 }
 
 /**
@@ -36,6 +33,10 @@ export function resolvePersistenceDriver(): PersistenceDriver {
  * application shares a single coherent set of repository instances.
  */
 export function createRepositories(): RepositorySet {
-  return resolvePersistenceDriver() === "dynamodb" ? dynamodbRepositories : mockRepositories;
+  const driver = resolvePersistenceDriver();
+  return driver === "dynamodb"
+    ? dynamodbRepositories
+    : driver === "local"
+      ? localRepositories()
+      : mockRepositories;
 }
-

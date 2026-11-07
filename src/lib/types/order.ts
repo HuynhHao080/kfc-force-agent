@@ -1,5 +1,12 @@
 export type OrderStatus =
-  "PENDING" | "CONFIRMED" | "SUBMITTED" | "PREPARING" | "COMPLETED" | "CANCELLED";
+  | "PENDING"
+  | "CONFIRMED"
+  | "SUBMITTED"
+  | "PREPARING"
+  | "READY"
+  | "DELIVERING"
+  | "COMPLETED"
+  | "CANCELLED";
 
 export interface Order {
   id: string;
@@ -8,10 +15,18 @@ export interface Order {
   status: OrderStatus;
   subtotal: number;
   discount: number;
+  promotion?: import("./promotion").AppliedPromotion;
   deliveryFee: number;
   total: number;
   currency: "VND";
   shippingAddress?: Record<string, unknown>;
+  customerName?: string;
+  phone?: string;
+  fulfillment?: "pickup" | "delivery";
+  note?: string;
+  paymentMethod?: "COD";
+  store?: import("./shop").OrderStoreSnapshot;
+  feedback?: import("./feedback").OrderFeedback;
   createdAt: string;
   updatedAt: string;
 }

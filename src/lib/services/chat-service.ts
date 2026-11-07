@@ -25,7 +25,7 @@ export class ChatService {
 
     // 2. Persist the user message
     const userMessage: Message = {
-      id: `msg_${Date.now()}_user`,
+      id: `msg_${crypto.randomUUID()}_user`,
       sessionId: session.id,
       role: "user",
       content: request.message,
@@ -41,11 +41,12 @@ export class ChatService {
       sessionId: session.id,
       message: request.message,
       confirm: request.confirm === true,
+      confirmationId: request.confirmationId,
     });
 
     // 4. Persist the assistant message
     const assistantMessage: Message = {
-      id: `msg_${Date.now()}_assistant`,
+      id: `msg_${crypto.randomUUID()}_assistant`,
       sessionId: session.id,
       role: "assistant",
       content: agentResult.reply,
@@ -65,8 +66,8 @@ export class ChatService {
       sessionId: agentResult.sessionId,
       actions: agentResult.actions,
       requiresConfirmation: agentResult.requiresConfirmation,
+      pendingConfirmation: agentResult.pendingConfirmation ?? null,
       execution: agentResult.execution,
     };
   }
 }
-

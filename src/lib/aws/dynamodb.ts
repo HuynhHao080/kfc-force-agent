@@ -24,7 +24,9 @@ export function getDynamoDBClient() {
 
 export function getDynamoDBDocumentClient() {
   if (!documentClient) {
-    documentClient = DynamoDBDocumentClient.from(getDynamoDBClient());
+    documentClient = DynamoDBDocumentClient.from(getDynamoDBClient(), {
+      marshallOptions: { removeUndefinedValues: true },
+    });
   }
   return documentClient;
 }

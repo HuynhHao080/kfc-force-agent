@@ -1,20 +1,40 @@
 {
   "name": "kfc-force-agent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "demo:start": "node scripts/demo.cjs start",
+    "demo:setup": "node scripts/demo.cjs setup",
+    "demo:doctor": "node scripts/demo.cjs doctor",
+    "lint": "eslint",
+    "test": "node scripts/test-chat.cjs",
+    "typecheck": "tsc --noEmit",
+    "test:smoke": "node scripts/smoke-chat.cjs",
+    "check": "npm run lint && npm run typecheck && npm test && npm run test:data && npm run build && npm run test:smoke",
+    "test:data": "node scripts/test-local-data.cjs",
+    "data:backup": "node scripts/local-data.cjs backup",
+    "data:verify": "node scripts/local-data.cjs verify",
+    "data:restore": "node scripts/local-data.cjs restore",
+    "admin:setup": "node scripts/admin-setup.cjs",
+    "evaluate": "node scripts/evaluate-intents.cjs",
+    "evaluate:report": "node scripts/evaluate-intents.cjs --write-docs",
+    "prompt:sync": "node scripts/sync-system-prompt.cjs",
+    "submission:pack": "python scripts/package-submission.py",
+    "submission:verify": "python scripts/verify-submission.py",
+    "test:submission": "python scripts/test-submission.py"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1137.0",
     "@aws-sdk/client-dynamodb": "^3.1137.0",
     "@aws-sdk/lib-dynamodb": "^3.1137.0",
-    "next": "16.3.5",
+    "@next/env": "^16.4.5",
+    "next": "^16.4.5",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -22,7 +42,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.5",
+    "eslint-config-next": "^16.4.5",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

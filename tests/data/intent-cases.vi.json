@@ -1,0 +1,326 @@
+[
+  {
+    "id": "VI-001",
+    "subset": "supported",
+    "message": "Cho mình xem thực đơn",
+    "expectedAction": "SEARCH_MENU"
+  },
+  {
+    "id": "VI-002",
+    "subset": "supported",
+    "message": "Xem menu",
+    "expectedAction": "SEARCH_MENU"
+  },
+  {
+    "id": "VI-003",
+    "subset": "supported",
+    "message": "Có món gà nào",
+    "expectedAction": "SEARCH_MENU"
+  },
+  {
+    "id": "VI-004",
+    "subset": "supported",
+    "message": "Tìm burger",
+    "expectedAction": "SEARCH_MENU"
+  },
+  {
+    "id": "VI-005",
+    "subset": "supported",
+    "message": "Thực đơn có gì",
+    "expectedAction": "SEARCH_MENU"
+  },
+  {
+    "id": "VI-006",
+    "subset": "supported",
+    "message": "Xem giỏ hàng",
+    "expectedAction": "VIEW_CART"
+  },
+  {
+    "id": "VI-007",
+    "subset": "supported",
+    "message": "Giỏ hàng bao nhiêu tiền",
+    "expectedAction": "VIEW_CART"
+  },
+  {
+    "id": "VI-008",
+    "subset": "supported",
+    "message": "Cho mình xem giỏ hàng",
+    "expectedAction": "VIEW_CART"
+  },
+  {
+    "id": "VI-009",
+    "subset": "supported",
+    "message": "Xem toàn bộ giỏ hàng",
+    "expectedAction": "VIEW_CART"
+  },
+  {
+    "id": "VI-010",
+    "subset": "supported",
+    "message": "cart",
+    "expectedAction": "VIEW_CART"
+  },
+  {
+    "id": "VI-011",
+    "subset": "supported",
+    "message": "Thêm 2 Pepsi vào giỏ hàng",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": 2
+  },
+  {
+    "id": "VI-012",
+    "subset": "supported",
+    "message": "Cho mình 2 combo gà cay",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": 2
+  },
+  {
+    "id": "VI-013",
+    "subset": "supported",
+    "message": "Cho tôi 1 burger gà rán",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": 1
+  },
+  {
+    "id": "VI-014",
+    "subset": "supported",
+    "message": "Gọi 3 gà rán sốt honey",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": 3
+  },
+  {
+    "id": "VI-015",
+    "subset": "supported",
+    "message": "Mua 2 khoai tây chiên",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": 2
+  },
+  {
+    "id": "VI-016",
+    "subset": "supported",
+    "message": "Lấy 1 Pepsi 1.5L",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": 1
+  },
+  {
+    "id": "VI-017",
+    "subset": "supported",
+    "message": "Thêm Pepsi 1.5L",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": 1
+  },
+  {
+    "id": "VI-018",
+    "subset": "supported",
+    "message": "Cho em 2 chai Pepsi 1.5L",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": 2
+  },
+  {
+    "id": "VI-019",
+    "subset": "supported",
+    "message": "Mình muốn 3 burger gà rán",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": 3
+  },
+  {
+    "id": "VI-020",
+    "subset": "supported",
+    "message": "Thêm 0 Pepsi",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": 0
+  },
+  {
+    "id": "VI-021",
+    "subset": "supported",
+    "message": "Thêm -2 Pepsi",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": -2
+  },
+  {
+    "id": "VI-022",
+    "subset": "supported",
+    "message": "Thêm 2.5 Pepsi",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": 2.5
+  },
+  {
+    "id": "VI-023",
+    "subset": "supported",
+    "message": "Đổi Pepsi thành 3",
+    "expectedAction": "UPDATE_CART",
+    "expectedQuantity": 3
+  },
+  {
+    "id": "VI-024",
+    "subset": "supported",
+    "message": "Sửa combo gà cay thành 2",
+    "expectedAction": "UPDATE_CART",
+    "expectedQuantity": 2
+  },
+  {
+    "id": "VI-025",
+    "subset": "supported",
+    "message": "Cập nhật số lượng Pepsi thành 4",
+    "expectedAction": "UPDATE_CART",
+    "expectedQuantity": 4
+  },
+  {
+    "id": "VI-026",
+    "subset": "supported",
+    "message": "Tăng Pepsi lên 5",
+    "expectedAction": "UPDATE_CART",
+    "expectedQuantity": 5
+  },
+  {
+    "id": "VI-027",
+    "subset": "supported",
+    "message": "Giảm Pepsi còn 1",
+    "expectedAction": "UPDATE_CART",
+    "expectedQuantity": 1
+  },
+  {
+    "id": "VI-028",
+    "subset": "supported",
+    "message": "Đổi Pepsi 1.5L thành 2",
+    "expectedAction": "UPDATE_CART",
+    "expectedQuantity": 2
+  },
+  {
+    "id": "VI-029",
+    "subset": "supported",
+    "message": "Update Pepsi thành 7",
+    "expectedAction": "UPDATE_CART",
+    "expectedQuantity": 7
+  },
+  {
+    "id": "VI-030",
+    "subset": "supported",
+    "message": "Xoá Pepsi khỏi giỏ hàng",
+    "expectedAction": "REMOVE_FROM_CART"
+  },
+  {
+    "id": "VI-031",
+    "subset": "supported",
+    "message": "Bỏ burger gà rán khỏi giỏ",
+    "expectedAction": "REMOVE_FROM_CART"
+  },
+  {
+    "id": "VI-032",
+    "subset": "supported",
+    "message": "Remove Pepsi",
+    "expectedAction": "REMOVE_FROM_CART"
+  },
+  {
+    "id": "VI-033",
+    "subset": "supported",
+    "message": "Xoá combo gà cay",
+    "expectedAction": "REMOVE_FROM_CART"
+  },
+  {
+    "id": "VI-034",
+    "subset": "supported",
+    "message": "Xoá toàn bộ giỏ hàng",
+    "expectedAction": "CLEAR_CART"
+  },
+  {
+    "id": "VI-035",
+    "subset": "supported",
+    "message": "Dọn giỏ hàng",
+    "expectedAction": "CLEAR_CART"
+  },
+  {
+    "id": "VI-036",
+    "subset": "supported",
+    "message": "Làm trống giỏ hàng",
+    "expectedAction": "CLEAR_CART"
+  },
+  {
+    "id": "VI-037",
+    "subset": "supported",
+    "message": "Xin chào",
+    "expectedAction": "NONE"
+  },
+  {
+    "id": "VI-038",
+    "subset": "supported",
+    "message": "Đừng thêm 2 Pepsi",
+    "expectedAction": "NONE"
+  },
+  {
+    "id": "VI-039",
+    "subset": "supported",
+    "message": "Không xoá toàn bộ giỏ hàng",
+    "expectedAction": "NONE"
+  },
+  {
+    "id": "VI-040",
+    "subset": "supported",
+    "message": "Xoá 2 Pepsi khỏi giỏ hàng",
+    "expectedAction": "NONE"
+  },
+  {
+    "id": "VI-041",
+    "subset": "challenge",
+    "message": "Tôi cần 2 Pepsi",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": 2
+  },
+  {
+    "id": "VI-042",
+    "subset": "challenge",
+    "message": "Cho mình hai Pepsi",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": 2
+  },
+  {
+    "id": "VI-043",
+    "subset": "challenge",
+    "message": "Mình lấy 1 combo gà cay",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": 1
+  },
+  {
+    "id": "VI-044",
+    "subset": "challenge",
+    "message": "Đổi Pepsi thành hai phần",
+    "expectedAction": "UPDATE_CART",
+    "expectedQuantity": 2
+  },
+  {
+    "id": "VI-045",
+    "subset": "challenge",
+    "message": "Giảm Pepsi bớt 1",
+    "expectedAction": "UPDATE_CART"
+  },
+  {
+    "id": "VI-046",
+    "subset": "challenge",
+    "message": "Mua giúp tôi hai burger gà rán",
+    "expectedAction": "ADD_TO_CART",
+    "expectedQuantity": 2
+  },
+  {
+    "id": "VI-047",
+    "subset": "challenge",
+    "message": "Kiểm tra tiền trong giỏ",
+    "expectedAction": "VIEW_CART"
+  },
+  {
+    "id": "VI-048",
+    "subset": "challenge",
+    "message": "Làm rỗng giỏ",
+    "expectedAction": "CLEAR_CART"
+  },
+  {
+    "id": "VI-049",
+    "subset": "challenge",
+    "message": "Bạn ơi huỷ món Pepsi trong giỏ hàng",
+    "expectedAction": "REMOVE_FROM_CART"
+  },
+  {
+    "id": "VI-050",
+    "subset": "challenge",
+    "message": "Hãy bỏ toàn bộ món trong giỏ",
+    "expectedAction": "CLEAR_CART"
+  }
+]

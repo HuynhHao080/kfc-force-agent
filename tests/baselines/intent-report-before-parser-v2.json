@@ -1,0 +1,650 @@
+{
+  "generatedAt": "2026-11-07T05:56:23.603Z",
+  "runtime": {
+    "node": "v26.3.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "datasetSha256": "d17e599639e6554120a44fe64e3e50abfafab2b0eee0c36ea189387843481f70",
+  "providerSha256": "72a41318944e32be56a438988d4dd7b53648b86e139b541ed2b5417b2280339e",
+  "provider": "mock",
+  "scope": "Intent and numeric quantity extraction only; no Bedrock, HTTP, product resolution or policy execution measured.",
+  "overall": {
+    "total": 50,
+    "intentCorrect": 42,
+    "jointCorrect": 40,
+    "intentAccuracy": 0.84,
+    "jointAccuracy": 0.8
+  },
+  "supported": {
+    "total": 40,
+    "intentCorrect": 40,
+    "jointCorrect": 40,
+    "intentAccuracy": 1,
+    "jointAccuracy": 1
+  },
+  "challenge": {
+    "total": 10,
+    "intentCorrect": 2,
+    "jointCorrect": 0,
+    "intentAccuracy": 0.2,
+    "jointAccuracy": 0
+  },
+  "macroF1": 0.8166361416361417,
+  "perIntent": [
+    {
+      "label": "SEARCH_MENU",
+      "tp": 5,
+      "fp": 3,
+      "fn": 0,
+      "precision": 0.625,
+      "recall": 1,
+      "f1": 0.7692307692307693
+    },
+    {
+      "label": "VIEW_CART",
+      "tp": 5,
+      "fp": 1,
+      "fn": 1,
+      "precision": 0.8333333333333334,
+      "recall": 0.8333333333333334,
+      "f1": 0.8333333333333334
+    },
+    {
+      "label": "ADD_TO_CART",
+      "tp": 14,
+      "fp": 0,
+      "fn": 2,
+      "precision": 1,
+      "recall": 0.875,
+      "f1": 0.9333333333333333
+    },
+    {
+      "label": "UPDATE_CART",
+      "tp": 7,
+      "fp": 0,
+      "fn": 2,
+      "precision": 1,
+      "recall": 0.7777777777777778,
+      "f1": 0.8750000000000001
+    },
+    {
+      "label": "REMOVE_FROM_CART",
+      "tp": 4,
+      "fp": 0,
+      "fn": 1,
+      "precision": 1,
+      "recall": 0.8,
+      "f1": 0.888888888888889
+    },
+    {
+      "label": "CLEAR_CART",
+      "tp": 3,
+      "fp": 0,
+      "fn": 2,
+      "precision": 1,
+      "recall": 0.6,
+      "f1": 0.7499999999999999
+    },
+    {
+      "label": "NONE",
+      "tp": 4,
+      "fp": 4,
+      "fn": 0,
+      "precision": 0.5,
+      "recall": 1,
+      "f1": 0.6666666666666666
+    }
+  ],
+  "latencyMs": {
+    "p50": 0.030500000000017735,
+    "p95": 0.11369999999999436
+  },
+  "results": [
+    {
+      "id": "VI-001",
+      "subset": "supported",
+      "message": "Cho mình xem thực đơn",
+      "expectedAction": "SEARCH_MENU",
+      "actualAction": "SEARCH_MENU",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 1.336400000000026
+    },
+    {
+      "id": "VI-002",
+      "subset": "supported",
+      "message": "Xem menu",
+      "expectedAction": "SEARCH_MENU",
+      "actualAction": "SEARCH_MENU",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.1543999999999528
+    },
+    {
+      "id": "VI-003",
+      "subset": "supported",
+      "message": "Có món gà nào",
+      "expectedAction": "SEARCH_MENU",
+      "actualAction": "SEARCH_MENU",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.08400000000000318
+    },
+    {
+      "id": "VI-004",
+      "subset": "supported",
+      "message": "Tìm burger",
+      "expectedAction": "SEARCH_MENU",
+      "actualAction": "SEARCH_MENU",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.0755999999999517
+    },
+    {
+      "id": "VI-005",
+      "subset": "supported",
+      "message": "Thực đơn có gì",
+      "expectedAction": "SEARCH_MENU",
+      "actualAction": "SEARCH_MENU",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.09949999999997772
+    },
+    {
+      "id": "VI-006",
+      "subset": "supported",
+      "message": "Xem giỏ hàng",
+      "expectedAction": "VIEW_CART",
+      "actualAction": "VIEW_CART",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.05249999999995225
+    },
+    {
+      "id": "VI-007",
+      "subset": "supported",
+      "message": "Giỏ hàng bao nhiêu tiền",
+      "expectedAction": "VIEW_CART",
+      "actualAction": "VIEW_CART",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.06479999999999109
+    },
+    {
+      "id": "VI-008",
+      "subset": "supported",
+      "message": "Cho mình xem giỏ hàng",
+      "expectedAction": "VIEW_CART",
+      "actualAction": "VIEW_CART",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.06689999999997553
+    },
+    {
+      "id": "VI-009",
+      "subset": "supported",
+      "message": "Xem toàn bộ giỏ hàng",
+      "expectedAction": "VIEW_CART",
+      "actualAction": "VIEW_CART",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.0402000000000271
+    },
+    {
+      "id": "VI-010",
+      "subset": "supported",
+      "message": "cart",
+      "expectedAction": "VIEW_CART",
+      "actualAction": "VIEW_CART",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.05480000000000018
+    },
+    {
+      "id": "VI-011",
+      "subset": "supported",
+      "message": "Thêm 2 Pepsi vào giỏ hàng",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "actualAction": "ADD_TO_CART",
+      "actualQuantity": 2,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.10340000000002192
+    },
+    {
+      "id": "VI-012",
+      "subset": "supported",
+      "message": "Cho mình 2 combo gà cay",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "actualAction": "ADD_TO_CART",
+      "actualQuantity": 2,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.06919999999996662
+    },
+    {
+      "id": "VI-013",
+      "subset": "supported",
+      "message": "Cho tôi 1 burger gà rán",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "actualAction": "ADD_TO_CART",
+      "actualQuantity": 1,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.03260000000000218
+    },
+    {
+      "id": "VI-014",
+      "subset": "supported",
+      "message": "Gọi 3 gà rán sốt honey",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 3,
+      "actualAction": "ADD_TO_CART",
+      "actualQuantity": 3,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.03649999999998954
+    },
+    {
+      "id": "VI-015",
+      "subset": "supported",
+      "message": "Mua 2 khoai tây chiên",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "actualAction": "ADD_TO_CART",
+      "actualQuantity": 2,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.029999999999972715
+    },
+    {
+      "id": "VI-016",
+      "subset": "supported",
+      "message": "Lấy 1 Pepsi 1.5L",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "actualAction": "ADD_TO_CART",
+      "actualQuantity": 1,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.03500000000002501
+    },
+    {
+      "id": "VI-017",
+      "subset": "supported",
+      "message": "Thêm Pepsi 1.5L",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "actualAction": "ADD_TO_CART",
+      "actualQuantity": 1,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.02719999999999345
+    },
+    {
+      "id": "VI-018",
+      "subset": "supported",
+      "message": "Cho em 2 chai Pepsi 1.5L",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "actualAction": "ADD_TO_CART",
+      "actualQuantity": 2,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.025500000000022283
+    },
+    {
+      "id": "VI-019",
+      "subset": "supported",
+      "message": "Mình muốn 3 burger gà rán",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 3,
+      "actualAction": "ADD_TO_CART",
+      "actualQuantity": 3,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.029200000000003
+    },
+    {
+      "id": "VI-020",
+      "subset": "supported",
+      "message": "Thêm 0 Pepsi",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 0,
+      "actualAction": "ADD_TO_CART",
+      "actualQuantity": 0,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.021500000000003183
+    },
+    {
+      "id": "VI-021",
+      "subset": "supported",
+      "message": "Thêm -2 Pepsi",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": -2,
+      "actualAction": "ADD_TO_CART",
+      "actualQuantity": -2,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.030500000000017735
+    },
+    {
+      "id": "VI-022",
+      "subset": "supported",
+      "message": "Thêm 2.5 Pepsi",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2.5,
+      "actualAction": "ADD_TO_CART",
+      "actualQuantity": 2.5,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.03170000000000073
+    },
+    {
+      "id": "VI-023",
+      "subset": "supported",
+      "message": "Đổi Pepsi thành 3",
+      "expectedAction": "UPDATE_CART",
+      "expectedQuantity": 3,
+      "actualAction": "UPDATE_CART",
+      "actualQuantity": 3,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.029100000000028103
+    },
+    {
+      "id": "VI-024",
+      "subset": "supported",
+      "message": "Sửa combo gà cay thành 2",
+      "expectedAction": "UPDATE_CART",
+      "expectedQuantity": 2,
+      "actualAction": "UPDATE_CART",
+      "actualQuantity": 2,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.02590000000003556
+    },
+    {
+      "id": "VI-025",
+      "subset": "supported",
+      "message": "Cập nhật số lượng Pepsi thành 4",
+      "expectedAction": "UPDATE_CART",
+      "expectedQuantity": 4,
+      "actualAction": "UPDATE_CART",
+      "actualQuantity": 4,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.026800000000037016
+    },
+    {
+      "id": "VI-026",
+      "subset": "supported",
+      "message": "Tăng Pepsi lên 5",
+      "expectedAction": "UPDATE_CART",
+      "expectedQuantity": 5,
+      "actualAction": "UPDATE_CART",
+      "actualQuantity": 5,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.06220000000001846
+    },
+    {
+      "id": "VI-027",
+      "subset": "supported",
+      "message": "Giảm Pepsi còn 1",
+      "expectedAction": "UPDATE_CART",
+      "expectedQuantity": 1,
+      "actualAction": "UPDATE_CART",
+      "actualQuantity": 1,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.04270000000002483
+    },
+    {
+      "id": "VI-028",
+      "subset": "supported",
+      "message": "Đổi Pepsi 1.5L thành 2",
+      "expectedAction": "UPDATE_CART",
+      "expectedQuantity": 2,
+      "actualAction": "UPDATE_CART",
+      "actualQuantity": 2,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.025100000000009004
+    },
+    {
+      "id": "VI-029",
+      "subset": "supported",
+      "message": "Update Pepsi thành 7",
+      "expectedAction": "UPDATE_CART",
+      "expectedQuantity": 7,
+      "actualAction": "UPDATE_CART",
+      "actualQuantity": 7,
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.0403999999999769
+    },
+    {
+      "id": "VI-030",
+      "subset": "supported",
+      "message": "Xoá Pepsi khỏi giỏ hàng",
+      "expectedAction": "REMOVE_FROM_CART",
+      "actualAction": "REMOVE_FROM_CART",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.11369999999999436
+    },
+    {
+      "id": "VI-031",
+      "subset": "supported",
+      "message": "Bỏ burger gà rán khỏi giỏ",
+      "expectedAction": "REMOVE_FROM_CART",
+      "actualAction": "REMOVE_FROM_CART",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.07279999999997244
+    },
+    {
+      "id": "VI-032",
+      "subset": "supported",
+      "message": "Remove Pepsi",
+      "expectedAction": "REMOVE_FROM_CART",
+      "actualAction": "REMOVE_FROM_CART",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.02379999999999427
+    },
+    {
+      "id": "VI-033",
+      "subset": "supported",
+      "message": "Xoá combo gà cay",
+      "expectedAction": "REMOVE_FROM_CART",
+      "actualAction": "REMOVE_FROM_CART",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.02359999999998763
+    },
+    {
+      "id": "VI-034",
+      "subset": "supported",
+      "message": "Xoá toàn bộ giỏ hàng",
+      "expectedAction": "CLEAR_CART",
+      "actualAction": "CLEAR_CART",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.039499999999975444
+    },
+    {
+      "id": "VI-035",
+      "subset": "supported",
+      "message": "Dọn giỏ hàng",
+      "expectedAction": "CLEAR_CART",
+      "actualAction": "CLEAR_CART",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.020799999999951524
+    },
+    {
+      "id": "VI-036",
+      "subset": "supported",
+      "message": "Làm trống giỏ hàng",
+      "expectedAction": "CLEAR_CART",
+      "actualAction": "CLEAR_CART",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.025300000000015643
+    },
+    {
+      "id": "VI-037",
+      "subset": "supported",
+      "message": "Xin chào",
+      "expectedAction": "NONE",
+      "actualAction": "NONE",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.02030000000002019
+    },
+    {
+      "id": "VI-038",
+      "subset": "supported",
+      "message": "Đừng thêm 2 Pepsi",
+      "expectedAction": "NONE",
+      "actualAction": "NONE",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.017600000000015825
+    },
+    {
+      "id": "VI-039",
+      "subset": "supported",
+      "message": "Không xoá toàn bộ giỏ hàng",
+      "expectedAction": "NONE",
+      "actualAction": "NONE",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.014800000000036562
+    },
+    {
+      "id": "VI-040",
+      "subset": "supported",
+      "message": "Xoá 2 Pepsi khỏi giỏ hàng",
+      "expectedAction": "NONE",
+      "actualAction": "NONE",
+      "correctIntent": true,
+      "correctQuantity": true,
+      "milliseconds": 0.022299999999972897
+    },
+    {
+      "id": "VI-041",
+      "subset": "challenge",
+      "message": "Tôi cần 2 Pepsi",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "actualAction": "SEARCH_MENU",
+      "correctIntent": false,
+      "correctQuantity": false,
+      "milliseconds": 0.02359999999998763
+    },
+    {
+      "id": "VI-042",
+      "subset": "challenge",
+      "message": "Cho mình hai Pepsi",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "actualAction": "ADD_TO_CART",
+      "actualQuantity": 1,
+      "correctIntent": true,
+      "correctQuantity": false,
+      "milliseconds": 0.026299999999991996
+    },
+    {
+      "id": "VI-043",
+      "subset": "challenge",
+      "message": "Mình lấy 1 combo gà cay",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "actualAction": "SEARCH_MENU",
+      "correctIntent": false,
+      "correctQuantity": false,
+      "milliseconds": 0.023300000000006094
+    },
+    {
+      "id": "VI-044",
+      "subset": "challenge",
+      "message": "Đổi Pepsi thành hai phần",
+      "expectedAction": "UPDATE_CART",
+      "expectedQuantity": 2,
+      "actualAction": "NONE",
+      "correctIntent": false,
+      "correctQuantity": false,
+      "milliseconds": 0.01779999999996562
+    },
+    {
+      "id": "VI-045",
+      "subset": "challenge",
+      "message": "Giảm Pepsi bớt 1",
+      "expectedAction": "UPDATE_CART",
+      "actualAction": "NONE",
+      "correctIntent": false,
+      "correctQuantity": true,
+      "milliseconds": 0.011799999999993815
+    },
+    {
+      "id": "VI-046",
+      "subset": "challenge",
+      "message": "Mua giúp tôi hai burger gà rán",
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "actualAction": "ADD_TO_CART",
+      "actualQuantity": 1,
+      "correctIntent": true,
+      "correctQuantity": false,
+      "milliseconds": 0.024499999999989086
+    },
+    {
+      "id": "VI-047",
+      "subset": "challenge",
+      "message": "Kiểm tra tiền trong giỏ",
+      "expectedAction": "VIEW_CART",
+      "actualAction": "NONE",
+      "correctIntent": false,
+      "correctQuantity": true,
+      "milliseconds": 0.01710000000002765
+    },
+    {
+      "id": "VI-048",
+      "subset": "challenge",
+      "message": "Làm rỗng giỏ",
+      "expectedAction": "CLEAR_CART",
+      "actualAction": "NONE",
+      "correctIntent": false,
+      "correctQuantity": true,
+      "milliseconds": 0.01320000000004029
+    },
+    {
+      "id": "VI-049",
+      "subset": "challenge",
+      "message": "Bạn ơi huỷ món Pepsi trong giỏ hàng",
+      "expectedAction": "REMOVE_FROM_CART",
+      "actualAction": "VIEW_CART",
+      "correctIntent": false,
+      "correctQuantity": true,
+      "milliseconds": 0.035599999999988086
+    },
+    {
+      "id": "VI-050",
+      "subset": "challenge",
+      "message": "Hãy bỏ toàn bộ món trong giỏ",
+      "expectedAction": "CLEAR_CART",
+      "actualAction": "SEARCH_MENU",
+      "correctIntent": false,
+      "correctQuantity": true,
+      "milliseconds": 0.032399999999995543
+    }
+  ]
+}

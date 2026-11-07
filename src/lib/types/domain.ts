@@ -1,3 +1,4 @@
+import type { PendingConfirmation } from "@/lib/agent/confirmation";
 import { ActionExecutionResult, ProposedAction } from "@/lib/types/agent";
 
 export type OrderStatus =
@@ -75,6 +76,7 @@ export interface ChatRequest {
    * A boolean only — never inferred from message text or identifiers.
    */
   confirm?: boolean;
+  confirmationId?: string;
 }
 
 export interface ChatResponse {
@@ -82,8 +84,8 @@ export interface ChatResponse {
   sessionId: string;
   actions: ProposedAction[];
   requiresConfirmation: boolean;
+  pendingConfirmation?: PendingConfirmation | null;
   execution: ActionExecutionResult[];
   /** Populated instead of `reply` when the request is a controlled failure. */
   error?: string;
 }
-

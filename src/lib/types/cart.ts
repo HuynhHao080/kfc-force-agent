@@ -10,6 +10,10 @@ export interface Cart {
   total: number;
   createdAt: string;
   updatedAt: string;
+  reorderOperationId?: string;
+  sourceOrderId?: string;
+  checkoutRequestHash?: string;
+  revision?: string;
 }
 
 export interface CartItem {
@@ -35,14 +39,21 @@ export function calculateCartTotals(items: CartItem[]): {
   deliveryFee: number;
   total: number;
 } {
-  const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.unitPrice * item.quantity,
+    0,
+  );
   const discount = 0;
   const deliveryFee = 0;
-  return { subtotal, discount, deliveryFee, total: subtotal - discount + deliveryFee };
+  return {
+    subtotal,
+    discount,
+    deliveryFee,
+    total: subtotal - discount + deliveryFee,
+  };
 }
 
 /** Recomputes every line subtotal from its authoritative unit price. */
 export function withRecalculatedSubtotals(item: CartItem): CartItem {
   return { ...item, subtotal: item.unitPrice * item.quantity };
 }
-

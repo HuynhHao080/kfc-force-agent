@@ -1,7 +1,21 @@
+import {
+  activeConfirmation,
+  CONFIRMATION_TTL_MS,
+  type PendingConfirmation,
+} from "./confirmation";
+import { createHash, randomUUID } from "node:crypto";
+import { FeedbackService } from "@/lib/services/feedback-service";
+import { AdminService } from "@/lib/services/admin-service";
+import { AccountService } from "@/lib/services/account-service";
+import { AddressService } from "@/lib/services/address-service";
+import { ShopService } from "@/lib/services/shop-service";
+import { CheckoutService } from "@/lib/services/checkout-service";
+import { PromotionService } from "@/lib/services/promotion-service";
+import { ReorderService } from "@/lib/services/reorder-service";
 import { ChatService } from "@/lib/services/chat-service";
 import { SessionService } from "@/lib/services/session-service";
 import { UserService } from "@/lib/services/user-service";
-import { MenuService } from "@/lib/services/menu-service";
+import { normalizeVietnamese, MenuService } from "@/lib/services/menu-service";
 import { CartService } from "@/lib/services/cart-service";
 import { OrderService } from "@/lib/services/order-service";
 import { createRepositories } from "@/lib/db/repositories/repositories";
@@ -16,6 +30,7 @@ import {
   ActionType,
   ConversationTurn,
   ProposedAction,
+  ProposedActionSchema,
 } from "@/lib/types/agent";
 import { MockLLMProvider } from "@/lib/agent/providers/mock-llm-provider";
 import { BedrockLLMProvider } from "@/lib/agent/providers/bedrock-llm-provider";
@@ -31,14 +46,23 @@ export interface AgentCoreResult {
   actions: ProposedAction[];
   requiresConfirmation: boolean;
   execution: ActionExecutionResult[];
+  pendingConfirmation?: PendingConfirmation | null;
 }
 
 export class ServiceContainer {
+  feedbackService: FeedbackService;
+  shopService: ShopService;
+  accountService: AccountService;
+  addressService: AddressService;
+  adminService: AdminService;
   sessionService: SessionService;
   userService: UserService;
   menuService: MenuService;
   cartService: CartService;
   orderService: OrderService;
+  checkoutService: CheckoutService;
+  promotionService: PromotionService;
+  reorderService: ReorderService;
   chatService: ChatService;
   menuTool: MenuTool;
   cartTool: CartTool;
@@ -50,11 +74,36 @@ export class ServiceContainer {
     // One repository set for the whole application.
     const repositories = createRepositories();
 
+    this.feedbackService = new FeedbackService(repositories.orderRepository);
+    this.adminService = new AdminService(
+      repositories.orderRepository,
+      repositories.menuRepository,
+    );
+    this.accountService = new AccountService(repositories.accountRepository);
+    this.addressService = new AddressService(repositories.userRepository);
     this.sessionService = new SessionService(repositories.sessionRepository);
     this.userService = new UserService(repositories.userRepository);
     this.menuService = new MenuService(repositories.menuRepository);
-    this.cartService = new CartService(repositories.cartRepository);
+    this.cartService = new CartService(
+      repositories.cartRepository,
+      this.menuService,
+    );
     this.orderService = new OrderService(repositories.orderRepository);
+    this.reorderService = new ReorderService(
+      repositories.orderRepository,
+      repositories.cartRepository,
+      this.cartService,
+      this.menuService,
+    );
+    this.shopService = new ShopService(repositories.menuRepository);
+    this.promotionService = new PromotionService(repositories.menuRepository);
+    this.checkoutService = new CheckoutService(
+      repositories.orderRepository,
+      this.cartService,
+      this.menuService,
+      this.promotionService,
+      this.shopService,
+    );
     this.chatService = new ChatService(this.sessionService);
 
     this.menuTool = new MenuTool(this.menuService);
@@ -77,11 +126,12 @@ function createLLMProvider(bedrockService: BedrockService): LLMProvider {
   if (aiProvider === "bedrock") {
     return new BedrockLLMProvider(bedrockService);
   }
+  if (aiProvider !== "mock")
+    throw new Error(`Unknown AI_PROVIDER: ${aiProvider}`);
   return new MockLLMProvider();
 }
 
 export const services = new ServiceContainer();
-
 
 /**
  * AgentCore entry point.
@@ -92,12 +142,128 @@ export const services = new ServiceContainer();
  * The LLM never touches the database. A proposed action is only ever
  * executed when the PolicyEngine returns ALLOW.
  */
-export async function agentCore(request: AgentRequest): Promise<AgentCoreResult> {
+export async function agentCore(
+  request: AgentRequest,
+): Promise<AgentCoreResult> {
   const sessionId = request.sessionId || `session_${Date.now()}`;
 
   try {
+    // A confirmation executes the stored proposal, without asking the model
+    // to reconstruct a mutation from conversation text.
+    const saved =
+      await services.sessionService.getConversationContext(sessionId);
+    if (request.confirm === true) {
+      const confirmation = activeConfirmation(saved?.context);
+      const pending = saved?.context.pendingActions;
+      if (!confirmation || !Array.isArray(pending) || pending.length === 0) {
+        return {
+          reply: "Không có thao tác đang chờ xác nhận.",
+          sessionId,
+          actions: [],
+          requiresConfirmation: false,
+          execution: [],
+        };
+      }
+      if (request.confirmationId !== confirmation.id) {
+        return {
+          reply:
+            "Đề xuất đã thay đổi ở tab khác. Hãy xem lại nội dung mới và xác nhận lần nữa.",
+          sessionId,
+          actions: [],
+          requiresConfirmation: true,
+          pendingConfirmation: confirmation,
+          execution: [],
+        };
+      }
+      const view = await services.cartService.getCartView(request.userId);
+      const actions = pending.map((action) =>
+        ProposedActionSchema.parse(action),
+      );
+      const menuSignature = await proposalMenuSignature(actions);
+      if (
+        (view?.signature ?? null) !== saved?.context.pendingCartSignature ||
+        menuSignature !== saved?.context.pendingMenuSignature
+      ) {
+        await services.sessionService.saveConversationContext({
+          sessionId,
+          context: {
+            ...saved?.context,
+            pendingActions: [],
+            pendingConfirmation: null,
+          },
+          updatedAt: new Date().toISOString(),
+        });
+        return {
+          reply:
+            "Giỏ hàng hoặc giá đã thay đổi. Vui lòng gửi lại yêu cầu để xem đề xuất mới.",
+          sessionId,
+          actions: [],
+          requiresConfirmation: false,
+          execution: [],
+        };
+      }
+      // Consume before execution so a sequential duplicate cannot replay it.
+      await services.sessionService.saveConversationContext({
+        sessionId,
+        context: {
+          ...saved?.context,
+          pendingActions: [],
+          pendingConfirmation: null,
+        },
+        updatedAt: new Date().toISOString(),
+      });
+      const execution = await executeProposedActions(actions, {
+        userId: request.userId,
+        sessionId,
+        confirmed: true,
+      });
+      return {
+        reply: composeReply(
+          {
+            message: "Kết quả xác nhận:",
+            intent: "CONFIRMATION",
+            actions,
+            requiresConfirmation: false,
+          },
+          execution,
+        ),
+        sessionId,
+        actions,
+        requiresConfirmation: false,
+        execution,
+      };
+    }
+    // Typing assent never grants execution permission, and should not remove
+    // the button the customer still needs to use for this exact proposal.
+    const displayed = activeConfirmation(saved?.context);
+    if (
+      displayed &&
+      ["xac nhan", "dong y", "ok", "okay", "yes", "dung roi", "chuan"].includes(
+        normalizeVietnamese(request.message),
+      )
+    ) {
+      return {
+        reply:
+          "Mình chưa thực hiện thay đổi. Hãy kiểm tra đề xuất bên dưới và nhấn “Xác nhận thao tác” nhé.",
+        sessionId,
+        actions: [],
+        requiresConfirmation: true,
+        pendingConfirmation: displayed,
+        execution: [],
+      };
+    }
+    // A new request replaces any previous proposal.
+    await services.sessionService.saveConversationContext({
+      sessionId,
+      context: {
+        ...saved?.context,
+        pendingActions: [],
+        pendingConfirmation: null,
+      },
+      updatedAt: new Date().toISOString(),
+    });
     const conversation = await loadConversation(sessionId);
-    const userPrompt = buildUserPrompt(request.message, conversation);
+    const userPrompt = buildUserPrompt(request.message);
 
     const llmResponse = await services.llmProvider.generateResponse(
       systemPrompt,
@@ -135,16 +301,50 @@ export async function agentCore(request: AgentRequest): Promise<AgentCoreResult>
     const execution = await executeProposedActions(agentResponse.actions, {
       userId: request.userId,
       sessionId,
-      confirmed: request.confirm === true,
+      confirmed: false,
+    });
+
+    const pendingActions = agentResponse.actions.filter((action) =>
+      execution.some(
+        (entry) =>
+          entry.actionId === action.id &&
+          entry.decision === "REQUIRE_CONFIRMATION",
+      ),
+    );
+    const view = pendingActions.length
+      ? await services.cartService.getCartView(request.userId)
+      : null;
+    const pendingMenuSignature = pendingActions.length
+      ? await proposalMenuSignature(pendingActions)
+      : null;
+    const pendingConfirmation: PendingConfirmation | null =
+      pendingActions.length
+        ? {
+            id: randomUUID(),
+            expiresAt: new Date(Date.now() + CONFIRMATION_TTL_MS).toISOString(),
+            summary: await describeActions(pendingActions, request.userId),
+          }
+        : null;
+    await services.sessionService.saveConversationContext({
+      sessionId,
+      context: {
+        ...saved?.context,
+        pendingActions,
+        pendingConfirmation,
+        pendingCartSignature: view?.signature ?? null,
+        pendingMenuSignature,
+      },
+      updatedAt: new Date().toISOString(),
     });
 
     return {
       reply: composeReply(agentResponse, execution),
+      pendingConfirmation,
       sessionId,
       actions: agentResponse.actions,
-      requiresConfirmation:
-        agentResponse.requiresConfirmation ||
-        execution.some((entry) => entry.decision === "REQUIRE_CONFIRMATION"),
+      requiresConfirmation: execution.some(
+        (entry) => entry.decision === "REQUIRE_CONFIRMATION",
+      ),
       execution,
     };
   } catch (error) {
@@ -172,6 +372,38 @@ export async function executeProposedActions(
 
   for (const action of actions) {
     // Policy first: nothing executes before it is evaluated.
+    // Resolve natural-language product references once, then store the exact
+    // ID in the proposal so confirmation does not repeat an ambiguous search.
+    if (
+      action.type === "ADD_TO_CART" &&
+      !action.parameters.itemId &&
+      !action.parameters.menuItemId &&
+      typeof action.parameters.query === "string"
+    ) {
+      const matches = await services.policyEngine.findMenuMatches(
+        action.parameters.query,
+      );
+      if (matches.length === 1) action.parameters.itemId = matches[0].id;
+    }
+    if (
+      (action.type === "REMOVE_FROM_CART" || action.type === "UPDATE_CART") &&
+      !action.parameters.itemId &&
+      typeof action.parameters.query === "string"
+    ) {
+      const view = await services.cartService.getCartView(context.userId);
+      const tokens = normalizeVietnamese(action.parameters.query)
+        .split(" ")
+        .filter(Boolean);
+      const matches =
+        view?.items.filter(
+          (item) =>
+            tokens.length > 0 &&
+            tokens.every((token) =>
+              normalizeVietnamese(item.nameSnapshot).includes(token),
+            ),
+        ) ?? [];
+      if (matches.length === 1) action.parameters.itemId = matches[0].id;
+    }
     const policy = await services.policyEngine.evaluateAction(action, {
       userId: context.userId,
       sessionId: context.sessionId,
@@ -298,16 +530,27 @@ function composeReply(
   agentResponse: AgentResponse,
   execution: ActionExecutionResult[],
 ): string {
-  const lines: string[] = [agentResponse.message];
+  const types = agentResponse.actions.map((action) => action.type);
+  const businessMessage = types.some((type) => getToolMapping(type)?.mutating)
+    ? "Mình đã kiểm tra yêu cầu thay đổi giỏ hàng."
+    : types.some((type) =>
+          ["SEARCH_MENU", "LIST_MENU", "GET_MENU_ITEM"].includes(type),
+        )
+      ? "Thông tin món từ thực đơn hiện tại:"
+      : types.includes("VIEW_CART")
+        ? "Giỏ hàng hiện tại của bạn:"
+        : agentResponse.message;
+  // Model prose is not proof of a mutation or an authoritative menu price.
+  const lines: string[] = [businessMessage];
 
   for (const entry of execution) {
     if (entry.executed) {
-      const message = readMessage(entry.data);
+      const message = formatToolResult(entry.data);
       if (message) lines.push(message);
       continue;
     }
     if (entry.decision === "REQUIRE_CONFIRMATION") {
-      lines.push("Bạn xác nhận giúp mình nhé? (trả lời “Xác nhận”)");
+      lines.push("Nhấn “Xác nhận thao tác” để tiếp tục.");
       continue;
     }
     // BLOCK: always explain, never claim the action happened.
@@ -317,16 +560,48 @@ function composeReply(
   return lines.join("\n");
 }
 
-function readMessage(data: unknown): string | undefined {
+function formatToolResult(data: unknown): string | undefined {
   if (!data || typeof data !== "object") return undefined;
-  const message = (data as { message?: unknown }).message;
-  return typeof message === "string" && message.length > 0 ? message : undefined;
+  const result = data as {
+    message?: string;
+    item?: { name?: string; price?: number } | null;
+    items?: Array<{
+      name?: string;
+      price?: number;
+      nameSnapshot?: string;
+      quantity?: number;
+      subtotal?: number;
+    }>;
+    cart?: { total: number } | null;
+  };
+  const money = (value: number) =>
+    new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(value);
+  const lines = result.message ? [result.message] : [];
+  if (result.item?.name)
+    lines.push(`${result.item.name}: ${money(result.item.price ?? 0)}`);
+  for (const item of result.items ?? []) {
+    if (item.nameSnapshot !== undefined) {
+      lines.push(
+        `${item.quantity} × ${item.nameSnapshot}: ${money(item.subtotal ?? 0)}`,
+      );
+    } else if (item.name !== undefined) {
+      lines.push(`${item.name}: ${money(item.price ?? 0)}`);
+    }
+  }
+  if (result.cart) lines.push(`Tổng cộng: ${money(result.cart.total)}`);
+  return lines.length ? lines.join("\n") : undefined;
 }
 
 /** Reads recent conversation turns stored on the session. */
-async function loadConversation(sessionId: string): Promise<ConversationTurn[]> {
+async function loadConversation(
+  sessionId: string,
+): Promise<ConversationTurn[]> {
   try {
-    const context = await services.sessionService.getConversationContext(sessionId);
+    const context =
+      await services.sessionService.getConversationContext(sessionId);
     const turns = context?.context?.turns;
     if (!Array.isArray(turns)) return [];
     return turns.filter(
@@ -334,7 +609,9 @@ async function loadConversation(sessionId: string): Promise<ConversationTurn[]> 
         !!turn &&
         typeof turn === "object" &&
         typeof (turn as ConversationTurn).content === "string" &&
-        ["user", "assistant", "system"].includes((turn as ConversationTurn).role),
+        ["user", "assistant", "system"].includes(
+          (turn as ConversationTurn).role,
+        ),
     );
   } catch {
     return [];
@@ -347,9 +624,12 @@ export async function persistConversation(
   turns: ConversationTurn[],
 ): Promise<void> {
   try {
+    const saved =
+      await services.sessionService.getConversationContext(sessionId);
+    const previous = await loadConversation(sessionId);
     await services.sessionService.saveConversationContext({
       sessionId,
-      context: { turns: turns.slice(-10) },
+      context: { ...saved?.context, turns: [...previous, ...turns].slice(-10) },
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {
@@ -357,18 +637,66 @@ export async function persistConversation(
   }
 }
 
-function buildUserPrompt(message: string, context: ConversationTurn[]): string {
-  let prompt = "Cuộc hội thoại gần đây:\n";
-
-  for (const turn of context) {
-    const role = turn.role === "user" ? "Khách hàng" : "Trợ lý";
-    prompt += `${role}: ${turn.content}\n`;
-  }
-
-  prompt += `\nKhách hàng: ${message}\n`;
-  prompt += `\nHãy phân tích ý định của khách hàng và đề xuất các hành động có cấu trúc.\n`;
-  prompt += `\nQUAN TRỌNG: Chỉ xuất ra JSON có cấu trúc. Không có giải thích hoặc văn bản tự do.`;
-
-  return prompt;
+/** Added products need their own price/name binding even if the cart is empty. */
+async function proposalMenuSignature(
+  actions: ProposedAction[],
+): Promise<string> {
+  const ids = [
+    ...new Set(
+      actions
+        .filter((action) => action.type === "ADD_TO_CART")
+        .map((action) =>
+          String(
+            action.parameters.itemId ?? action.parameters.menuItemId ?? "",
+          ),
+        ),
+    ),
+  ].sort();
+  const products = await Promise.all(
+    ids.map(async (id) => {
+      const item = await services.menuService.getMenuItemById(id);
+      return item
+        ? [id, item.name, item.price, item.isActive, item.isAvailable]
+        : [id, null];
+    }),
+  );
+  return createHash("sha256").update(JSON.stringify(products)).digest("hex");
 }
 
+async function describeActions(
+  actions: ProposedAction[],
+  userId: string,
+): Promise<string[]> {
+  const view = await services.cartService.getCartView(userId);
+  const money = (value: number) =>
+    new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(value);
+  return Promise.all(
+    actions.map(async (action) => {
+      const id = String(
+        action.parameters.itemId ?? action.parameters.menuItemId ?? "",
+      );
+      const quantity = Number(action.parameters.quantity ?? 1);
+      if (action.type === "ADD_TO_CART") {
+        const item = await services.menuService.getMenuItemById(id);
+        return `Thêm ${quantity} × ${item?.name ?? id}: ${money((item?.price ?? 0) * quantity)}`;
+      }
+      const line = view?.items.find(
+        (item) => item.id === id || item.menuItemId === id,
+      );
+      if (action.type === "UPDATE_CART")
+        return `Đổi ${line?.nameSnapshot ?? id} thành ${quantity} phần: ${money((line?.unitPrice ?? 0) * quantity)}`;
+      if (action.type === "REMOVE_FROM_CART")
+        return `Xoá ${line?.nameSnapshot ?? id} khỏi giỏ hàng`;
+      return "Xoá toàn bộ món trong giỏ hàng";
+    }),
+  );
+}
+
+function buildUserPrompt(message: string): string {
+  // History is already passed as provider conversation turns. Keep the latest
+  // customer message separate instead of duplicating the entire conversation.
+  return `Tin nhắn hiện tại: ${message}\nPhân tích ý định và chỉ trả JSON theo schema.\nUSER_MESSAGE_JSON:${JSON.stringify(message)}`;
+}

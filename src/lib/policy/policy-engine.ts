@@ -1,7 +1,10 @@
 import { ActionType, PolicyDecision, ProposedAction } from "@/lib/types/agent";
 import { CartService } from "@/lib/services/cart-service";
 import { MenuService, normalizeVietnamese } from "@/lib/services/menu-service";
-import { CartToolInputSchema, CartToolInput } from "@/lib/agent/tools/cart-tool";
+import {
+  CartToolInputSchema,
+  CartToolInput,
+} from "@/lib/agent/tools/cart-tool";
 import { z } from "zod";
 
 export type { PolicyDecision };
@@ -102,7 +105,9 @@ const ACTION_TO_TOOL: Record<ActionType, ToolMapping | undefined> = {
 };
 
 /** Explicit action type -> tool routing, for callers that need it. */
-export function getToolMapping(actionType: ActionType): ToolMapping | undefined {
+export function getToolMapping(
+  actionType: ActionType,
+): ToolMapping | undefined {
   return ACTION_TO_TOOL[actionType];
 }
 
@@ -128,16 +133,26 @@ export class PolicyEngine {
    *   6. confirmation requirement   -> REQUIRE_CONFIRMATION
    *   7. otherwise                  -> ALLOW
    */
-  async evaluateAction(action: ProposedAction, context: PolicyContext): Promise<PolicyResult> {
+  async evaluateAction(
+    action: ProposedAction,
+    context: PolicyContext,
+  ): Promise<PolicyResult> {
     // 1. structural validation
-    if (!action || typeof action !== "object" || typeof action.type !== "string") {
+    if (
+      !action ||
+      typeof action !== "object" ||
+      typeof action.type !== "string"
+    ) {
       return { decision: "BLOCK", reason: "Action không hợp lệ: thiếu type" };
     }
 
     // 2. + 3. allowlist and explicit tool mapping
     const mapping = ACTION_TO_TOOL[action.type as ActionType];
     if (!mapping) {
-      return { decision: "BLOCK", reason: `Loại hành động không được hỗ trợ: ${action.type}` };
+      return {
+        decision: "BLOCK",
+        reason: `Loại hành động không được hỗ trợ: ${action.type}`,
+      };
     }
 
     // 4. parameters
@@ -147,7 +162,11 @@ export class PolicyEngine {
     }
 
     // 5. domain / ownership
-    const domainCheck = await this.checkDomain(action, mapping.operation, context);
+    const domainCheck = await this.checkDomain(
+      action,
+      mapping.operation,
+      context,
+    );
     if (domainCheck.decision !== "ALLOW") {
       return domainCheck;
     }
@@ -163,7 +182,10 @@ export class PolicyEngine {
     return { decision: "ALLOW", reason: "Hành động được phép thực hiện." };
   }
 
-  private validateParameters(action: ProposedAction, mapping: ToolMapping): PolicyResult {
+  private validateParameters(
+    action: ProposedAction,
+    mapping: ToolMapping,
+  ): PolicyResult {
     const parsed = mapping.parameterSchema.safeParse(action.parameters ?? {});
     if (!parsed.success) {
       return {
@@ -175,12 +197,26 @@ export class PolicyEngine {
     }
 
     const quantity = (parsed.data as { quantity?: number }).quantity;
+    if (action.type === "REMOVE_FROM_CART" && quantity !== undefined) {
+      return {
+        decision: "BLOCK",
+        reason:
+          "Để giảm một phần số lượng, hãy dùng thao tác đổi số lượng. Xoá món là xoá cả dòng.",
+      };
+    }
+
     if (quantity !== undefined) {
       if (!Number.isInteger(quantity) || quantity < 1) {
-        return { decision: "BLOCK", reason: "Số lượng phải là số nguyên lớn hơn 0" };
+        return {
+          decision: "BLOCK",
+          reason: "Số lượng phải là số nguyên lớn hơn 0",
+        };
       }
       if (quantity > MAX_ACTION_QUANTITY) {
-        return { decision: "BLOCK", reason: `Số lượng vượt quá giới hạn ${MAX_ACTION_QUANTITY}` };
+        return {
+          decision: "BLOCK",
+          reason: `Số lượng vượt quá giới hạn ${MAX_ACTION_QUANTITY}`,
+        };
       }
     }
 
@@ -208,7 +244,10 @@ export class PolicyEngine {
       // to be created by the first add, so absence is not an ownership error.
       const cart = await this.cartService.getActiveCart(context.userId);
       if (cart && cart.userId !== context.userId) {
-        return { decision: "BLOCK", reason: "Không có quyền truy cập giỏ hàng này" };
+        return {
+          decision: "BLOCK",
+          reason: "Không có quyền truy cập giỏ hàng này",
+        };
       }
 
       if (operation === "add") {
@@ -218,13 +257,24 @@ export class PolicyEngine {
         }
       }
 
-      if ((operation === "update" || operation === "remove") && cart) {
+      if (operation === "update" || operation === "remove") {
+        if (!cart || !readString(action.parameters, "itemId")) {
+          return {
+            decision: "BLOCK",
+            reason: "Không tìm thấy món cụ thể trong giỏ hàng của bạn",
+          };
+        }
         const itemId = readString(action.parameters, "itemId");
         if (itemId) {
           const items = await this.cartService.getCartItems(cart.id);
-          const owned = items.some((line) => line.id === itemId || line.menuItemId === itemId);
+          const owned = items.some(
+            (line) => line.id === itemId || line.menuItemId === itemId,
+          );
           if (!owned) {
-            return { decision: "BLOCK", reason: "Không tìm thấy món trong giỏ hàng của bạn" };
+            return {
+              decision: "BLOCK",
+              reason: "Không tìm thấy món trong giỏ hàng của bạn",
+            };
           }
         }
       }
@@ -245,28 +295,43 @@ export class PolicyEngine {
    * Prices are never taken from the action parameters: any price-like key is
    * ignored, and the authoritative price is re-read from the menu at execution.
    */
-  private async resolveMenuItem(parameters: Record<string, unknown>): Promise<PolicyResult> {
-    const itemId = readString(parameters, "itemId") ?? readString(parameters, "menuItemId");
+  private async resolveMenuItem(
+    parameters: Record<string, unknown>,
+  ): Promise<PolicyResult> {
+    const itemId =
+      readString(parameters, "itemId") ?? readString(parameters, "menuItemId");
     if (itemId) {
       const menuItem = await this.menuService.getMenuItemById(itemId);
       if (!menuItem || !menuItem.isActive || !menuItem.isAvailable) {
-        return { decision: "BLOCK", reason: "Món ăn không tồn tại hoặc không có sẵn" };
+        return {
+          decision: "BLOCK",
+          reason: "Món ăn không tồn tại hoặc không có sẵn",
+        };
       }
       return { decision: "ALLOW", reason: "Món ăn hợp lệ." };
     }
 
     const query = readString(parameters, "query");
     if (!query) {
-      return { decision: "BLOCK", reason: "Thiếu thông tin món ăn để thêm vào giỏ hàng" };
+      return {
+        decision: "BLOCK",
+        reason: "Thiếu thông tin món ăn để thêm vào giỏ hàng",
+      };
     }
 
     const matches = await this.findMenuMatches(query);
     if (matches.length === 0) {
-      return { decision: "BLOCK", reason: `Không tìm thấy món phù hợp với "${query}"` };
+      return {
+        decision: "BLOCK",
+        reason: `Không tìm thấy món phù hợp với "${query}"`,
+      };
     }
     if (matches.length > 1) {
       const names = matches.map((item) => item.name).join(", ");
-      return { decision: "BLOCK", reason: `Có nhiều món phù hợp với "${query}": ${names}` };
+      return {
+        decision: "BLOCK",
+        reason: `Có nhiều món phù hợp với "${query}": ${names}`,
+      };
     }
     return { decision: "ALLOW", reason: "Món ăn hợp lệ." };
   }
@@ -276,17 +341,23 @@ export class PolicyEngine {
    * A match requires every query token to appear in the item text, so
    * "combo ga cay" matches "Combo Gà Cay" but not "Combo Gà Rán".
    */
-  async findMenuMatches(query: string): Promise<{ id: string; name: string; price: number }[]> {
+  async findMenuMatches(
+    query: string,
+  ): Promise<{ id: string; name: string; price: number }[]> {
     const normalizedQuery = normalizeVietnamese(query);
     if (!normalizedQuery) return [];
 
-    const tokens = normalizedQuery.split(" ").filter((token) => token.length > 0);
+    const tokens = normalizedQuery
+      .split(" ")
+      .filter((token) => token.length > 0);
     const items = await this.menuService.getAvailableMenuItems();
 
     return items
       .filter((item) => {
         const haystack = normalizeVietnamese(
-          [item.name, item.description ?? "", (item.tags ?? []).join(" ")].join(" "),
+          [item.name, item.description ?? "", (item.tags ?? []).join(" ")].join(
+            " ",
+          ),
         );
         return tokens.every((token) => haystack.includes(token));
       })
@@ -295,8 +366,10 @@ export class PolicyEngine {
   }
 }
 
-function readString(source: Record<string, unknown>, key: string): string | undefined {
+function readString(
+  source: Record<string, unknown>,
+  key: string,
+): string | undefined {
   const value = source?.[key];
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
-

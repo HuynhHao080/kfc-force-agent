@@ -20,7 +20,8 @@ export const ACTION_TYPES = [
 export type ActionType = (typeof ACTION_TYPES)[number];
 
 /** Outcome of evaluating a proposed action. */
-export type PolicyDecision = "ALLOW" | "MODIFY" | "REQUIRE_CONFIRMATION" | "BLOCK";
+export type PolicyDecision =
+  "ALLOW" | "MODIFY" | "REQUIRE_CONFIRMATION" | "BLOCK";
 
 // ProposedAction schema
 export const ProposedActionSchema = z.object({
@@ -37,7 +38,7 @@ export const AgentResponseSchema = z.object({
   message: z.string(),
   intent: z.string(),
   confidence: z.number().min(0).max(1).optional(),
-  actions: z.array(ProposedActionSchema).min(1),
+  actions: z.array(ProposedActionSchema),
   requiresConfirmation: z.boolean().default(false),
 });
 
@@ -61,6 +62,7 @@ export interface AgentRequest {
    * free-form text or identifiers.
    */
   confirm?: boolean;
+  confirmationId?: string;
   conversationHistory?: ConversationTurn[];
 }
 

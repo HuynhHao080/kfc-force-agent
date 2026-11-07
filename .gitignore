@@ -10,8 +10,19 @@
 !.yarn/releases
 !.yarn/versions
 
+# local application data and browser artifacts
+/.local/
+/output/
+/.playwright-cli/
+*.kfcbackup
+.kfc-restore-*/
+
 # testing
 /coverage
+
+# Python cache
+__pycache__/
+*.py[cod]
 
 # next.js
 /.next/
@@ -32,6 +43,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel

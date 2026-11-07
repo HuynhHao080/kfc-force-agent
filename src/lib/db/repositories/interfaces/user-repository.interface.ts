@@ -8,5 +8,10 @@ export interface UserRepository {
   getUserPreferences(userId: string): Promise<UserPreferences | null>;
   updateUserPreferences(preferences: UserPreferences): Promise<void>;
   getUserAddresses(userId: string): Promise<Address[]>;
+  saveUserAddresses(
+    userId: string,
+    addresses: Address[],
+    expectedRevision: string,
+  ): Promise<void>;
   createAddress(address: Address): Promise<void>;
 }

@@ -31,15 +31,30 @@ export class BedrockLLMProvider extends BaseLLMProvider {
       }
 
       // Parse and validate the Bedrock response
-      const parsedResponse = this.parseBedrockResponse(bedrockResponse.response.content);
+      const parsedResponse = this.parseBedrockResponse(
+        bedrockResponse.response.content,
+      );
       const validatedResponse = this.validateAgentResponse(parsedResponse);
 
+      // Valid JSON still does not prove an order/payment or any other outcome.
+      // Without a supported tool proposal, show only a fixed clarification.
+      if (
+        !validatedResponse.actions.some((action) => action.type !== "UNKNOWN")
+      ) {
+        return {
+          success: true,
+          response: this.validateAgentResponse(this.clarification()),
+        };
+      }
       return { success: true, response: validatedResponse };
     } catch (error) {
       return {
         success: false,
         error: {
-          message: error instanceof Error ? error.message : "Bedrock LLM provider error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Bedrock LLM provider error",
           type: "bedrock_error",
         },
       };
@@ -62,27 +77,23 @@ export class BedrockLLMProvider extends BaseLLMProvider {
         }
       }
 
-      // Not structured output: return a safe response that proposes no
-      // mutation and simply surfaces the model's text to the customer.
-      return {
-        message: content,
-        intent: "UNKNOWN",
-        confidence: 0.1,
-        actions: [
-          {
-            id: "action_unknown",
-            type: "UNKNOWN",
-            parameters: {},
-            requiresConfirmation: false,
-          },
-        ],
-        requiresConfirmation: false,
-      };
+      // Unstructured text is not evidence of a completed transaction.
+      return this.clarification();
     }
+  }
+
+  private clarification() {
+    return {
+      message:
+        "Mình chưa hiểu rõ yêu cầu. Bạn hãy nêu tên món và số lượng nhé.",
+      intent: "UNKNOWN",
+      confidence: 0.1,
+      actions: [],
+      requiresConfirmation: false,
+    };
   }
 }
 
 function toLLMError(error: { message: string; type: string }): LLMError {
   return { message: error.message, type: error.type };
 }
-

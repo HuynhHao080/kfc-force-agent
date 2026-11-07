@@ -1,33 +1,43 @@
 "use client";
-
 interface ChatInputProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
   disabled: boolean;
 }
-
-export function ChatInput({ value, onChange, onSend, disabled }: ChatInputProps) {
+export function ChatInput({
+  value,
+  onChange,
+  onSend,
+  disabled,
+}: ChatInputProps) {
   return (
-    <div className="flex gap-2 p-4 border-t border-gray-200 bg-white">
+    <form
+      className="chat-input"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSend();
+      }}
+    >
+      <label htmlFor="assistant-message" className="sr-only">
+        Tin nhắn cho trợ lý
+      </label>
       <input
-        type="text"
+        id="assistant-message"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") onSend();
-        }}
-        placeholder="Nhắn tin... (ví dụ: Cho mình 2 combo gà cay)"
-        className="flex-1 rounded-full border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        onChange={(event) => onChange(event.target.value)}
+        maxLength={1000}
+        placeholder="Hôm nay ăn gì nhỉ?"
         disabled={disabled}
+        autoComplete="off"
       />
       <button
-        onClick={onSend}
+        type="submit"
         disabled={disabled || !value.trim()}
-        className="rounded-full bg-blue-600 px-6 py-3 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        aria-label="Gửi tin nhắn"
       >
-        Gửi
+        ↑
       </button>
-    </div>
+    </form>
   );
 }

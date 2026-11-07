@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     // Handle specific item lookup
     if (query.itemId) {
       const item = await services.menuService.getMenuItemById(query.itemId);
-      if (!item) {
+      if (!item || !item.isActive || !item.isAvailable) {
         return NextResponse.json(
           { error: "Món ăn không tồn tại", details: { itemId: query.itemId } },
           { status: 404 },
@@ -31,10 +31,15 @@ export async function GET(request: Request) {
 
     // Handle bundle lookup
     if (query.bundleId) {
-      const bundle = await services.menuService.getProductBundleById(query.bundleId);
-      if (!bundle) {
+      const bundle = await services.menuService.getProductBundleById(
+        query.bundleId,
+      );
+      if (!bundle || !bundle.isActive || !bundle.isAvailable) {
         return NextResponse.json(
-          { error: "Combo không tồn tại", details: { bundleId: query.bundleId } },
+          {
+            error: "Combo không tồn tại",
+            details: { bundleId: query.bundleId },
+          },
           { status: 404 },
         );
       }
@@ -43,13 +48,17 @@ export async function GET(request: Request) {
 
     // Handle category-specific items
     if (query.categoryId) {
-      const items = await services.menuService.getItemsByCategory(query.categoryId);
+      const items = (
+        await services.menuService.getItemsByCategory(query.categoryId)
+      ).filter((item) => item.isActive && item.isAvailable);
       return NextResponse.json({ items });
     }
 
     // Handle search query
     if (query.q) {
-      const items = await services.menuService.searchMenuItems(query.q);
+      const items = await services.menuService.searchMenuItemsForCustomer(
+        query.q,
+      );
       return NextResponse.json({
         items,
         count: items.length,
@@ -58,7 +67,7 @@ export async function GET(request: Request) {
     }
 
     // Default: return categories and available items
-    const categories = await services.menuService.getCategories();
+    const categories = await services.menuService.getActiveCategories();
     const availableItems = await services.menuService.getAvailableMenuItems();
 
     return NextResponse.json({
@@ -68,6 +77,9 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Menu API error:", error);
-    return NextResponse.json({ error: "Lỗi máy chủ khi xử lý yêu cầu menu" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Lỗi máy chủ khi xử lý yêu cầu menu" },
+      { status: 500 },
+    );
   }
 }

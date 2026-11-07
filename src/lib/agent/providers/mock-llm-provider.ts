@@ -1,245 +1,260 @@
 import { BaseLLMProvider, LLMResult } from "./llm-provider";
-import { AgentResponse, ProposedAction, ConversationTurn } from "@/lib/types/agent";
-import { normalizeVietnamese } from "@/lib/services/menu-service";
+import { AgentResponse, ProposedAction } from "@/lib/types/agent";
+import { prepareMockMessage, restoreMockSizes } from "./mock-message";
 
-/**
- * Deterministic, offline LLM provider.
- *
- * It performs keyword intent detection over the customer's latest message and
- * emits a structured AgentResponse. It never mutates state: it only proposes
- * actions, exactly like the Bedrock provider does.
- */
+/** Offline intent parser. Only proposes actions; policy and tools execute them. */
 export class MockLLMProvider extends BaseLLMProvider {
   async generateResponse(
     _systemPrompt: string,
     userPrompt: string,
-    conversationHistory?: ConversationTurn[],
   ): Promise<LLMResult> {
     try {
-      const currentMessage = extractCurrentMessage(userPrompt);
-      const response = this.generateMockResponse(currentMessage, conversationHistory);
-      return { success: true, response: this.validateAgentResponse(response) };
+      return {
+        success: true,
+        response: this.validateAgentResponse(
+          parseMessage(extractCurrentMessage(userPrompt)),
+        ),
+      };
     } catch (error) {
       return {
         success: false,
         error: {
-          message: error instanceof Error ? error.message : "Mock LLM provider error",
+          message:
+            error instanceof Error ? error.message : "Mock provider error",
           type: "mock_error",
         },
       };
     }
   }
+}
 
-  private generateMockResponse(
-    message: string,
-    conversationHistory?: ConversationTurn[],
-  ): AgentResponse {
-    const text = normalizeVietnamese(message);
-
-    if (isConfirmation(text)) {
-      // Confirmation resumes the mutation proposed in the previous turn.
-      const pending = findPendingMutation(conversationHistory);
-      if (pending) {
-        return buildResponse(
-          "Vâng, mình thực hiện thao tác bạn vừa yêu cầu nhé.",
-          pending.actionType,
-          pending.spec,
-        );
-      }
-      return buildResponse(
-        "Mình chưa có thao tác nào đang chờ xác nhận. Bạn muốn làm gì tiếp theo?",
-        "SEARCH_MENU",
-      );
-    }
-
-    const quantity = extractQuantity(text);
-
-    if (mentionsAddToCart(text)) {
-      const query = extractItemQuery(text);
-      return buildResponse(
-        query
-          ? `Mình sẽ thêm ${quantity} "${query}" vào giỏ hàng. Bạn xác nhận giúp mình nhé?`
-          : "Bạn muốn thêm món nào vào giỏ hàng?",
-        "ADD_TO_CART",
-        { query, quantity },
-      );
-    }
-
-    if (mentionsRemoveFromCart(text)) {
-      return buildResponse("Bạn muốn xoá món nào khỏi giỏ hàng?", "REMOVE_FROM_CART", {
-        query: extractItemQuery(text),
-      });
-    }
-
-    if (mentionsClearCart(text)) {
-      return buildResponse("Bạn có chắc muốn xoá toàn bộ giỏ hàng không?", "CLEAR_CART");
-    }
-
-    if (mentionsCart(text)) {
-      return buildResponse("Đây là giỏ hàng hiện tại của bạn.", "VIEW_CART");
-    }
-
-    if (mentionsMenu(text)) {
-      const query = extractItemQuery(text);
-      return buildResponse(
-        query ? `Mình tìm các món "${query}" trong thực đơn nhé.` : "Đây là thực đơn của KFC.",
-        "SEARCH_MENU",
-        { query },
-      );
-    }
-
-    // Default: greeting / unknown intent. Never claims any state change.
-    return buildResponse(
-      "Xin chào! Mình là trợ lý đặt món KFC. Bạn có thể hỏi về thực đơn, " +
-        "xem giỏ hàng, hoặc nói ví dụ: “Thêm 2 combo gà cay vào giỏ hàng”.",
-      "SEARCH_MENU",
+function parseMessage(message: string): AgentResponse {
+  const prepared = prepareMockMessage(message);
+  const { text, quantity } = prepared;
+  if (/^(?:xac nhan|dong y|ok|okay|yes|dung roi|chuan)(?: |$)/.test(text)) {
+    return response(
+      "Hãy dùng nút “Xác nhận thao tác” ở đề xuất bạn vừa xem. Nếu chưa có đề xuất, bạn hãy chọn món trước nhé.",
     );
   }
+  const clear =
+    /^(?:(?:xoa|bo|don|clear)(?: (?:toan bo|tat ca|het)(?: (?:cac )?mon)?(?: (?:trong|khoi))?)? (?:gio(?: hang)?|cart)(?: cua (?:toi|minh|em))?|lam (?:trong|rong) (?:gio(?: hang)?|cart))$/.test(
+      text,
+    );
+  const relativeEdit = /^(?:tang|giam)\b/.test(text);
+  if (relativeEdit && !/\b(?:len|con|xuong)\b/.test(text))
+    return response(
+      "Bạn muốn đổi thành bao nhiêu phần? Ví dụ: “Tăng Pepsi lên 3”.",
+    );
+  const update = /^(?:doi|sua|cap nhat|update)\b/.test(text) || relativeEdit;
+  const remove =
+    /^(?:xoa|bo|remove|huy)\b/.test(text) && !/^huy don\b/.test(text);
+  const add =
+    /^(?:them|add|lay|goi|mua)\b/.test(text) ||
+    (/^(?:cho (?:minh|toi|em)|(?:minh|toi|em) (?:muon|can|lay))\b/.test(text) &&
+      !/\b(?:xem|tim|menu|thuc don)\b/.test(text));
+  if (
+    (clear || update || remove || add) &&
+    /\b(?:khong|dung|chua)\b/.test(text)
+  ) {
+    return response(
+      "Mình chưa thay đổi giỏ hàng. Khi muốn đặt món, bạn có thể gửi yêu cầu mới.",
+    );
+  }
+  // Also catch negated commands before intent detection; never turn a refusal
+  // such as 'Đừng thêm...' into an executable proposal.
+  if (/^(?:khong|dung|chua)\b/.test(text))
+    return response("Mình giữ nguyên giỏ hàng nhé.");
+  if (
+    ((clear || update || remove || add) && !clear && prepared.ambiguous) ||
+    (prepared.multiple &&
+      /\b(?:them|add|lay|goi|mua|xoa|bo|remove|huy|doi|sua|tang|giam|don|clear|lam)\b/.test(
+        text,
+      ))
+  )
+    return response(
+      "Mình chưa thay đổi giỏ. Hãy gửi một món và một số lượng nguyên rõ ràng mỗi lần; ví dụ “Thêm hai Pepsi” hoặc “Đổi Pepsi thành ba”.",
+    );
+  if (/^huy don\b/.test(text))
+    return response(
+      "Bạn hãy mở Đơn của tôi, chọn đúng đơn và dùng nút huỷ nếu trạng thái còn cho phép.",
+    );
+  const query = restoreMockSizes(
+    extractItemQuery(prepared.queryText),
+    prepared.sizes,
+  );
+  if (clear)
+    return response(
+      "Bạn muốn xoá toàn bộ giỏ hàng. Hãy xem lại đề xuất trước khi xác nhận.",
+      "CLEAR_CART",
+    );
+  if (update) {
+    if (quantity === undefined)
+      return response(
+        "Bạn muốn đổi thành bao nhiêu phần? Ví dụ: “Đổi Pepsi thành 3”.",
+      );
+    return response(
+      "Mình đã chuẩn bị đề xuất đổi số lượng. Hãy xem lại trước khi xác nhận.",
+      "UPDATE_CART",
+      { query, quantity },
+    );
+  }
+  if (remove && quantity !== undefined)
+    return response(
+      "Bạn muốn xoá cả món hay giảm số lượng? Để đổi số lượng, hãy nói ví dụ: “Đổi Pepsi thành 2”.",
+    );
+  if (remove)
+    return response(
+      "Mình đã chuẩn bị đề xuất xoá món. Hãy xem lại trước khi xác nhận.",
+      "REMOVE_FROM_CART",
+      { query },
+    );
+  if (add) {
+    if (!query)
+      return response(
+        "Bạn muốn thêm món nào? Ví dụ: “Cho mình 2 combo gà cay”.",
+      );
+    return response(
+      "Mình đã chuẩn bị đề xuất thêm món. Hãy xem lại trước khi xác nhận.",
+      "ADD_TO_CART",
+      { query, quantity: quantity ?? 1 },
+    );
+  }
+  if (/\b(?:gio hang|cart|bao nhieu tien|kiem tra tien trong gio)\b/.test(text))
+    return response("Đây là giỏ hàng hiện tại của bạn.", "VIEW_CART");
+  if (/\b(?:menu|thuc don|mon|ga|combo|burger|khoai|pepsi|nuoc)\b/.test(text)) {
+    return response(
+      query
+        ? `Mình tìm món phù hợp với “${query}” nhé.`
+        : "Đây là thực đơn hiện tại.",
+      "SEARCH_MENU",
+      { query },
+    );
+  }
+  return response(
+    "Chào bạn! Bạn có thể xem thực đơn, nói “Cho mình 2 combo gà cay”, “Đổi Pepsi thành 3” hoặc “Xoá Pepsi khỏi giỏ hàng”.",
+  );
 }
 
-type MockActionType =
-  | "SEARCH_MENU"
-  | "VIEW_CART"
-  | "ADD_TO_CART"
-  | "REMOVE_FROM_CART"
-  | "CLEAR_CART"
-  | "CONFIRMATION"
-  | "UNKNOWN";
-
-interface MockActionSpec {
-  query?: string;
-  quantity?: number;
-}
-
-function buildResponse(
+function response(
   message: string,
-  actionType: MockActionType,
-  spec: MockActionSpec = {},
+  type?: ProposedAction["type"],
+  parameters: Record<string, unknown> = {},
 ): AgentResponse {
-  const parameters: Record<string, unknown> = {};
-  if (spec.query) parameters.query = spec.query;
-  if (spec.quantity !== undefined) parameters.quantity = spec.quantity;
-
   const mutating =
-    actionType === "ADD_TO_CART" ||
-    actionType === "REMOVE_FROM_CART" ||
-    actionType === "CLEAR_CART";
-
-  // "CONFIRMATION" is an intent label, not an executable action: it proposes
-  // no tool call at all, so a bare "Xác nhận" cannot trigger a mutation.
-  const proposedType: ProposedAction["type"] =
-    actionType === "CONFIRMATION" ? "UNKNOWN" : actionType;
-
-  const action: ProposedAction = {
-    id: `action_${actionType.toLowerCase()}`,
-    type: proposedType,
-    parameters,
-    requiresConfirmation: mutating,
-  };
-
+    type === "ADD_TO_CART" ||
+    type === "UPDATE_CART" ||
+    type === "REMOVE_FROM_CART" ||
+    type === "CLEAR_CART";
   return {
     message,
-    intent: actionType,
+    intent: type ?? "CONVERSATION",
     confidence: 0.8,
-    actions: [action],
     requiresConfirmation: mutating,
+    actions: type
+      ? [
+          {
+            id: `action_${type.toLowerCase()}`,
+            type,
+            parameters,
+            requiresConfirmation: mutating,
+          },
+        ]
+      : [],
   };
 }
 
-/** Pulls the latest customer line out of the assembled prompt. */
+/** Prefer the final JSON envelope so message newlines/role labels stay data. */
 export function extractCurrentMessage(userPrompt: string): string {
-  const marker = "Khách hàng:";
-  const lastIndex = userPrompt.lastIndexOf(marker);
-  if (lastIndex === -1) return userPrompt.trim();
-  const lines = userPrompt
-    .slice(lastIndex + marker.length)
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-  return lines[0] ?? "";
+  const lastLine = userPrompt.trimEnd().split("\n").at(-1) ?? "";
+  const marker = "USER_MESSAGE_JSON:";
+  if (lastLine.startsWith(marker)) {
+    const message: unknown = JSON.parse(lastLine.slice(marker.length));
+    if (typeof message !== "string")
+      throw new Error("Invalid current message envelope");
+    return message;
+  }
+  // Compatibility for direct provider callers using the earlier prompt format.
+  const index = userPrompt.lastIndexOf("Khách hàng:");
+  return index < 0
+    ? userPrompt.trim()
+    : (userPrompt
+        .slice(index + "Khách hàng:".length)
+        .split("\n")
+        .find((line) => line.trim())
+        ?.trim() ?? "");
 }
 
-function isConfirmation(text: string): boolean {
-  return ["xac nhan", "dong y", "dung roi", "ok", "okay", "yes", "chuan"].some(
-    (token) => text === token || text.startsWith(`${token} `) || text.startsWith(`${token}!`),
-  );
-}
-
-function mentionsAddToCart(text: string): boolean {
-  return (
-    (text.includes("them") || text.includes("add")) &&
-    (text.includes("gio") || text.includes("cart"))
-  );
-}
-
-function mentionsRemoveFromCart(text: string): boolean {
-  return (
-    (text.includes("xoa") || text.includes("remove")) && text.includes("gio")
-  );
-}
-
-function mentionsClearCart(text: string): boolean {
-  return text.includes("toan bo") && text.includes("gio");
-}
-
-function mentionsCart(text: string): boolean {
-  return text.includes("gio hang") || text.includes("cart") || text.includes("bao nhieu tien");
-}
-
-function mentionsMenu(text: string): boolean {
-  return [
-    "menu",
-    "thuc don",
-    "mon",
-    "ga",
-    "combo",
-    "burger",
-    "khoai",
-    "pepsi",
-    "nuoc",
-    " co gi",
-  ].some((token) => text.includes(token));
-}
-
-function extractQuantity(text: string): number {
-  const match = text.match(/\b(\d{1,6})\b/);
-  if (!match) return 1;
-  const value = Number.parseInt(match[1], 10);
-  return Number.isFinite(value) && value > 0 ? value : 1;
-}
-
-/** Strips command words so what remains is the product phrase to search for. */
+const stopWords = new Set([
+  "them",
+  "menu",
+  "thuc",
+  "don",
+  "la",
+  "gi",
+  "cho",
+  "minh",
+  "toi",
+  "em",
+  "vao",
+  "khoi",
+  "gio",
+  "hang",
+  "cart",
+  "muon",
+  "xem",
+  "cac",
+  "mon",
+  "co",
+  "khong",
+  "bao",
+  "nhieu",
+  "tien",
+  "tim",
+  "kiem",
+  "giup",
+  "nhe",
+  "nha",
+  "voi",
+  "add",
+  "remove",
+  "xoa",
+  "bo",
+  "lay",
+  "goi",
+  "mua",
+  "tang",
+  "giam",
+  "xuong",
+  "doi",
+  "sua",
+  "cap",
+  "nhat",
+  "update",
+  "so",
+  "luong",
+  "thanh",
+  "len",
+  "con",
+  "phan",
+  "cai",
+  "chai",
+  "ly",
+  "trong",
+  "huy",
+  "ban",
+  "oi",
+  "hay",
+  "can",
+  "toan",
+  "tat",
+  "ca",
+  "het",
+]);
 function extractItemQuery(text: string): string {
-  const stopWords = [
-    "them",
-    "cho",
-    "minh",
-    "vao",
-    "gio",
-    "hang",
-    "cart",
-    "toi",
-    "muon",
-    "xem",
-    "cac",
-    "mon",
-    "co",
-    "khong",
-    "bao",
-    "nhieu",
-    "tien",
-    "tim",
-    "kiem",
-    "giup",
-    "nhe",
-    "add",
-    "remove",
-    "xoa",
-    "co",
-  ];
-  const kept = text
+  return text
     .split(" ")
-    .filter((word) => word.length > 0 && !stopWords.includes(word) && !/^\d+$/.test(word));
-  return kept.join(" ").trim();
+    .filter((word) => word && !stopWords.has(word) && !/^\d+$/.test(word))
+    .join(" ")
+    .replace(/(\d+)d(\d+)(l|lit)\b/g, "$1 $2$3")
+    .trim();
 }
-

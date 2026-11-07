@@ -7,10 +7,24 @@ import {
   BundleItem,
 } from "@/lib/types/menu";
 
+import type { CatalogAuditEntry } from "@/lib/types/catalog-audit";
+import type { Promotion } from "@/lib/types/promotion";
 export interface IMenuRepository {
+  getShopSettings(): Promise<import("@/lib/types/shop").ShopSettings | null>;
+  saveShopSettings(settings: import("@/lib/types/shop").ShopSettings, expectedRevision: string): Promise<void>;
+  getPromotions(): Promise<Promotion[]>;
+  getPromotion(code: string): Promise<Promotion | null>;
+  savePromotion(entry: Promotion, expectedRevision?: string): Promise<void>;
+  getCatalogAudit(limit: number): Promise<CatalogAuditEntry[]>;
   // Categories
+  saveCategory(
+    category: MenuCategory,
+    audit?: CatalogAuditEntry,
+  ): Promise<void>;
   getCategories(): Promise<MenuCategory[]>;
   getCategoryById(categoryId: string): Promise<MenuCategory | null>;
+
+  saveMenuItem(item: MenuItem, audit?: CatalogAuditEntry): Promise<void>;
 
   // Menu Items
   getMenuItems(): Promise<MenuItem[]>;

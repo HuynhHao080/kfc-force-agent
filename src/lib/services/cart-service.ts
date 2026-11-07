@@ -1,27 +1,43 @@
+import { DomainError } from "@/lib/domain-error";
+import { createHash, randomUUID } from "node:crypto";
 import { CartRepository } from "@/lib/db/repositories/interfaces/cart-repository.interface";
-import { Cart, CartItem, calculateCartTotals, withRecalculatedSubtotals } from "@/lib/types/cart";
+import {
+  Cart,
+  CartItem,
+  calculateCartTotals,
+  withRecalculatedSubtotals,
+} from "@/lib/types/cart";
+import type { MenuService } from "./menu-service";
 import { MenuItem } from "@/lib/types/menu";
 
-export class CartDomainError extends Error {
-  constructor(
-    public readonly code: string,
-    message: string,
-  ) {
-    super(message);
+export class CartDomainError extends DomainError {
+  constructor(code: string, message: string) {
+    super(code, message);
     this.name = "CartDomainError";
   }
 }
 
 export interface CartView {
+  signature: string;
   cart: Cart;
   items: CartItem[];
 }
 
 export class CartService {
-  constructor(private cartRepository: CartRepository) {}
+  constructor(
+    private cartRepository: CartRepository,
+    private menuService?: MenuService,
+  ) {}
 
   async getActiveCart(userId: string): Promise<Cart | null> {
-    return this.cartRepository.getActiveCart(userId);
+    const cart = await this.cartRepository.getActiveCart(userId);
+    if (cart && cart.userId !== userId) throw new CartDomainError("CART_FORBIDDEN", "Không có quyền truy cập giỏ hàng này.");
+    return cart;
+
+  }
+
+  async getCartById(cartId: string): Promise<Cart | null> {
+    return this.cartRepository.getCartById(cartId);
   }
 
   async createCart(cart: Cart): Promise<void> {
@@ -42,43 +58,40 @@ export class CartService {
       throw new CartDomainError("CART_NOT_FOUND", "Không tìm thấy giỏ hàng.");
     }
     if (cart.userId !== userId) {
-      throw new CartDomainError("CART_FORBIDDEN", "Không có quyền truy cập giỏ hàng này.");
+      throw new CartDomainError(
+        "CART_FORBIDDEN",
+        "Không có quyền truy cập giỏ hàng này.",
+      );
     }
     return cart;
   }
 
   /** Creates the user's active cart if it does not exist yet. */
   async getOrCreateActiveCart(userId: string): Promise<Cart> {
-    const existing = await this.cartRepository.getActiveCart(userId);
-    if (existing) {
-      if (existing.userId !== userId) {
-        throw new CartDomainError("CART_FORBIDDEN", "Không có quyền truy cập giỏ hàng này.");
-      }
-      return existing;
-    }
-
+    const existing = await this.getActiveCart(userId);
+    if (existing) return existing;
+    return (await this.commit(this.newCart(userId), [], true)).cart;
+  }
+  private newCart(userId: string): Cart {
     const now = new Date().toISOString();
-    const cart: Cart = {
-      id: `cart_${userId}`,
-      userId,
-      status: "ACTIVE",
-      subtotal: 0,
-      discount: 0,
-      deliveryFee: 0,
-      total: 0,
-      createdAt: now,
-      updatedAt: now,
-    };
-    await this.cartRepository.createCart(cart);
-    return cart;
+    return { id: `cart_${randomUUID()}`, userId, status: "ACTIVE", subtotal: 0, discount: 0, deliveryFee: 0, total: 0, createdAt: now, updatedAt: now };
   }
 
   /** Cart plus line items, with totals recalculated from stored prices. */
   async getCartView(userId: string): Promise<CartView | null> {
-    const cart = await this.cartRepository.getActiveCart(userId);
+    const cart = await this.getActiveCart(userId);
     if (!cart) return null;
-    const items = await this.cartRepository.getCartItems(cart.id);
-    return { cart: this.applyTotals(cart, items), items };
+    const stored = await this.cartRepository.getCartItems(cart.id), items: CartItem[] = [];
+    let changed = false;
+    for (const line of stored) {
+      const current = await this.menuService?.getMenuItemById(line.menuItemId);
+      if (current && (line.unitPrice !== current.price || line.nameSnapshot !== current.name)) {
+        items.push(withRecalculatedSubtotals({ ...line, unitPrice: current.price, nameSnapshot: current.name, updatedAt: new Date().toISOString() }));
+        changed = true;
+      } else items.push(line);
+    }
+    if (changed) return this.commit(cart, items);
+    return { cart: this.applyTotals(cart, items), items, signature: this.signature(cart, items) };
   }
 
   /**
@@ -97,22 +110,39 @@ export class CartService {
     quantity: number,
     options: Record<string, string> = {},
   ): Promise<CartView> {
-    if (!Number.isInteger(quantity) || quantity < 1) {
-      throw new CartDomainError("INVALID_QUANTITY", "Số lượng phải là số nguyên lớn hơn 0.");
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
+      throw new CartDomainError(
+        "INVALID_QUANTITY",
+        "Số lượng phải là số nguyên lớn hơn 0.",
+      );
     }
     if (!menuItem.isActive || !menuItem.isAvailable) {
       throw new CartDomainError("ITEM_UNAVAILABLE", "Món ăn không có sẵn.");
     }
 
-    const cart = await this.getOrCreateActiveCart(userId);
-    const items = await this.cartRepository.getCartItems(cart.id);
+    const currentCart = await this.getActiveCart(userId);
+    const cart = currentCart ?? this.newCart(userId);
+    const items = currentCart ? [...await this.cartRepository.getCartItems(cart.id)] : [];
     const now = new Date().toISOString();
 
+    if (Object.keys(options).length)
+      throw new CartDomainError(
+        "INVALID_OPTIONS",
+        "Tuỳ chọn món chưa được hỗ trợ. Vui lòng chọn món tiêu chuẩn.",
+      );
     const existing = items.find(
-      (item) => item.menuItemId === menuItem.id && sameOptions(item.options, options),
+      (item) =>
+        item.menuItemId === menuItem.id && sameOptions(item.options, options),
     );
 
+    if (!existing && items.length >= 50)
+      throw new CartDomainError("CART_LIMIT", "Giỏ hàng tối đa 50 dòng món.");
     if (existing) {
+      if (existing.quantity + quantity > 100)
+        throw new CartDomainError(
+          "INVALID_QUANTITY",
+          "Mỗi món tối đa 100 phần.",
+        );
       // Merge instead of duplicating; the authoritative price is refreshed.
       const merged: CartItem = withRecalculatedSubtotals({
         ...existing,
@@ -121,7 +151,7 @@ export class CartService {
         quantity: existing.quantity + quantity,
         updatedAt: now,
       });
-      await this.cartRepository.updateItem(merged);
+      items[items.findIndex(item => item.id === existing.id)] = merged;
     } else {
       const item: CartItem = {
         id: `item_${menuItem.id}_${Date.now()}`,
@@ -135,63 +165,80 @@ export class CartService {
         createdAt: now,
         updatedAt: now,
       };
-      await this.cartRepository.addItem(item);
+      items.push(item);
     }
 
-    return this.finalize(cart);
+    return this.commit(cart, items, !currentCart);
   }
 
   /**
    * Updates a line quantity. The line item is resolved through the user's own
    * active cart, so a caller cannot mutate somebody else's cart.
    */
-  async updateItemQuantity(userId: string, itemId: string, quantity: number): Promise<CartView> {
-    if (!Number.isInteger(quantity) || quantity < 1) {
-      throw new CartDomainError("INVALID_QUANTITY", "Số lượng phải là số nguyên lớn hơn 0.");
+  async updateItemQuantity(
+    userId: string,
+    itemId: string,
+    quantity: number,
+  ): Promise<CartView> {
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
+      throw new CartDomainError(
+        "INVALID_QUANTITY",
+        "Số lượng phải là số nguyên lớn hơn 0.",
+      );
     }
 
     const cart = await this.requireActiveCart(userId);
-    const item = await this.requireItem(cart, itemId);
+    const items = [...await this.cartRepository.getCartItems(cart.id)];
+    const item = this.requireItem(items, itemId);
     const updated: CartItem = withRecalculatedSubtotals({
       ...item,
       quantity,
       updatedAt: new Date().toISOString(),
     });
-    await this.cartRepository.updateItem(updated);
-
-    return this.finalize(cart);
+    return this.commit(cart, items.map(line => line.id === item.id ? updated : line));
   }
 
   async removeItem(userId: string, itemId: string): Promise<CartView> {
     const cart = await this.requireActiveCart(userId);
-    await this.requireItem(cart, itemId);
-    await this.cartRepository.removeItem(cart.id, itemId);
-    return this.finalize(cart);
+    const items = await this.cartRepository.getCartItems(cart.id);
+    this.requireItem(items, itemId);
+    return this.commit(cart, items.filter(item => item.id !== itemId));
   }
 
   async clearCart(userId: string): Promise<CartView> {
-    const cart = await this.requireActiveCart(userId);
-    await this.cartRepository.clearCart(cart.id);
-    return this.finalize(cart);
+    return this.commit(await this.requireActiveCart(userId), []);
   }
 
-  private async requireItem(cart: Cart, itemId: string): Promise<CartItem> {
-    const item = await this.cartRepository.getCartItemById(cart.id, itemId);
-    if (!item) {
-      throw new CartDomainError("CART_ITEM_NOT_FOUND", "Không tìm thấy món trong giỏ hàng.");
-    }
+  private requireItem(items: CartItem[], itemId: string): CartItem {
+    const item = items.find(line => line.id === itemId);
+    if (!item) throw new CartDomainError("CART_ITEM_NOT_FOUND", "Không tìm thấy món trong giỏ hàng.");
     return item;
   }
 
-  /**
-   * Recomputes cart totals from the stored line items and persists them so
-   * cart.subtotal/total never drift from the line items.
-   */
-  private async finalize(cart: Cart): Promise<CartView> {
-    const items = await this.cartRepository.getCartItems(cart.id);
-    const updatedCart = this.applyTotals(cart, items);
-    await this.cartRepository.updateCart(updatedCart);
-    return { cart: updatedCart, items };
+  private async commit(cart: Cart, items: CartItem[], creating = false): Promise<CartView> {
+    const next = { ...this.applyTotals(cart, items), revision: randomUUID() };
+    await this.cartRepository.saveCartView(next, items, creating ? null : cart.revision ?? "legacy");
+    return { cart: next, items, signature: this.signature(next, items) };
+  }
+
+  private signature(cart: Cart, items: CartItem[]): string {
+    return createHash("sha256")
+      .update(
+        JSON.stringify([
+          cart.id,
+          items
+            .map((item) => [
+              item.id,
+              item.menuItemId,
+              item.quantity,
+              item.unitPrice,
+              item.nameSnapshot,
+              item.options ?? {},
+            ])
+            .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+        ]),
+      )
+      .digest("hex");
   }
 
   private applyTotals(cart: Cart, items: CartItem[]): Cart {
@@ -216,6 +263,7 @@ function sameOptions(
   const leftKeys = Object.keys(left).sort();
   const rightKeys = Object.keys(right).sort();
   if (leftKeys.length !== rightKeys.length) return false;
-  return leftKeys.every((key, index) => key === rightKeys[index] && left[key] === right[key]);
+  return leftKeys.every(
+    (key, index) => key === rightKeys[index] && left[key] === right[key],
+  );
 }
-

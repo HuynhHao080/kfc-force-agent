@@ -8,8 +8,8 @@ export const addCartItemSchema = z.object({
   menuItemId: z.string().min(1),
   quantity: z.number().int().positive().max(MAX_CART_QUANTITY),
   /**
-   * Option selections. Values are validated against the menu's option values
-   * by the cart domain; prices are never accepted from the client.
+   * Standard portions only in this release. The cart domain rejects nonempty
+   * option selections; prices are never accepted from the client.
    */
   options: z.record(z.string(), z.string()).optional(),
 });
@@ -28,4 +28,3 @@ export const updateCartItemSchema = z.object({
 });
 
 export type UpdateCartItem = z.infer<typeof updateCartItemSchema>;
-

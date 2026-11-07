@@ -1,56 +1,71 @@
 "use client";
-
 import { useEffect, useRef, useState } from "react";
-import { ChatMessage } from "./chat-message";
 import { ChatInput } from "./chat-input";
-
+import { ChatMessage } from "./chat-message";
 interface ChatWindowProps {
   messages: Array<{ role: "user" | "assistant"; content: string }>;
   onSendMessage: (message: string) => void;
   isLoading: boolean;
+  disabled?: boolean;
 }
-
-export function ChatWindow({ messages, onSendMessage, isLoading }: ChatWindowProps) {
-  const [inputValue, setInputValue] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
-
+export function ChatWindow({
+  messages,
+  onSendMessage,
+  isLoading,
+  disabled = false,
+}: ChatWindowProps) {
+  const [input, setInput] = useState("");
+  const log = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const handleSend = () => {
-    if (!inputValue.trim() || isLoading) return;
-    onSendMessage(inputValue.trim());
-    setInputValue("");
-  };
-
+    if (log.current) log.current.scrollTop = log.current.scrollHeight;
+  }, [messages, isLoading]);
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      <div className="flex-1 overflow-y-auto p-4 space-y-1">
-        {messages.length === 0 && (
-          <div className="text-center text-gray-400 mt-20">
-            <p className="text-lg">🍗 Xin chào! Mình có thể giúp bạn đặt món KFC</p>
-            <p className="text-sm mt-2">Hãy thử nói: &ldquo;Cho mình 2 combo gà cay&rdquo;</p>
-          </div>
-        )}
-        {messages.map((msg, i) => (
-          <ChatMessage key={i} role={msg.role} content={msg.content} />
+    <div className="chat-window">
+      <div
+        ref={log}
+        className="chat-log"
+        role="log"
+        aria-label="Hội thoại với trợ lý"
+        aria-live="polite"
+        aria-busy={isLoading}
+      >
+        {messages.map((message, index) => (
+          <ChatMessage key={index} {...message} />
         ))}
         {isLoading && (
-          <div className="flex justify-start mb-3">
-            <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3 text-sm text-gray-600">
-              Đang xử lý...
-            </div>
-          </div>
+          <p className="typing-status" role="status">
+            Trợ lý đang trả lời<span aria-hidden="true"> ···</span>
+          </p>
         )}
-        <div ref={bottomRef} />
       </div>
       <ChatInput
-        value={inputValue}
-        onChange={setInputValue}
-        onSend={handleSend}
-        disabled={isLoading}
+        value={input}
+        onChange={setInput}
+        disabled={disabled || isLoading}
+        onSend={() => {
+          if (input.trim() && !isLoading) {
+            onSendMessage(input.trim());
+            setInput("");
+          }
+        }}
       />
+      <details className="chat-help">
+        <summary>Cách nói với trợ lý</summary>
+        <p>
+          Nên gửi một món và một thao tác mỗi lần, dùng chữ số hoặc số viết bằng
+          chữ rõ ràng.
+        </p>
+        <ul>
+          <li>Thêm hai Pepsi — thêm 2 phần.</li>
+          <li>Đổi Pepsi thành ba — đặt số lượng cuối là 3.</li>
+          <li>Xoá Pepsi trong giỏ — xoá cả dòng Pepsi.</li>
+          <li>Xoá toàn bộ giỏ hàng — xoá mọi món.</li>
+        </ul>
+        <p>
+          Đọc lại món, số lượng và giá rồi bấm xác nhận. Câu tăng/giảm tương đối
+          hoặc chưa rõ sẽ cần làm rõ; chữ “ok” không thực thi thay nút xác nhận.
+        </p>
+      </details>
     </div>
   );
 }

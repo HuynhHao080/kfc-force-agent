@@ -1,67 +1,74 @@
-"use strict";
-
-import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
-import { ConversationTurn } from "@/lib/types/agent";
-
-// Bedrock client configuration
-const bedrockClient = new BedrockRuntimeClient({
-  region: process.env.AWS_REGION || "ap-southeast-1",
-});
-
+import {
+  BedrockRuntimeClient,
+  InvokeModelCommand,
+} from "@aws-sdk/client-bedrock-runtime";
+import { z } from "zod";
+import type { ConversationTurn } from "@/lib/types/agent";
 export interface BedrockConfig {
   modelId: string;
   maxTokens?: number;
   temperature?: number;
   topP?: number;
 }
-
 export interface BedrockResponse {
   content: string;
   role: "assistant";
-  usage?: {
-    inputTokens?: number;
-    outputTokens?: number;
-  };
+  usage?: { inputTokens?: number; outputTokens?: number };
 }
-
 export interface BedrockError {
   message: string;
   type: "validation_error" | "bedrock_error" | "model_error";
 }
-
+const modelReplySchema = z.object({
+  content: z
+    .array(z.object({ type: z.string(), text: z.string().optional() }))
+    .min(1),
+  usage: z
+    .object({
+      input_tokens: z.number().nonnegative(),
+      output_tokens: z.number().nonnegative(),
+    })
+    .optional(),
+});
+/** Anthropic Messages body over Bedrock InvokeModel. No implicit mock fallback. */
 export class BedrockService {
-  private config: BedrockConfig;
-  private isMock: boolean;
-
-  constructor(config: BedrockConfig) {
-    this.config = config;
-    this.isMock =
-      !process.env.BEDROCK_MODEL_ID &&
-      !process.env.AWS_ACCESS_KEY_ID &&
-      !process.env.AWS_SECRET_ACCESS_KEY;
-  }
-
+  constructor(
+    private config: BedrockConfig,
+    private client?: BedrockRuntimeClient,
+  ) {}
   async generateResponse(
     systemPrompt: string,
     userPrompt: string,
     conversationHistory?: ConversationTurn[],
   ): Promise<
-    { success: true; response: BedrockResponse } | { success: false; error: BedrockError }
+    | { success: true; response: BedrockResponse }
+    | { success: false; error: BedrockError }
   > {
-    if (this.isMock) {
-      return this.generateMockResponse(userPrompt);
+    if (!this.config.modelId.trim() || this.config.modelId === "mock-model") {
+      return {
+        success: false,
+        error: {
+          type: "validation_error",
+          message:
+            "BEDROCK_MODEL_ID must be explicitly configured for the Bedrock provider.",
+        },
+      };
     }
-
     try {
-      // Prior turns plus the current user message, in a single ordered list.
+      this.client ??= new BedrockRuntimeClient({
+        region: process.env.AWS_REGION || "ap-southeast-1",
+        maxAttempts: 1,
+      });
       const messages = [
-        ...(conversationHistory ?? []).map((turn) => ({
-          role: turn.role === "assistant" ? "assistant" : "user",
-          content: turn.content,
-        })),
-        { role: "user", content: userPrompt },
+        ...(conversationHistory ?? [])
+          .filter((turn) => turn.role !== "system" && turn.content.trim())
+          .slice(-10)
+          .map((turn) => ({
+            role: turn.role,
+            content: [{ type: "text", text: turn.content }],
+          })),
+        { role: "user", content: [{ type: "text", text: userPrompt }] },
       ];
-
       const command = new InvokeModelCommand({
         modelId: this.config.modelId,
         contentType: "application/json",
@@ -70,53 +77,63 @@ export class BedrockService {
           anthropic_version: "bedrock-2023-05-31",
           system: systemPrompt,
           messages,
-          max_tokens: this.config.maxTokens || 1000,
-          temperature: this.config.temperature || 0.1,
-          top_p: this.config.topP || 0.9,
+          max_tokens: this.config.maxTokens ?? 1000,
+          temperature: this.config.temperature ?? 0.1,
+          top_p: this.config.topP ?? 0.9,
         }),
       });
-
-      const response = await bedrockClient.send(command);
-      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-
-      // Parse Bedrock response
-      const bedrockResponse: BedrockResponse = {
-        content: responseBody.content?.[0]?.text ?? "",
-        role: "assistant",
-        usage: {
-          inputTokens: responseBody.usage?.input_tokens,
-          outputTokens: responseBody.usage?.output_tokens,
+      const response = await this.client.send(command, {
+        abortSignal: AbortSignal.timeout(15000),
+      });
+      const parsed = modelReplySchema.safeParse(
+        JSON.parse(new TextDecoder().decode(response.body)),
+      );
+      if (!parsed.success)
+        return {
+          success: false,
+          error: {
+            type: "model_error",
+            message: "Bedrock returned an invalid model response.",
+          },
+        };
+      const content = parsed.data.content
+        .filter((block) => block.type === "text")
+        .map((block) => block.text ?? "")
+        .join("\n");
+      if (!content.trim())
+        return {
+          success: false,
+          error: {
+            type: "model_error",
+            message: "Bedrock returned no text content.",
+          },
+        };
+      return {
+        success: true,
+        response: {
+          content,
+          role: "assistant",
+          usage: parsed.data.usage
+            ? {
+                inputTokens: parsed.data.usage.input_tokens,
+                outputTokens: parsed.data.usage.output_tokens,
+              }
+            : undefined,
         },
       };
-
-      return { success: true, response: bedrockResponse };
     } catch (error) {
-      console.error("Bedrock API error:", error);
+      // Return a controlled error. Never turn a failed real invocation into a
+      // mock success, and never retry inference automatically.
       return {
         success: false,
         error: {
-          message: error instanceof Error ? error.message : "Bedrock API call failed",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Bedrock invocation failed",
           type: "bedrock_error",
         },
       };
     }
   }
-
-  private generateMockResponse(userPrompt: string): { success: true; response: BedrockResponse } {
-    // Mock response that mimics Bedrock output format
-    return {
-      success: true,
-      response: {
-        content: `Mock Bedrock response to: "${userPrompt}". This would be a real Bedrock response with structured output.`,
-        role: "assistant",
-      },
-    };
-  }
 }
-
-export const bedrockService = new BedrockService({
-  modelId: process.env.BEDROCK_MODEL_ID || "mock-model",
-  maxTokens: 1000,
-  temperature: 0.1,
-  topP: 0.9,
-});
