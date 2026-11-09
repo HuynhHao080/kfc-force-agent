@@ -21,6 +21,30 @@ Agent không hỗ trợ skill vẫn phải tuân thủ hướng dẫn trong file
 - Làm theo task/issue đã nhận, ghi rõ file/phân hệ và tiêu chí nghiệm thu. Xem phân vùng tại `CONTRIBUTING.md`; muốn đổi API/schema hoặc sang phần người khác đang làm thì thống nhất giao diện và người tích hợp trước.
 - Không tự tạo thêm agent cùng sửa workspace; chỉ phân công song song khi người dùng yêu cầu, và phải tách worktree/phạm vi.
 
+## Quy tắc cho agent (bắt buộc)
+
+Agent là công cụ, không phải thành viên quyết định. Agent chỉ làm đúng task đã giao, trong đúng file/branch đã ghi, và dừng lại khi thiếu thông tin.
+
+**Agent bị cấm:**
+
+- `reset --hard`, `clean -fd`, force push, `checkout/restore` ghi đè, `stash/drop`, chọn hàng loạt ours/theirs trên công việc người khác.
+- `git add .` / `git add -A` trong workspace có nhiều đợt sửa; phải stage đúng đường dẫn đã review.
+- Push trực tiếp `main`, tự merge PR, tự nâng dependency, tự sửa CI/`AGENTS.md`/skill để bỏ qua kiểm tra.
+- Xoá test, giảm assertion, đổi snapshot, nới guard chỉ để CI xanh.
+- Gọi AWS/LLM trả phí, deploy, execute Change Set, xoá tài nguyên/dữ liệu khi chưa có phê duyệt phạm vi.
+- Đưa session/admin credentials, contact khách, ghi chú riêng vào log, DTO, CSV, prompt hoặc Git.
+- Ghi “100%”, “AWS đã deploy”, coverage hoặc kết quả chưa chạy như thể đã kiểm chứng.
+
+**Agent bắt buộc:**
+
+- Đọc `AGENTS.md`, `CONTRIBUTING.md` và skill `kfc-team-development` trước khi sửa; với Next.js đọc guide trong `node_modules/next/dist/docs/` đã cài.
+- Ghi rõ task, branch, file dự kiến, tiêu chí nghiệm thu; giữ nguyên thay đổi ngoài task.
+- Chạy kiểm tra theo `AGENTS.md`, báo đúng lệnh/kết quả đã chạy và phần chưa xác minh.
+- Chỉ commit/push khi người dùng giao rõ việc đó kèm file/branch/message; nếu không, dừng ở sửa + kiểm thử local và báo diff.
+- Để người khác review trước merge; không tự merge PR do mình viết.
+
+Khi lệnh yêu cầu phá hoại, thiếu file/branch, hoặc đổi API/schema mà chưa thống nhất, agent phải dừng, giải thích rủi ro và hỏi lại — không tự đoán.
+
 ## Các bất biến phải giữ
 
 - Giá, tổng tiền, danh tính và quyền lấy từ server. AI chỉ đề xuất; thay đổi giỏ phải xác nhận đúng token/owner/thời hạn và dữ liệu hiện tại. Không bỏ validation/confirmation để demo dễ hơn.
