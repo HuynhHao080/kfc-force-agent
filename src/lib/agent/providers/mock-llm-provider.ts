@@ -43,7 +43,7 @@ function parseMessage(message: string): AgentResponse {
   const relativeEdit = /^(?:tang|giam)\b/.test(text);
   if (relativeEdit && !/\b(?:len|con|xuong)\b/.test(text))
     return response(
-      "Bạn muốn đổi thành bao nhiêu phần? Ví dụ: “Tăng Pepsi lên 3”.",
+      "Bạn muốn thay đổi tương đối hay đổi thành số lượng cụ thể? Để đặt số lượng cuối cùng, hãy nói ví dụ: “Giảm Pepsi còn 2” hoặc “Tăng Pepsi lên 3”.",
     );
   const update = /^(?:doi|sua|cap nhat|update)\b/.test(text) || relativeEdit;
   const remove =
