@@ -45,7 +45,8 @@ export function OrderPanel({
       <div className="section-heading">
         <div>
           <span className="eyebrow">MỖI BỮA NGON, MỘT KỶ NIỆM</span>
-          <h2 id="orders-title" tabIndex={-1}>
+          <h2 id="orders-title" className="icon-heading" tabIndex={-1}>
+            <span className="section-title-icon" aria-hidden="true">🧾</span>
             Đơn của tôi
           </h2>
         </div>

@@ -76,6 +76,7 @@ export function Storefront() {
   const [category, setCategory] = useState("all");
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"menu" | "orders">("menu");
+  const [cartOpen, setCartOpen] = useState(false);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const boot = useRef<ReturnType<typeof bootstrap> | null>(null);
   const working = useRef(false);
@@ -85,6 +86,31 @@ export function Storefront() {
   const checkoutKey = useRef<string | null>(null);
   const [checkoutAttempt, setCheckoutAttempt] = useState<{ idempotencyKey: string; cartId: string } | null>(null);
   const cancelDialog = useRef<HTMLDialogElement>(null);
+  const cartMenuRef = useRef<HTMLDivElement>(null);
+  const cartTriggerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!cartOpen) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !cartMenuRef.current?.contains(event.target)
+      ) {
+        setCartOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setCartOpen(false);
+        cartTriggerRef.current?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [cartOpen]);
   useEffect(() => {
     let active = true;
     boot.current ??= bootstrap();
@@ -537,22 +563,87 @@ export function Storefront() {
               aria-current={tab === "menu" ? "page" : undefined}
               onClick={() => setTab("menu")}
             >
-              Thực đơn
+              <span className="nav-icon" aria-hidden="true">☷</span> Thực đơn
             </button>
             <button
               className={tab === "orders" ? "active" : ""}
               aria-current={tab === "orders" ? "page" : undefined}
               onClick={() => setTab("orders")}
             >
-              Đơn của tôi{" "}
+              <span className="nav-icon" aria-hidden="true">▤</span> Đơn của tôi{" "}
               {orders.length > 0 && (
                 <span className="nav-count">{orders.length}</span>
               )}
             </button>
           </nav>
-          <a className="header-cart" href="#gio-hang">
-            <span aria-hidden="true">⌑</span> Giỏ hàng <b>{count}</b>
-          </a>
+          <div className="cart-menu" ref={cartMenuRef}>
+            <button
+              ref={cartTriggerRef}
+              className="header-cart"
+              type="button"
+              aria-expanded={cartOpen}
+              aria-controls="cart-dropdown"
+              onClick={() => setCartOpen((open) => !open)}
+            >
+              <svg
+                className="cart-icon"
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <path
+                  d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 1.9-1.4L21 8H6"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="10" cy="20" r="1.4" fill="currentColor" />
+                <circle cx="18" cy="20" r="1.4" fill="currentColor" />
+              </svg>
+              <span className="header-cart-label">Giỏ hàng</span>
+              <b aria-live="polite">{count}</b>
+            </button>
+            {cartOpen && (
+              <div
+                className="cart-dropdown"
+                id="cart-dropdown"
+                role="region"
+                aria-label="Giỏ hàng"
+              >
+                <CartPanel
+                  basket={basket}
+                  busy={disabled}
+                  checkoutDisabled={
+                    !shop ||
+                    (!shop.availability.canPickup &&
+                      !shop.availability.canDelivery)
+                  }
+                  onQuantity={(id, quantity) =>
+                    mutateCart("/api/cart", "PATCH", {
+                      itemId: id,
+                      quantity,
+                    })
+                  }
+                  onRemove={(id) =>
+                    mutateCart(
+                      `/api/cart?itemId=${encodeURIComponent(id)}`,
+                      "DELETE",
+                    )
+                  }
+                  onCheckout={() => {
+                    setCheckoutError("");
+                    setCartOpen(false);
+                    setCheckoutOpen(true);
+                  }}
+                  onClose={() => {
+                    setCartOpen(false);
+                    cartTriggerRef.current?.focus();
+                  }}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </header>
       <main id="main-content" className="main-shell">
@@ -707,7 +798,10 @@ export function Storefront() {
                 <div className="section-heading catalog-heading">
                   <div>
                     <span className="eyebrow">HÔM NAY BẠN THÈM GÌ?</span>
-                    <h2 id="menu-title">Chọn món. Chọn vui.</h2>
+                    <h2 id="menu-title" className="icon-heading">
+                      <span className="section-title-icon" aria-hidden="true">🍗</span>
+                      Chọn món. Chọn vui.
+                    </h2>
                   </div>
                   <span className="muted small">
                     {ready ? `${items.length} món để yêu` : "Đang lên món…"}
@@ -844,24 +938,6 @@ export function Storefront() {
             )}
           </div>
           <aside className="sidebar">
-            <CartPanel
-              basket={basket}
-              busy={disabled}
-              checkoutDisabled={!shop || (!shop.availability.canPickup && !shop.availability.canDelivery)}
-              onQuantity={(id, quantity) =>
-                mutateCart("/api/cart", "PATCH", { itemId: id, quantity })
-              }
-              onRemove={(id) =>
-                mutateCart(
-                  `/api/cart?itemId=${encodeURIComponent(id)}`,
-                  "DELETE",
-                )
-              }
-              onCheckout={() => {
-                setCheckoutError("");
-                setCheckoutOpen(true);
-              }}
-            />
             <section
               className="panel assistant-panel"
               aria-labelledby="assistant-title"
