@@ -300,3 +300,38 @@ sequenceDiagram
 Local Proxy bọc saveCartView bằng disk lock, chụp Maps rồi ghi store.json.tmp/rename một lần; lỗi ghi phục hồi Maps và giữ file cũ. Các method primitive còn dùng cho fixture/nội bộ tin cậy; không xem chuỗi primitive là transaction. Checkout và reorder vẫn dùng commit riêng đã có, nay checkout kiểm tra revision trước đóng giỏ. Không thay đổi lock order hoặc mô hình local một tiến trình.
 
 Dynamo adapter dùng consistent pointer/cart/items reads, conditional metadata/pointer và diff dòng trong một TransactWrite; tối đa100 actions được kiểm tra trước ghi. Checkout/reorder cũng kiểm tra revision của giỏ nguồn. Unit chỉ dùng client transport giả để kiểm tra command/conditions/consistent flags; không có nghiệm thu AWS. Read consistency và transaction code không chứng minh an toàn của mọi workflow trên nhiều instance.
+
+## Checkout và cập nhật catalog dùng cùng acceptance gate
+
+Từ 08/11/2026, SHOP_ORDER_GATE bao quanh cả saveMenu, saveCategory, PromotionService.save, ShopService.save và CheckoutService.checkout. Mỗi service chuẩn bị/kiểm tra và lưu trong gate. Route staff dùng callback requireAdminSession sau khi lấy gate. Thứ tự lock giữ customer/admin trước, gate tiếp theo và disk cuối cùng. Service đang giữ gate không gọi một public mutation khác cũng xin gate.
+
+```mermaid
+sequenceDiagram
+    participant C as Customer checkout
+    participant G as Local acceptance gate
+    participant A as Staff catalog update
+    participant R as Repository
+    C->>G: Acquire gate
+    C->>R: Validate cart, menu, shop and coupon
+    A->>G: Wait for gate
+    C->>R: Recheck shop/coupon and commit order
+    C->>G: Release gate
+    G-->>A: Acquire gate
+    A->>A: Recheck staff session
+    A->>R: Validate and save catalog with audit
+```
+
+Nếu staff lấy gate trước, checkout đọc catalog mới sau khi cập nhật hoàn tất. Retry đã có order được xử lý trước kiểm tra điều kiện mutable, giữ snapshot đơn cũ. Thời gian coupon vẫn trôi trong khi giữ lock nên evaluate được gọi lại ngay trước commit. Quote chỉ là snapshot ở thời điểm trả lời, checkout tiếp tục kiểm tra revision/tổng tiền. Phạm vi bảo đảm này áp dụng cho các service entry point trong một tiến trình local.
+
+## Phiên bản nội dung cho form món và danh mục
+
+AdminService.catalog trả DTO clone có catalogRevision SHA256 từ ID, timestamps và các trường catalog xác định. Các trường giá/trạng thái/tên/mô tả/danh mục/ảnh hoặc displayOrder được đưa vào phiên bản. Metadata riêng của món nằm ngoài tập trường editable này. Token được tính lại từ record, không thêm field persistence hoặc migration. Đọc catalog giữ Maps/file dữ liệu như trước.
+
+PATCH đọc X-KFC-Catalog-Revision, kiểm tra định dạng64hex rồi truyền expectedRevision vào service. So sánh diễn ra bên trong acceptance gate sau reauth. catalogAudit đã có được dùng để xác định nội dung editable có thay đổi hay không. Sai phiên bản và có thay đổi trả409. Nếu đúng cùng nội dung hiện tại, service trả previous và giữ audit/updatedAt, cho phép phục hồi PATCH khi mất acknowledgement. Header optional cho client cũ, token không cấp quyền truy cập.
+
+Form giữ snapshot riêng khi mở, polling dừng trong editor. Reload chỉ đọc /api/admin/menu, dùng generation guard cùng refreshVersion để bỏ kết quả cũ. Form có resetKey tăng sau reload thành công, kể cả server trả cùng phiên bản, để các uncontrolled inputs bỏ đúng bản nháp khi người dùng yêu cầu. Lỗi đọc giữ form,401 clear staff view. Hash/version và gate cung cấp bảo vệ cho bản local một tiến trình.
+
+
+## Cập nhật phạm vi 09/11/2026
+
+Giảng viên yêu cầu AI thật và triển khai AWS trước 01/01/2027. [Kế hoạch nước rút](sprint-plan-2026-11-09.md) và [AWS readiness](aws-readiness.md) bổ sung mục tiêu/bằng chứng cho phạm vi này. Bộ hiện hành đạt 101 unit + 9 recovery + 76 HTTP = 186 nhóm local, thêm 3 test AWS package offline và 3 test verifier ZIP riêng. Các mốc/số đếm trước đó là lịch sử. Preflight AWS chỉ đọc đã qua; inference, image Linux và nghiệm thu trên AWS còn chờ thực hiện, chưa đánh dấu hoàn tất.

@@ -18,8 +18,11 @@ roots = ["src", "public", "docs", "scripts", "tests", ".github"]
 root_files = [
     "README.md", "AGENTS.md", "CLAUDE.md", "package.json", "package-lock.json",
     "next.config.ts", "tsconfig.json", "eslint.config.mjs", "postcss.config.mjs",
-    ".gitignore", ".env.example",
+    ".gitignore", ".env.example", "Dockerfile", ".dockerignore", "CONTRIBUTING.md",
+    ".agents/skills/kfc-team-development/SKILL.md",
+    ".agents/skills/kfc-team-development/agents/openai.yaml",
 ]
+root_files += [f"infra/aws/{name}" for name in ["bootstrap.sh", "build-template.py", "release.sh", "runtime-config.py", "stack.json", "target.example.json"]]
 entries = {}
 for directory in roots:
     for path in (ROOT / directory).rglob("*"):
@@ -53,6 +56,14 @@ for name in ["cart-atomic-before.json", "cart-atomic-after.json"]:
     path = ROOT / "output" / "verification" / name
     if path.is_file():
         entries[f"evidence/cart/{name}"] = path
+for name in ["checkout-catalog-before.json", "checkout-catalog-after.json"]:
+    path = ROOT / "output" / "verification" / name
+    if path.is_file():
+        entries[f"evidence/checkout/{name}"] = path
+for name in ["catalog-editor-before.json", "catalog-editor-after.json"]:
+    path = ROOT / "output" / "verification" / name
+    if path.is_file():
+        entries[f"evidence/catalog/{name}"] = path
 for name in ["sales-report-demo.json", "product-sales-ui.csv"]:
     path = ROOT / "output" / "verification" / name
     if path.is_file():
@@ -79,6 +90,9 @@ for name in [
     "language-help-desktop.png", "language-help-mobile.png", "language-remove-preview-mobile.png", "language-order-mobile.png",
     "feedback-customer-mobile.png", "feedback-admin-mobile.png", "feedback-reply-mobile.png", "feedback-stale-mobile.png", "feedback-customer-reply-mobile.png",
     "shop-settings-mobile.png", "shop-public-closed-mobile.png", "shop-checkout-mobile.png", "shop-delivery-address-mobile.png", "shop-receipt.png",
+    "catalog-menu-conflict-mobile.png", "catalog-menu-retry-mobile.png",
+    "catalog-category-conflict-mobile.png", "catalog-navigation-mobile.png",
+    "catalog-checkout-stale-mobile.png", "catalog-checkout-order-mobile.png",
     "cart-stale-mobile.png", "cart-retry-mobile.png", "cart-repriced-mobile.png",
     "kitchen-desktop.png", "kitchen-mobile.png", "kitchen-filter-mobile.png",
     "admin-cancel-reason-mobile.png", "customer-cancel-reason-mobile.png", "admin-cancel-conflict-mobile.png",
@@ -88,6 +102,11 @@ for name in [
     path = ROOT / "output" / "playwright" / name
     if path.is_file():
         entries[f"evidence/ui/{name}"] = path
+
+for name in ["aws-preflight.json", "aws-deployment-plan.json", "aws-price-inputs.json", "aws-preparation-checks.json"]:
+    path = ROOT / "output" / "verification" / name
+    if path.is_file():
+        entries[f"evidence/aws/{name}"] = path
 
 records = []
 with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as zipped:

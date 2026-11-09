@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import type { MenuCategory } from "@/lib/types/menu";
+import type { CatalogCategory } from "@/lib/admin-types";
 export function CategoryEditor({
   category,
   itemCount,
@@ -8,18 +8,24 @@ export function CategoryEditor({
   error,
   onClose,
   onSave,
+  onReload,
 }: {
-  category: MenuCategory | null;
+  category: CatalogCategory | null;
   itemCount: number;
   busy: boolean;
   error: string;
   onClose: () => void;
   onSave: (data: object) => void;
+  onReload: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const errorMessage = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
+  useEffect(() => {
+    if (error) errorMessage.current?.focus();
+  }, [error]);
   return (
     <dialog
       ref={dialog}
@@ -112,9 +118,14 @@ export function CategoryEditor({
           )}
         </fieldset>
         {error && (
-          <p className="error-box" role="alert">
+          <p ref={errorMessage} tabIndex={-1} className="error-box" role="alert">
             {error}
           </p>
+        )}
+        {category && error && (
+          <button type="button" className="text-button" disabled={busy} onClick={onReload}>
+            Tải lại danh mục · bỏ bản nháp
+          </button>
         )}
         <button
           type="submit"

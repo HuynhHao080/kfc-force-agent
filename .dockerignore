@@ -1,0 +1,12 @@
+.git
+node_modules
+.next
+.local
+output
+.playwright-cli
+**/__pycache__
+**/*.kfcbackup
+**/.kfc-restore-*
+**/.env*
+!/.env.example
+*.tsbuildinfo

@@ -1,0 +1,10 @@
+{
+  "profile": "default",
+  "region": "us-west-2",
+  "stackName": "kfc-graduation-pilot",
+  "expectedAccount": "",
+  "amiId": "",
+  "cloudFrontPrefixListId": "pl-82a045eb",
+  "instanceType": "t3.medium",
+  "dailyRequestLimit": 25
+}

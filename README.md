@@ -4,6 +4,14 @@ Project khóa luận có tài khoản khách, thực đơn động, giỏ hàng,
 
 **Đây là project học tập, không phải kênh đặt hàng chính thức của KFC. Đơn demo không được gửi đến nhà hàng và không thu tiền.**
 
+## Làm việc nhóm
+
+Ba thành viên dùng branch và clone/worktree riêng, đọc [CONTRIBUTING.md](CONTRIBUTING.md) và [AGENTS.md](AGENTS.md) trước khi giao việc cho agent. Skill dùng chung được lưu trong `.agents/skills/kfc-team-development`. Trước commit chạy `npm run team:check`; chỉ merge qua PR có review và CI. Chủ repo cần bật branch protection trên GitHub theo hướng dẫn; file trong repo không tự bật các quyền đó.
+
+## Mục tiêu bàn giao 01/01/2027
+
+Theo yêu cầu giảng viên cập nhật 09/11, bản cuối phải có **AI thật và triển khai AWS**. Xem [kế hoạch nước rút](docs/graduation/sprint-plan-2026-11-09.md) và [cấu hình, chi phí, trình tự AWS](docs/graduation/aws-readiness.md). Đã chuẩn bị Bedrock canary, Dockerfile, CloudFormation và release theo SHA256/S3 VersionId; preflight chỉ đọc đã qua. Chưa gọi AI thật, chưa build image Linux hoặc triển khai AWS.
+
 ## Bắt đầu trên Windows / PowerShell
 
 Yêu cầu Node.js 22.13+ và npm. Đã kiểm tra bằng Node.js 26.3.0 trên Windows.
@@ -85,6 +93,7 @@ Bộ hiểu câu offline hỗ trợ các mẫu trên và cách nói “Cho mình
 | `SESSION_SECRET`      | Tạo và lưu local | Chuỗi riêng tư tối thiểu 32 ký tự; cần giữ ổn định khi triển khai |
 | `AWS_REGION`          | `ap-southeast-1` | Chỉ dùng khi tích hợp AWS                                         |
 | `DYNAMODB_TABLE_NAME` | `KfcForceAgent`  | Bảng DynamoDB đã được chuẩn bị                                    |
+| `BEDROCK_DAILY_REQUEST_LIMIT` | `25` | Trần lượt gọi thật/ngày UTC cho một tiến trình; 0 tắt inference, không phải trần USD |
 | `BEDROCK_MODEL_ID`    | `mock-model`     | Phải đặt ID model thực khi chọn Bedrock                           |
 
 `.local/store.json` chứa thông tin liên hệ demo và đơn hàng. `.local/session-secret` dùng ký cookie. Cả thư mục đã bị Git và server tracing loại trừ; đừng chia sẻ hoặc đưa vào public. Sao lưu cả thư mục nếu cần giữ dữ liệu và phiên. Thay secret sẽ làm phiên cũ hết hiệu lực.
@@ -99,7 +108,7 @@ Driver `mock` chỉ lưu trong bộ nhớ và dành cho test. Driver DynamoDB đ
 npm run check
 ```
 
-Lệnh này lần lượt chạy lint, TypeScript, test nghiệp vụ, backup/recovery, build và test HTTP trên production server tự khởi động tại cổng 3197. Cần cổng 3197 còn trống. Test HTTP dùng thư mục tạm riêng, tự đóng server, không gọi AWS và không dùng dữ liệu `.local` của bạn.
+Lệnh này lần lượt chạy lint, TypeScript, test nghiệp vụ, backup/recovery, 3 test đóng gói/hạ tầng AWS offline, build và test HTTP trên production server tự khởi động tại cổng 3197. Cần cổng 3197 còn trống. Test HTTP dùng thư mục tạm riêng, tự đóng server, không gọi AWS và không dùng dữ liệu `.local` của bạn.
 
 Các lệnh riêng:
 
@@ -112,9 +121,9 @@ npm run test:smoke
 npm audit --omit=dev
 ```
 
-- 89 nhóm kiểm tra service/provider/client helper: nghiệp vụ, grounding, protocol Bedrock bằng transport giả, prompt và lỗi mạng; không gọi AWS.
+- 101 nhóm kiểm tra service/provider/client helper: nghiệp vụ, grounding, protocol Bedrock bằng transport giả, prompt và lỗi mạng; không gọi AWS.
 - 9 nhóm backup/recovery local: mã hoá, password/tamper, restore không overwrite và đọc lại bằng service thật.
-- 73 nhóm HTTP: cookie/ownership, xác nhận đồng thời, checkout/retry, restart, account/session, role quản trị, workflow, race huỷ/chuẩn bị, quản lý menu và thống kê.
+- 76 nhóm HTTP: cookie/ownership, xác nhận đồng thời, checkout/retry, restart, account/session, role quản trị, workflow, race huỷ/chuẩn bị, quản lý menu và thống kê.
 - Kiểm tra trình duyệt bằng Playwright CLI: tìm món, thêm trực tiếp/chat, xác nhận, giao hàng, checkout, xem/huỷ đơn và responsive. Xem ghi nhận tại `docs/verification.md`.
 
 ## Kiến trúc
@@ -137,7 +146,7 @@ Các tài liệu `docs/phase*.md` là thiết kế các giai đoạn trước, m
 
 ## Phạm vi trước khi vận hành thật
 
-Bản này hoàn thiện nhiều phân hệ demo local. Trước khi phục vụ thật vẫn cần email verification/recovery, nhiều nhân viên, tích hợp nhà hàng/POS, thanh toán/giao vận, cơ sở dữ liệu đa tiến trình và đánh giá LLM thực. Chưa có bằng chứng SLA/tải lớn, security certification hoặc toàn bộ WCAG. Khoá/version giỏ phân tán còn cần thiết kế. Không tự triển khai hoặc gọi AWS trong quá trình hoàn thiện local.
+Bản này hoàn thiện nhiều phân hệ demo local. Trước khi phục vụ thật vẫn cần email verification/recovery, nhiều nhân viên, tích hợp nhà hàng/POS, thanh toán/giao vận, cơ sở dữ liệu đa tiến trình và đánh giá LLM thực. Chưa có bằng chứng SLA/tải lớn, security certification hoặc toàn bộ WCAG. Khoá/version giỏ phân tán còn cần thiết kế. Triển khai AWS theo target và ngân sách đã duyệt; hướng dẫn pilot ở [AWS readiness](docs/graduation/aws-readiness.md).
 
 ## Hồ sơ khóa luận và bàn giao
 

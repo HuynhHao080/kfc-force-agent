@@ -34,6 +34,16 @@ __pycache__/
 # misc
 .DS_Store
 *.pem
+*.key
+*.p12
+*.pfx
+.aws/
+session-secret
+admin-credentials.json
+admin-bootstrap.txt
+runtime.env
+/infra/aws/target*.json
+!/infra/aws/target.example.json
 
 # debug
 npm-debug.log*

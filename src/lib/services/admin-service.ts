@@ -8,6 +8,9 @@ import { orderWindowRevision } from "@/lib/server/order-window";
 import { buildKitchenBoard } from "@/lib/kitchen-board";
 import { kitchenStatuses, type KitchenBoard } from "@/lib/types/kitchen";
 import { catalogAudit } from "./catalog-audit";
+import { catalogRevision } from "./catalog-revision";
+import { SHOP_ORDER_GATE } from "./shop-service";
+import { withUserLock } from "@/lib/server/user-lock";
 import { randomUUID } from "node:crypto";
 import type { OrderRepository } from "@/lib/db/repositories/interfaces/order-repository.interface";
 import type { IMenuRepository } from "@/lib/db/repositories/interfaces/menu-repository.interface";
@@ -146,9 +149,13 @@ export class AdminService {
     return this.detail(id);
   }
   async catalog() {
+    const [items, categories] = await Promise.all([
+      this.menu.getMenuItems(),
+      this.menu.getCategories(),
+    ]);
     return {
-      items: await this.menu.getMenuItems(),
-      categories: await this.menu.getCategories(),
+      items: items.map(item => ({ ...item, catalogRevision: catalogRevision(item) })),
+      categories: categories.map(category => ({ ...category, catalogRevision: catalogRevision(category) })),
     };
   }
   catalogHistory() {
@@ -157,6 +164,18 @@ export class AdminService {
   async saveCategory(
     input: z.infer<typeof adminCategorySchema>,
     id?: string,
+    beforeSave?: () => Promise<void>,
+    expectedRevision?: string,
+  ): Promise<MenuCategory> {
+    return withUserLock(SHOP_ORDER_GATE, async () => {
+      await beforeSave?.();
+      return this.saveCategoryUnlocked(input, id, expectedRevision);
+    });
+  }
+  private async saveCategoryUnlocked(
+    input: z.infer<typeof adminCategorySchema>,
+    id?: string,
+    expectedRevision?: string,
   ): Promise<MenuCategory> {
     const previous = id ? await this.menu.getCategoryById(id) : null;
     if (id && !previous)
@@ -194,6 +213,15 @@ export class AdminService {
       updatedAt: now,
     };
     const audit = catalogAudit("category", category, previous);
+    if (
+      previous && expectedRevision !== undefined &&
+      expectedRevision !== catalogRevision(previous) && audit.changes.length
+    )
+      throw new DomainError(
+        "CATALOG_CHANGED",
+        "Danh mục đã thay đổi ở lần chỉnh sửa khác. Hãy xem lại bản nháp rồi tải dữ liệu mới.",
+        409,
+      );
     if (previous && !audit.changes.length) return previous;
     await this.menu.saveCategory(category, audit);
     return category;
@@ -201,6 +229,18 @@ export class AdminService {
   async saveMenu(
     input: z.infer<typeof adminMenuSchema>,
     id?: string,
+    beforeSave?: () => Promise<void>,
+    expectedRevision?: string,
+  ): Promise<MenuItem> {
+    return withUserLock(SHOP_ORDER_GATE, async () => {
+      await beforeSave?.();
+      return this.saveMenuUnlocked(input, id, expectedRevision);
+    });
+  }
+  private async saveMenuUnlocked(
+    input: z.infer<typeof adminMenuSchema>,
+    id?: string,
+    expectedRevision?: string,
   ): Promise<MenuItem> {
     const previous = id ? await this.menu.getMenuItemById(id) : null;
     if (id && !previous)
@@ -225,6 +265,15 @@ export class AdminService {
       updatedAt: now,
     };
     const audit = catalogAudit("menu", item, previous);
+    if (
+      previous && expectedRevision !== undefined &&
+      expectedRevision !== catalogRevision(previous) && audit.changes.length
+    )
+      throw new DomainError(
+        "CATALOG_CHANGED",
+        "Món đã thay đổi ở lần chỉnh sửa khác. Hãy xem lại bản nháp rồi tải dữ liệu mới.",
+        409,
+      );
     if (previous && !audit.changes.length) return previous;
     await this.menu.saveMenuItem(item, audit);
     return item;

@@ -9,8 +9,7 @@ import {
 } from "@/lib/storefront-types";
 import { orderStatusLabels, nextOrderStatuses } from "@/lib/order-workflow";
 import type { OrderStatus } from "@/lib/types/order";
-import type { MenuCategory, MenuItem } from "@/lib/types/menu";
-import type { AdminDashboard } from "@/lib/admin-types";
+import type { AdminDashboard, AdminCatalog, CatalogCategory, CatalogMenuItem } from "@/lib/admin-types";
 import { MenuEditor } from "./menu-editor";
 import { CategoryEditor } from "./category-editor";
 import { CatalogAuditPanel } from "./catalog-audit-panel";
@@ -45,10 +44,7 @@ export function AdminConsole() {
     authenticated: boolean;
   } | null>(null);
   const [dashboard, setDashboard] = useState(emptyDashboard);
-  const [menu, setMenu] = useState<{
-    items: MenuItem[];
-    categories: MenuCategory[];
-  }>({ items: [], categories: [] });
+  const [menu, setMenu] = useState<AdminCatalog>({ items: [], categories: [] });
   const [tab, setTab] = useState<
     "orders" | "menu" | "reports" | "audit" | "promotions" | "kitchen" | "shop" | "feedback"
   >("orders");
@@ -68,10 +64,11 @@ export function AdminConsole() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [editor, setEditor] = useState<{ item: MenuItem | null } | null>(null);
+  const [editor, setEditor] = useState<{ item: CatalogMenuItem | null; resetKey?: number } | null>(null);
   const [editorError, setEditorError] = useState("");
   const [categoryEditor, setCategoryEditor] = useState<{
-    item: MenuCategory | null;
+    item: CatalogCategory | null;
+    resetKey?: number;
   } | null>(null);
   const [categoryError, setCategoryError] = useState("");
   const [cancellation, setCancellation] = useState<OrderDetail | null>(null);
@@ -272,6 +269,7 @@ export function AdminConsole() {
     try {
       await api("/api/admin/menu", {
         method: editor?.item ? "PATCH" : "POST",
+        headers: editor?.item ? { "X-KFC-Catalog-Revision": editor.item.catalogRevision } : undefined,
         body: JSON.stringify(data),
       });
       committed = true;
@@ -316,6 +314,7 @@ export function AdminConsole() {
     try {
       await api("/api/admin/categories", {
         method: categoryEditor?.item ? "PATCH" : "POST",
+        headers: categoryEditor?.item ? { "X-KFC-Catalog-Revision": categoryEditor.item.catalogRevision } : undefined,
         body: JSON.stringify(data),
       });
       committed = true;
@@ -333,6 +332,40 @@ export function AdminConsole() {
         setCategoryError(
           err instanceof Error ? err.message : "Không thể lưu danh mục.",
         );
+    } finally {
+      working.current = false;
+      setBusy(false);
+    }
+  };
+  const reloadCatalogEditor = async (kind: "menu" | "category") => {
+    const id = kind === "menu" ? editor?.item?.id : categoryEditor?.item?.id;
+    if (working.current || !id) return;
+    working.current = true;
+    setBusy(true);
+    const version = ++refreshVersion.current;
+    try {
+      const catalog = await api<AdminCatalog>("/api/admin/menu");
+      if (version !== refreshVersion.current) return;
+      if (kind === "menu") {
+        const item = catalog.items.find(entry => entry.id === id);
+        if (!item) throw new Error("Món không còn trong thực đơn. Hãy đóng form và kiểm tra lại danh sách.");
+        setEditor(previous => previous ? { item, resetKey: (previous.resetKey ?? 0) + 1 } : null);
+        setEditorError("");
+      } else {
+        const item = catalog.categories.find(entry => entry.id === id);
+        if (!item) throw new Error("Danh mục không còn trong thực đơn. Hãy đóng form và kiểm tra lại danh sách.");
+        setCategoryEditor(previous => previous ? { item, resetKey: (previous.resetKey ?? 0) + 1 } : null);
+        setCategoryError("");
+      }
+      setMenu(catalog);
+    } catch (err) {
+      if (version !== refreshVersion.current) return;
+      if (err instanceof RequestError && err.status === 401) clearStaffView();
+      else {
+        const message = err instanceof Error ? err.message : "Chưa tải được dữ liệu mới. Bản nháp vẫn được giữ.";
+        if (kind === "menu") setEditorError(message);
+        else setCategoryError(message);
+      }
     } finally {
       working.current = false;
       setBusy(false);
@@ -1020,16 +1053,19 @@ export function AdminConsole() {
       )}
       {editor && (
         <MenuEditor
+          key={`${editor.item?.id ?? "new"}:${editor.item?.catalogRevision ?? ""}:${editor.resetKey ?? 0}`}
           item={editor.item}
           categories={menu.categories}
           busy={busy}
           error={editorError}
           onClose={() => setEditor(null)}
           onSave={saveMenu}
+          onReload={() => void reloadCatalogEditor("menu")}
         />
       )}
       {categoryEditor && (
         <CategoryEditor
+          key={`${categoryEditor.item?.id ?? "new"}:${categoryEditor.item?.catalogRevision ?? ""}:${categoryEditor.resetKey ?? 0}`}
           category={categoryEditor.item}
           itemCount={
             menu.items.filter(
@@ -1040,6 +1076,7 @@ export function AdminConsole() {
           error={categoryError}
           onClose={() => setCategoryEditor(null)}
           onSave={saveCategory}
+          onReload={() => void reloadCatalogEditor("category")}
         />
       )}
     </div>

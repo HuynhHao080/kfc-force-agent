@@ -193,3 +193,29 @@ Mất phản hồi sau first-add commit: browser route.fetch nhận201 rồi abo
 Năm unit mới kiểm tra commit boundary/faults, concurrent creator/editor CAS, legacy/invalid/foreign-owner/revision, stale checkout/closed-cart và command contract Dynamo bằng client giả. Một data group mới inject7 lỗi thật trên thư mục synthetic temp, so memory+diskbytes và reprice phục hồi; output/verification/cart-atomic-after.json gắn source hash. Hai HTTP group mới kiểm tra stale operations/malformedheader/concurrent snapshot/replay/owner/restart. Bộ chính89unit+9data+73HTTP=171 nhóm;3 verifier riêng. Lint/typecheck/build qua, audit production dependency0 findings. Browser evidence và tình trạng bản build cuối ghi ở verification.
 
 Dynamo dùng một transaction metadata/pointer/diff items, consistent reads và conditional revision; test không tạo AWS client/network. Primitive repository methods còn cho fixture/nội bộ, không bảo đảm chuỗi primitive atomic. Phạm vi nghiệm thu vẫn local một tiến trình, không cloud/distributed acceptance hoặc chứng minh chống mọi lỗi nguồn điện. Repricing GET có thể ghi giá hiện hành; header409 ngăn thay số lượng nhưng không ngăn việc cập nhật giá hợp lệ.
+
+## Đồng bộ checkout và cập nhật bán hàng — 08/11/2026
+
+P2 đã tái hiện trên mock repository bằng một barrier trong lần kiểm tra điều kiện cuối của CheckoutService. Khi checkout đã đọc món, AdminService.saveMenu đổi isAvailable=false và hoàn tất trước commit đơn. Checkout vẫn trả CONFIRMED. Bằng chứng checkout-catalog-before.json ghi trạng thái cùng SHA256 ba service trước sửa.
+
+AdminService.saveMenu/saveCategory và PromotionService.save nay dùng SHOP_ORDER_GATE chung với checkout và cấu hình cửa hàng. Kiểm tra dữ liệu và ghi catalog/audit nằm trong gate. Checkout bắt đầu trước giữ snapshot đã nhận, cập nhật quản trị chờ đến sau commit. Cập nhật quản trị hoàn tất trước khiến checkout kiểm tra trạng thái, chữ ký và revision mới. Khoá lấy theo customer→gate→disk hoặc admin→gate→disk. Các service gọi trực tiếp vẫn giữ chữ ký hàm cũ, thêm callback optional trước xử lý để route kiểm tra lại quyền sau chờ.
+
+Sáu route POST/PATCH menu/categories/promotions truyền requireAdminSession vào callback. Kiểm thử dùng route và lock thật, stub trạng thái xác thực, thu hồi sau khi service đã chờ gate. Cả sáu trả401/no-store, catalog/audit/promotions giữ nguyên. Checkout đánh giá lại mã ngay sau lần kiểm tra shop cuối, ngăn mã hết hạn trong thời gian xử lý được lưu vào đơn. Request bị từ chối giữ giỏ và request key để khách xem lại hoặc gửi lại ý định hợp lệ.
+
+Năm nhóm unit mới kiểm tra checkout-first với ba cập nhật đang chờ, catalog-first với hết món/đổi giá và khôi phục cùng key, sáu route queued-auth, expiry đúng biên bằng clock stub, và ba lỗi repository giải phóng gate. checkout-catalog-after.json ghi source hash cùng các assertion tổng hợp. Khoá là cơ chế của bản local một tiến trình. Các primitive repository ghi trực tiếp dành cho nội bộ tin cậy, nguồn dữ liệu ngoài tiến trình cần transaction/conditional checks riêng. Giá trị quote có thể đổi trước checkout, server vẫn kiểm tra lại lúc nhận đơn.
+
+Kết quả cuối94unit+9data+73HTTP=176 nhóm qua lint/typecheck/build.3 test công cụ gói nộp qua và audit production dependency0 findings. Browser coupon đổi10k→20k bị400, áp lại quote reset checkbox và accepted69k. Hết món bị400, accepted retry/snapshot giữ69k/20k/89k.320px không tràn. Code-review đề cập phạm vi local đã chọn, các ca clock/auth có stub được ghi rõ trong testing.
+
+## Form catalog và cập nhật từ nhiều tab — 08/11/2026
+
+P2 đã tái hiện bằng MockMenuRepository/AdminService. Hai form cùng snapshot ban đầu89k, lần đầu lưu99k, lần sau chỉ sửa mô tả nhưng gửi giá89k làm giá quay lại89k. catalog-editor-before.json ghi kết quả và SHA256 AdminService trước sửa.
+
+Admin catalog DTO thêm catalogRevision tính từ ID/timestamps/trường editable, dữ liệu lưu giữ schema cũ. PATCH nhận optionalheader X-KFC-Catalog-Revision. Service so phiên bản trong acceptance gate sau callback kiểm tra auth, stale payload khác record trả409 CATALOG_CHANGED trước lưu/audit. Exact content replay trả previous, giữ updatedAt/audit. Client cũ không header tiếp tục hành vi cũ, UI mới luôn gửi header. Revision không phải credential hoặc distributed repository CAS.
+
+MenuEditor/CategoryEditor giữ bản nháp khi save/read lỗi, error được focus, nút tải lại ghi rõ bỏ draft. AdminConsole fetch catalog rồi remount bằng version/resetKey khi thành công, resetKey xử lý cả trường hợp server chưa đổi version. Read response có generation guard,401 clear form/private view. Type DTO riêng để catalogRevision không bị đưa vào records. Đổi giá/ảnh ở menu legacy vẫn qua cùng validation và nhật ký hiện có.
+
+Ba unit mới kiểm hash/DTO isolation/legacy, concurrent menu/category one winner/exact replay/audit, malformedheader và failedwrite retry giữversion. Hai HTTP mới kiểm stale/crossentity/header/schema/exactretry/legacy callers cùng restart/readonly bytes/khôngpersist token. Lần HTTP đầu quên đăng nhập staff lại sau restart, response401 khiến helper đọc thiếu data, đã sửa fixture reauth và chạy lại75HTTP thành công.
+
+Browser review còn tìm thấy mobile320 có document365 vì tám nút nav giữ một hàng. CSS dưới720px chuyển nav thành grid4cột, hai hàng, nút cao tối thiểu44px. Bằng chứng UI và số đo bản build cuối ghi tại verification.
+
+Kết quả cuối181 nhóm chính,3 verifier riêng, audit productiondeps0. Browser trên hai tab thật kiểm menu99k/stale89k409, draft/focus/reloadfailure/reloadsuccess và lost-ack exact retry chỉ1audit. Category kiểmstale409, reload cùng revision bỏ draft và401xoáform. Source trước sửa khớp archive20261107T183157Z, source sau sửa khớp proof và checkout hiện hành. Mobile grid đo320/390/430/720/768/1440 không tràn. Token optional cho API cũ và gate local một tiến trình được giữ trong phạm vi nghiệm thu.

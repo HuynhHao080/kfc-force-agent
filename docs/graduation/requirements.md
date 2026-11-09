@@ -132,3 +132,16 @@ Feedback/reply chỉ đúng chủ đơn và staff đọc, không public menu, kh
 Mỗi thao tác thêm/gộp, sửa số lượng, xoá dòng, xoá giỏ và cập nhật giá/tên từ menu phải lưu metadata, toàn bộ dòng món và tổng tiền cùng một commit. Lỗi lưu không để lại dòng mới, tổng cũ hoặc giỏ rỗng do lần thêm đầu thất bại. Repository kiểm tra owner, trạng thái ACTIVE và revision trước ghi; hai cập nhật cùng revision chỉ một được chấp nhận, giỏ đã checkout không được mở lại.
 
 Giao diện gửi chữ ký giỏ vừa hiển thị cho các nút sửa giỏ. Nếu giỏ/menu đã thay đổi, trả409 CART_CHANGED, tải giỏ mới và yêu cầu khách xem lại; không tự gửi lại thao tác. Khi phản hồi thêm món bị mất, gửi lại với chữ ký cũ bị chặn để khách kiểm tra số lượng đã lưu. Chữ ký là điều kiện nội dung, không phải credential hoặc khoá idempotency tổng quát. API cũ không gửi header vẫn được hỗ trợ; snapshot cũ thiếu revision được nâng cấp ở lần ghi kế tiếp.
+
+## Bổ sung FR07, FR14, FR28 và FR34 ngày 08/11/2026
+
+Checkout và cập nhật món/danh mục/khuyến mãi/cấu hình dùng chung gate trong bản local. Bản ghi đơn phải phản ánh một thứ tự xử lý xác định với các cập nhật bán hàng. Quyền staff được kiểm tra lại sau chờ. Mã hết hạn trong lúc xử lý bị từ chối trước commit, giỏ và request key còn dùng được cho yêu cầu hợp lệ tiếp theo. Đơn đã lưu và retry đúng giữ snapshot ban đầu.
+
+## Bổ sung FR14 và FR22 — sửa thực đơn từ nhiều tab
+
+Form sửa món và danh mục gửi phiên bản của dữ liệu đã xem. Khi dữ liệu mới khác nội dung bản nháp, server trả409 CATALOG_CHANGED và giữ bản lưu hiện tại. Form giữ các trường người quản trị đang nhập, focus thông báo và cho phép tải lại với nhãn bỏ bản nháp. Tải lại lỗi giữ draft, tải lại thành công thay toàn bộ form bằng dữ liệu mới. Gửi lại đúng nội dung đã lưu trả record hiện tại và giữ số entry audit. Header optional để caller API cũ tiếp tục chạy. Giao diện hiện tại luôn gửi header khi PATCH.
+
+
+## Cập nhật phạm vi 09/11/2026
+
+Giảng viên yêu cầu AI thật và triển khai AWS trước 01/01/2027. [Kế hoạch nước rút](sprint-plan-2026-11-09.md) và [AWS readiness](aws-readiness.md) bổ sung mục tiêu/bằng chứng cho phạm vi này. Bộ hiện hành đạt 101 unit + 9 recovery + 76 HTTP = 186 nhóm local, thêm 3 test AWS package offline và 3 test verifier ZIP riêng. Các mốc/số đếm trước đó là lịch sử. Preflight AWS chỉ đọc đã qua; inference, image Linux và nghiệm thu trên AWS còn chờ thực hiện, chưa đánh dấu hoàn tất.

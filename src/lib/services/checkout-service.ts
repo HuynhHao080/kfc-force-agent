@@ -211,6 +211,18 @@ export class CheckoutService {
       createdAt: now,
     };
     await this.shop?.checkoutTerms(input.fulfillment, subtotal, input.shopRevision);
+    if (promotion && this.promotions) {
+      const currentPromotion = await this.promotions.evaluate(promotion.code, subtotal);
+      if (
+        currentPromotion.revision !== promotion.revision ||
+        currentPromotion.discount !== discount
+      )
+        throw new DomainError(
+          "PROMOTION_CHANGED",
+          "Mã giảm giá đã thay đổi. Vui lòng áp dụng lại và xác nhận tổng tiền.",
+          409,
+        );
+    }
     await this.orders.completeCheckout(order, items, event, {
       ...view.cart,
       status: "CHECKED_OUT",

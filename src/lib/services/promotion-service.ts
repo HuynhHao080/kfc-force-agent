@@ -4,6 +4,8 @@ import type { createPromotionSchema } from "@/lib/validation/promotion";
 import type { IMenuRepository } from "@/lib/db/repositories/interfaces/menu-repository.interface";
 import type { AppliedPromotion, Promotion } from "@/lib/types/promotion";
 import { DomainError } from "@/lib/domain-error";
+import { SHOP_ORDER_GATE } from "./shop-service";
+import { withUserLock } from "@/lib/server/user-lock";
 export class PromotionService {
   constructor(private repository: IMenuRepository) {}
   async list() {
@@ -12,6 +14,16 @@ export class PromotionService {
     );
   }
   async save(
+    fields: z.infer<typeof createPromotionSchema>,
+    revision?: string,
+    beforeSave?: () => Promise<void>,
+  ): Promise<Promotion> {
+    return withUserLock(SHOP_ORDER_GATE, async () => {
+      await beforeSave?.();
+      return this.saveUnlocked(fields, revision);
+    });
+  }
+  private async saveUnlocked(
     fields: z.infer<typeof createPromotionSchema>,
     revision?: string,
   ): Promise<Promotion> {

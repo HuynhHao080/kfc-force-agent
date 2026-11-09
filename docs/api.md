@@ -143,3 +143,13 @@ Local feedback nằm trong Order.feedback nên snapshot/backup cũ không cần 
 POST/PATCH/DELETE /api/cart nhận header X-KFC-Cart-Signature. Dùng signature từ GET /api/cart hoặc storefront; chỉ dùng literal empty khi cart=null, không dùng cho một giỏ ACTIVE có0 dòng. Header sai định dạng trả400 INVALID_CART_SNAPSHOT; nội dung hiện tại khác trả409 CART_CHANGED trước mutation. Giao diện hiện tại luôn gửi header, tải giỏ mới khi409 và không tự retry. X-KFC-Owner/cookie/origin vẫn được kiểm tra độc lập; hash không cấp quyền.
 
 Header optional để tương thích client cũ, vì vậy client bỏ header không có bảo đảm chặn thao tác theo snapshot UI. Cart.revision là CAS nội bộ repository, có thể thiếu trong snapshot legacy và được bổ sung khi ghi; không dùng revision thay cho cartSignature của checkout. Giá/tên đổi có thể được reprice nguyên tử khi đọc; request mang signature trước đổi giá bị409. Mất response không chứng minh thất bại: đọc lại giỏ trước khi phát sinh ý định mới. Đây không phải idempotency key cho mọi lần thêm món.
+
+## Cập nhật bán hàng khi có checkout đang xử lý
+
+POST/PATCH /api/admin/menu, /api/admin/categories và /api/admin/promotions chờ cùng acceptance gate với checkout, sau đó kiểm tra lại phiên staff. Payload API giữ như trước. Checkout đang xử lý xong trước thì đơn lưu snapshot đã nhận, cập nhật catalog áp dụng cho lần đặt sau. Cập nhật đã hoàn tất trước thì checkout dùng trạng thái/giá/mã mới và có thể trả CART_CHANGED, ITEM_UNAVAILABLE hoặc lỗi promotion tương ứng. Mã được kiểm tra thêm một lần trước lưu đơn để bắt thời điểm hết hạn. Client tải lại giỏ/áp lại mã và xác nhận theo điều kiện hiện tại.
+
+## Phiên bản form quản trị món và danh mục
+
+GET /api/admin/menu trả mỗi item/category thêm catalogRevision, GET /api/admin/categories cũng có token trên từng category. PATCH /api/admin/menu và /api/admin/categories nhận header X-KFC-Catalog-Revision từ record tương ứng. Sai định dạng trả400 INVALID_CATALOG_REVISION. Sai phiên bản và payload làm thay đổi record trả409 CATALOG_CHANGED, giữ dữ liệu/audit hiện tại. Client đóng form hoặc chọn tải lại bỏ draft để xem lại trước khi lưu.
+
+Retry PATCH có cùng nội dung editable với record đã lưu trả200, giữ updatedAt và audit, kể cả token cũ. Đây là phép kiểm tra nội dung hiện tại, không phải request UUID. Client API cũ bỏ header vẫn được hỗ trợ. POST tạo mới giữ contract cũ. Token nằm trên DTO đọc, không lưu vào repository hoặc snapshot backup, quyền staff và origin vẫn được kiểm tra riêng.

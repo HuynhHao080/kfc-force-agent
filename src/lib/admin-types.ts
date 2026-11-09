@@ -1,4 +1,11 @@
 import type { Order } from "./types/order";
+import type { MenuCategory, MenuItem } from "./types/menu";
+export type CatalogMenuItem = MenuItem & { catalogRevision: string };
+export type CatalogCategory = MenuCategory & { catalogRevision: string };
+export interface AdminCatalog {
+  items: CatalogMenuItem[];
+  categories: CatalogCategory[];
+}
 export interface AdminDashboard {
   revision?: string;
   orders: Order[];
