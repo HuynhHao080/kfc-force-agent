@@ -681,12 +681,15 @@ async function main() {
       const {
         systemPrompt,
       } = require("../src/lib/agent/prompts/system-prompt.ts");
-      assert.equal(
-        systemPrompt,
-        fs.readFileSync(
+      const canonicalPrompt = fs
+        .readFileSync(
           path.join(__dirname, "../src/lib/agent/prompts/system-prompt.md"),
           "utf8",
-        ),
+        )
+        .replace(/\r\n?/g, "\n");
+      assert.equal(
+        systemPrompt.replace(/\r\n?/g, "\n"),
+        canonicalPrompt,
       );
       assert.ok(!systemPrompt.includes("CREATE_ORDER"));
     },
