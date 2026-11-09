@@ -491,7 +491,6 @@ async function main() {
         {
           modelId: "anthropic.transport-fixture",
           temperature: 0,
-          topP: 0,
           maxTokens: 64,
         },
         client,
@@ -505,7 +504,7 @@ async function main() {
       assert.equal(result.response.usage.inputTokens, 10);
       const body = JSON.parse(sent.command.input.body);
       assert.equal(body.temperature, 0);
-      assert.equal(body.top_p, 0);
+      assert.equal(body.top_p, undefined);
       assert.equal(body.messages.length, 3);
       assert.equal(body.messages.at(-1).content[0].text, "latest");
       assert.ok(sent.options.abortSignal);
@@ -2631,6 +2630,320 @@ async function main() {
       reject = false; stored = { ...stored, status: "CHECKED_OUT" };
       assert.equal(await repo.getActiveCart("sdk-owner"), null);
     } finally { aws.getDynamoDBDocumentClient = original; }
+  });
+  function catalogMenuFields(item, changes = {}) {
+    return { name: item.name, description: item.description ?? "", categoryId: item.categoryId,
+      price: item.price, isActive: item.isActive, isAvailable: item.isAvailable,
+      imageUrl: "/images/burger.svg", ...changes };
+  }
+  async function catalogCheckoutFixture() {
+    const f = await reorderFixture();
+    const { AdminService } = require("../src/lib/services/admin-service.ts");
+    const { CheckoutService } = require("../src/lib/services/checkout-service.ts");
+    const admin = new AdminService(f.orders, f.menuRepo);
+    const promotions = new PromotionService(f.menuRepo);
+    const promotion = await promotions.save(promotionFields);
+    const shop = new ShopService(f.menuRepo);
+    const checkout = new CheckoutService(f.orders, f.carts, f.menu, promotions, shop);
+    const basket = await f.carts.addMenuItem(f.owner, f.item, 1);
+    const input = { ...f.input, cartId: basket.cart.id, cartSignature: basket.signature,
+      fulfillment: "pickup", address: "", expectedTotal: basket.cart.subtotal - 5000,
+      promotionCode: promotion.code, promotionRevision: promotion.revision, idempotencyKey: crypto.randomUUID() };
+    return { ...f, admin, promotions, promotion, shop, checkout, basket, input };
+  }
+  await check("checkout commits before queued menu, category and coupon changes and retries retain the accepted snapshots", async () => {
+    const f = await catalogCheckoutFixture();
+    let release, observed, reads = 0, guardRuns = 0;
+    const gate = new Promise(resolve => release = resolve);
+    const seen = new Promise(resolve => observed = resolve);
+    const original = f.shop.checkoutTerms.bind(f.shop);
+    f.shop.checkoutTerms = async (...args) => {
+      if (++reads === 2) { observed(); await gate; }
+      return original(...args);
+    };
+    const placing = f.checkout.checkout(f.owner, f.input);
+    await seen;
+    const category = await f.menuRepo.getCategoryById(f.item.categoryId);
+    const guard = async () => { guardRuns++; };
+    const changing = Promise.allSettled([
+      f.admin.saveMenu(catalogMenuFields(f.item, { isAvailable: false, price: f.item.price + 1000 }), f.item.id, guard),
+      f.admin.saveCategory({ name: "Queued category", description: "", displayOrder: category.displayOrder, isActive: true }, category.id, guard),
+      f.promotions.save({ ...promotionFields, isActive: false }, f.promotion.revision, guard),
+    ]);
+    let order;
+    try {
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(guardRuns, 0);
+      assert.equal((await f.menuRepo.getMenuItemById(f.item.id)).isAvailable, true);
+      assert.equal((await f.menuRepo.getPromotion(f.promotion.code)).isActive, true);
+    } finally { release(); }
+    order = await placing;
+    assert.ok((await changing).every(result => result.status === "fulfilled"));
+    assert.equal(guardRuns, 3);
+    assert.equal(order.promotion.revision, f.promotion.revision);
+    assert.equal(order.total, f.input.expectedTotal);
+    assert.equal((await f.orders.getOrderItems(order.id))[0].unitPrice, f.item.price);
+    assert.equal((await f.menuRepo.getMenuItemById(f.item.id)).isAvailable, false);
+    assert.equal((await f.menuRepo.getCategoryById(category.id)).name, "Queued category");
+    assert.deepEqual(await f.checkout.checkout(f.owner, f.input), order);
+  });
+  await check("catalog changes that win the gate reject old checkout before commit and leave the request key reusable", async () => {
+    for (const change of [{ isAvailable: false }, { price: 90000 }]) {
+      const f = await catalogCheckoutFixture();
+      let release, observed;
+      const gate = new Promise(resolve => release = resolve), seen = new Promise(resolve => observed = resolve);
+      const original = f.menuRepo.saveMenuItem.bind(f.menuRepo);
+      f.menuRepo.saveMenuItem = async (...args) => { observed(); await gate; return original(...args); };
+      const changing = f.admin.saveMenu(catalogMenuFields(f.item, change), f.item.id);
+      await seen;
+      const placing = assert.rejects(() => f.checkout.checkout(f.owner, f.input), error =>
+        error.code === (change.isAvailable === false ? "ITEM_UNAVAILABLE" : "CART_CHANGED"));
+      release(); await changing; await placing;
+      f.menuRepo.saveMenuItem = original;
+      assert.equal((await f.orders.getUserOrders(f.owner)).length, 1);
+      assert.equal((await f.carts.getCartView(f.owner)).items[0].quantity, 1);
+      await f.admin.saveMenu(catalogMenuFields(f.item), f.item.id);
+      const accepted = await f.checkout.checkout(f.owner, f.input);
+      assert.equal(accepted.status, "CONFIRMED");
+      assert.equal((await f.orders.getUserOrders(f.owner)).length, 2);
+    }
+  });
+  await check("all six staff catalog mutation routes recheck the real auth wrapper after waiting at the acceptance gate", async () => {
+    const session = require("../src/lib/server/admin-session.ts");
+    const { withUserLock } = require("../src/lib/server/user-lock.ts");
+    const originalAuth = session.adminAuthenticated;
+    const available = (await services.menuService.getAvailableMenuItems())[0];
+    const category = await services.menuService.getCategoryById(available.categoryId);
+    const before = structuredClone({ catalog: await services.adminService.catalog(), audit: await services.adminService.catalogHistory(), promotions: await services.promotionService.list() });
+    const cases = [
+      ["menu", "POST", services.adminService, "saveMenu", catalogMenuFields(available, { name: "Queued new menu" })],
+      ["menu", "PATCH", services.adminService, "saveMenu", { ...catalogMenuFields(available), itemId: available.id }],
+      ["categories", "POST", services.adminService, "saveCategory", { name: "Queued new category", description: "", displayOrder: 10, isActive: true }],
+      ["categories", "PATCH", services.adminService, "saveCategory", { name: category.name, description: "", displayOrder: category.displayOrder, isActive: true, categoryId: category.id }],
+      ["promotions", "POST", services.promotionService, "save", { ...promotionFields, code: "QUEUEDAUTH" }],
+      ["promotions", "PATCH", services.promotionService, "save", { ...promotionFields, revision: crypto.randomUUID() }],
+    ];
+    try {
+      for (const [resource, method, service, operation, body] of cases) {
+        let valid = true, release, observed;
+        const gate = new Promise(resolve => release = resolve), seen = new Promise(resolve => observed = resolve);
+        const originalSave = service[operation];
+        session.adminAuthenticated = async () => valid;
+        service[operation] = function (...args) { observed(); return originalSave.apply(this, args); };
+        const blocker = withUserLock(SHOP_ORDER_GATE, () => gate);
+        try {
+          const route = require("../src/app/api/admin/" + resource + "/route.ts");
+          const pending = route[method](new Request("http://localhost/api/admin/" + resource, {
+            method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+          }));
+          await seen; valid = false; release(); await blocker;
+          const response = await pending;
+          assert.equal(response.status, 401, resource + " " + method);
+          assert.match(response.headers.get("cache-control"), /no-store/);
+        } finally { release(); service[operation] = originalSave; }
+      }
+    } finally { session.adminAuthenticated = originalAuth; }
+    assert.deepEqual({ catalog: await services.adminService.catalog(), audit: await services.adminService.catalogHistory(), promotions: await services.promotionService.list() }, before);
+  });
+  await check("a coupon expiring during final validation rejects checkout without claiming the key or closing the cart", async () => {
+    const f = await catalogCheckoutFixture(), originalNow = Date.now;
+    const deadline = originalNow() + 600000;
+    const promotion = await f.promotions.save({ ...promotionFields, endsAt: new Date(deadline).toISOString() }, f.promotion.revision);
+    const input = { ...f.input, promotionRevision: promotion.revision };
+    const original = f.shop.checkoutTerms.bind(f.shop);
+    let reads = 0;
+    f.shop.checkoutTerms = async (...args) => {
+      if (++reads === 2) Date.now = () => deadline;
+      return original(...args);
+    };
+    try {
+      await assert.rejects(() => f.checkout.checkout(f.owner, input), error => error.code === "PROMOTION_UNAVAILABLE");
+    } finally { Date.now = originalNow; f.shop.checkoutTerms = original; }
+    assert.equal((await f.orders.getUserOrders(f.owner)).length, 1);
+    assert.equal((await f.carts.getCartView(f.owner)).items[0].quantity, 1);
+    assert.equal((await f.checkout.checkout(f.owner, input)).status, "CONFIRMED");
+  });
+  await check("failed catalog repository writes release the acceptance gate and preserve checkout data", async () => {
+    const edits = [
+      ["saveMenuItem", f => f.admin.saveMenu(catalogMenuFields(f.item, { name: "Failed menu edit" }), f.item.id)],
+      ["saveCategory", f => f.admin.saveCategory({ name: "Failed category edit", description: "", displayOrder: 1, isActive: true }, f.item.categoryId)],
+      ["savePromotion", f => f.promotions.save({ ...promotionFields, isActive: false }, f.promotion.revision)],
+    ];
+    for (const [operation, change] of edits) {
+      const f = await catalogCheckoutFixture();
+      const original = f.menuRepo[operation];
+      f.menuRepo[operation] = async () => { throw new Error("Synthetic catalog write failure"); };
+      try {
+        await assert.rejects(() => change(f), /Synthetic catalog write failure/);
+      } finally { f.menuRepo[operation] = original; }
+      assert.equal((await f.checkout.checkout(f.owner, f.input)).status, "CONFIRMED");
+      assert.equal((await f.menuRepo.getMenuItemById(f.item.id)).name, f.item.name);
+      assert.equal((await f.menuRepo.getPromotion(f.promotion.code)).isActive, true);
+    }
+  });
+  const fs = require("node:fs");
+  const catalogProof = { scope: "Mock repositories, real services and route wrappers; controlled barriers and auth/clock stubs, no AWS",
+    checkoutFirstPreservesAcceptedSnapshots: true, catalogFirstRejectsStaleCheckout: true, revokedQueuedRoutes: 6,
+    expiryBeforeCommitRejects: true, failedWritesReleaseGate: true, sourceSha256: {} };
+  for (const name of ["checkout-service.ts", "admin-service.ts", "promotion-service.ts"])
+    catalogProof.sourceSha256[name] = require("node:crypto").createHash("sha256").update(fs.readFileSync(require("node:path").join(__dirname, "../src/lib/services", name))).digest("hex");
+  fs.mkdirSync(require("node:path").join(__dirname, "../output/verification"), { recursive: true });
+  fs.writeFileSync(require("node:path").join(__dirname, "../output/verification/checkout-catalog-after.json"), JSON.stringify(catalogProof, null, 2) + "\n");
+  await check("catalog versions are deterministic for legacy records, cover editable content and never enter stored data", async () => {
+    const { catalogRevision } = require("../src/lib/services/catalog-revision.ts");
+    const { AdminService } = require("../src/lib/services/admin-service.ts");
+    const repo = new MockMenuRepository();
+    const admin = new AdminService(new MockOrderRepository(new MockCartRepository()), repo);
+    const view = await admin.catalog();
+    const item = await repo.getMenuItemById(view.items[0].id);
+    assert.match(view.items[0].catalogRevision, /^[a-f0-9]{64}$/);
+    assert.equal(catalogRevision({ ...item }), view.items[0].catalogRevision);
+    for (const changed of [{ name: "Another menu name" }, { description: "Another description" },
+      { price: item.price + 1000 }, { categoryId: "another-category" }, { imageUrl: "/images/fries.svg" },
+      { isActive: !item.isActive }, { isAvailable: !item.isAvailable }, { updatedAt: "2099-01-01T00:00:00.000Z" }])
+      assert.notEqual(catalogRevision({ ...item, ...changed }), view.items[0].catalogRevision);
+    const category = await repo.getCategoryById(view.categories[0].id);
+    for (const changed of [{ name: "Another category" }, { description: "Another description" },
+      { displayOrder: category.displayOrder + 1 }, { isActive: !category.isActive }])
+      assert.notEqual(catalogRevision({ ...category, ...changed }), view.categories[0].catalogRevision);
+    view.items[0].name = "DTO mutation";
+    assert.equal((await repo.getMenuItemById(item.id)).name, item.name);
+    assert.equal((await repo.getMenuItemById(item.id)).catalogRevision, undefined);
+    assert.equal((await repo.getCategoryById(category.id)).catalogRevision, undefined);
+  });
+  await check("competing menu and category editors have one winner, reject stale writes and replay exact PATCH content without extra audit", async () => {
+    const { AdminService } = require("../src/lib/services/admin-service.ts");
+    for (const kind of ["menu", "category"]) {
+      const repo = new MockMenuRepository();
+      const admin = new AdminService(new MockOrderRepository(new MockCartRepository()), repo);
+      const catalog = await admin.catalog();
+      const original = kind === "menu" ? catalog.items[0] : catalog.categories[0];
+      const fields = kind === "menu" ? catalogMenuFields(original)
+        : { name: original.name, description: original.description ?? "", displayOrder: original.displayOrder, isActive: true };
+      const method = kind === "menu" ? "saveMenu" : "saveCategory";
+      const alternatives = [{ ...fields, name: "First editor winner" }, { ...fields, name: "Second editor attempt" }];
+      const results = await Promise.allSettled(alternatives.map(input => admin[method](input, original.id, undefined, original.catalogRevision)));
+      assert.equal(results.filter(result => result.status === "fulfilled").length, 1);
+      assert.equal(results.find(result => result.status === "rejected").reason.code, "CATALOG_CHANGED");
+      const winnerIndex = results.findIndex(result => result.status === "fulfilled");
+      const accepted = results[winnerIndex].value;
+      const auditCount = (await admin.catalogHistory()).length;
+      assert.equal(auditCount, 1);
+      const replay = await admin[method](alternatives[winnerIndex], original.id, undefined, original.catalogRevision);
+      assert.deepEqual(replay, accepted);
+      assert.equal((await admin.catalogHistory()).length, auditCount);
+      const current = (await admin.catalog())[kind === "menu" ? "items" : "categories"].find(entry => entry.id === original.id);
+      assert.notEqual(current.catalogRevision, original.catalogRevision);
+      await assert.rejects(() => admin[method]({ ...fields, description: "Stale draft" }, original.id, undefined, original.catalogRevision), error => error.code === "CATALOG_CHANGED");
+      assert.equal((await admin.catalogHistory()).length, auditCount);
+      await admin[method]({ ...alternatives[winnerIndex], description: "Reviewed new intent" }, original.id, undefined, current.catalogRevision);
+      assert.equal((await admin.catalogHistory()).length, 2);
+    }
+  });
+  await check("catalog preconditions reject malformed versions and failed writes leave the same version usable for an explicit retry", async () => {
+    const { readCatalogRevision } = require("../src/lib/server/catalog-precondition.ts");
+    const { AdminService } = require("../src/lib/services/admin-service.ts");
+    assert.equal(readCatalogRevision(new Request("http://localhost")), undefined);
+    for (const invalid of ["", "bad", "A".repeat(64), "a".repeat(63), "a".repeat(65)])
+      assert.throws(() => readCatalogRevision(new Request("http://localhost", { headers: { "X-KFC-Catalog-Revision": invalid } })), error => error.code === "INVALID_CATALOG_REVISION");
+    const repo = new MockMenuRepository();
+    const admin = new AdminService(new MockOrderRepository(new MockCartRepository()), repo);
+    const item = (await admin.catalog()).items[0];
+    const originalSave = repo.saveMenuItem;
+    repo.saveMenuItem = async () => { throw new Error("Synthetic catalog editor persistence failure"); };
+    try {
+      await assert.rejects(() => admin.saveMenu(catalogMenuFields(item, { price: 99000 }), item.id, undefined, item.catalogRevision), /Synthetic catalog editor persistence failure/);
+    } finally { repo.saveMenuItem = originalSave; }
+    assert.equal((await admin.catalog()).items[0].catalogRevision, item.catalogRevision);
+    assert.equal((await admin.catalogHistory()).length, 0);
+    const accepted = await admin.saveMenu(catalogMenuFields(item, { price: 99000 }), item.id, undefined, item.catalogRevision);
+    assert.equal(accepted.price, 99000);
+    assert.equal((await admin.catalogHistory()).length, 1);
+    await admin.saveMenu(catalogMenuFields(accepted, { price: 100000 }), accepted.id);
+    assert.equal((await admin.catalog()).items[0].price, 100000);
+  });
+  const editorProof = { scope: "Mock repository, real services and header parser; no AWS or preview data",
+    menuAndCategoryCasWinners: true, exactContentReplayWithoutExtraAudit: true,
+    failedWritePreservesVersion: true, legacySnapshotsUnmodified: true,
+    sourceSha256: require("node:crypto").createHash("sha256").update(fs.readFileSync(require("node:path").join(__dirname, "../src/lib/services/admin-service.ts"))).digest("hex") };
+  fs.writeFileSync(require("node:path").join(__dirname, "../output/verification/catalog-editor-after.json"), JSON.stringify(editorProof, null, 2) + "\n");
+  await check("Bedrock modern-model requests use a single sampler and invalid inference settings never reach transport", async () => {
+    let calls = 0, body;
+    const client = { send: async command => { calls++; body = JSON.parse(command.input.body); return encodedReply("safe model text"); } };
+    assert.equal((await new BedrockService({ modelId: "us.anthropic.claude-haiku-4-5-20251001-v1:0", topP: 0 }, client).generateResponse("system", "message")).success, true);
+    assert.equal(body.top_p, 0); assert.equal(body.temperature, undefined); assert.equal(body.max_tokens, 512);
+    for (const settings of [{ topP: 0.1, temperature: 0.1 }, { maxTokens: 0 }, { maxTokens: 2049 },
+      { maxTokens: 1.5 }, { temperature: -1 }, { topP: 2 }, { temperature: NaN }]) {
+      const result = await new BedrockService({ modelId: "fixture", ...settings }, client).generateResponse("system", "message");
+      assert.equal(result.success, false); assert.equal(result.error.type, "validation_error");
+    }
+    assert.equal(calls, 1);
+  });
+  await check("Bedrock UTF-8 input ceiling rejects oversized requests before transport", async () => {
+    let calls = 0;
+    const client = { send: async () => { calls++; return encodedReply("safe"); } };
+    const result = await new BedrockService({ modelId: "fixture" }, client).generateResponse("ế".repeat(11000), "message");
+    assert.equal(result.success, false); assert.equal(result.error.type, "validation_error"); assert.equal(calls, 0);
+  });
+  await check("persisted Bedrock request budget survives service reuse, blocks repeats and fails closed on corrupt state or writes", async () => {
+    const { reserveBedrockInvocation } = require("../src/lib/aws/invocation-budget.ts");
+    const fs = require("node:fs"), path = require("node:path"), os = require("node:os");
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "kfc-inference-budget-"));
+    const originalLimit = process.env.BEDROCK_DAILY_REQUEST_LIMIT, originalDirectory = process.env.LOCAL_DATA_DIR;
+    const file = path.join(directory, "bedrock-usage.json");
+    try {
+      process.env.BEDROCK_DAILY_REQUEST_LIMIT = "2";
+      const now = new Date("2026-11-09T12:00:00Z");
+      assert.equal(reserveBedrockInvocation(directory, now).used, 1);
+      assert.equal(reserveBedrockInvocation(directory, now).used, 2);
+      assert.throws(() => reserveBedrockInvocation(directory, now), /ceiling/);
+      assert.equal(reserveBedrockInvocation(directory, new Date("2026-11-10T00:00:00Z")).used, 1);
+      assert.throws(() => reserveBedrockInvocation(directory, now), /invalid/);
+      for (const data of ["bad-json", JSON.stringify({ day: "2026-99-99", used: 0 }), JSON.stringify({ day: "2026-11-09", used: -1 })]) {
+        fs.writeFileSync(file, data); assert.throws(() => reserveBedrockInvocation(directory, now));
+      }
+      fs.writeFileSync(file, JSON.stringify({ day: "2026-11-09", used: 0 }));
+      const before = fs.readFileSync(file);
+      fs.mkdirSync(file + ".tmp");
+      try { assert.throws(() => reserveBedrockInvocation(directory, now)); }
+      finally { fs.rmdirSync(file + ".tmp"); }
+      assert.ok(before.equals(fs.readFileSync(file)));
+      process.env.LOCAL_DATA_DIR = directory;
+      process.env.BEDROCK_DAILY_REQUEST_LIMIT = "1";
+      let calls = 0;
+      const service = new BedrockService({ modelId: "fixture" });
+      service.client = { send: async () => { calls++; return encodedReply("safe"); } }; // Trusted transport stub; managed budget path stays enabled.
+      assert.equal((await service.generateResponse("system", "message")).success, true);
+      assert.equal((await service.generateResponse("system", "message")).success, false);
+      assert.equal(calls, 1);
+      for (const limit of ["0", "bad", "1001", "1.5"]) {
+        process.env.BEDROCK_DAILY_REQUEST_LIMIT = limit;
+        assert.throws(() => reserveBedrockInvocation(directory, now));
+      }
+    } finally {
+      if (originalLimit === undefined) delete process.env.BEDROCK_DAILY_REQUEST_LIMIT; else process.env.BEDROCK_DAILY_REQUEST_LIMIT = originalLimit;
+      if (originalDirectory === undefined) delete process.env.LOCAL_DATA_DIR; else process.env.LOCAL_DATA_DIR = originalDirectory;
+    }
+  });
+  await check("AWS canary and deployment tooling require explicit targets and reject changed release/change-set scope offline", async () => {
+    const { parseArgs } = require("./aws-canary.cjs");
+    const { releaseCommands, assertCreateChangeSet } = require("./aws-deploy.cjs");
+    assert.equal(parseArgs([]).invoke, false);
+    assert.throws(() => parseArgs(["--invoke"]));
+    assert.throws(() => parseArgs(["--region", "unknown"]));
+    const template = require("../infra/aws/stack.json");
+    const target = { amiId: "ami-0123456789abcdef0", instanceType: "t3.medium", cloudFrontPrefixListId: "pl-fixture", dailyRequestLimit: 25 };
+    const change = { Status: "CREATE_COMPLETE", ExecutionStatus: "AVAILABLE", Changes: Object.entries(template.Resources).map(([id, resource]) => ({ ResourceChange: { LogicalResourceId: id, ResourceType: resource.Type, Action: "Add" } })),
+      Parameters: [{ ParameterKey: "InstanceType", ParameterValue: target.instanceType }, { ParameterKey: "CloudFrontPrefixListId", ParameterValue: target.cloudFrontPrefixListId },
+        { ParameterKey: "DailyRequestLimit", ParameterValue: "25" }, { ParameterKey: "AmiId", ParameterValue: "ami-0123456789abcdef0" }] };
+    assert.doesNotThrow(() => assertCreateChangeSet(change, "REVIEW_IN_PROGRESS", template, template, target));
+    assert.throws(() => assertCreateChangeSet(change, "CREATE_COMPLETE", template, template, target));
+    assert.throws(() => assertCreateChangeSet({ ...change, Changes: [] }, "REVIEW_IN_PROGRESS", template, template, target));
+    assert.throws(() => assertCreateChangeSet(change, "REVIEW_IN_PROGRESS", template, template, { ...target, dailyRequestLimit: 100 }));
+    const commands = releaseCommands({ region: "us-west-2" }, { ArtifactBucket: "synthetic-kfc-bucket" }, "version-1", "a".repeat(64)).join("\n");
+    assert.ok(commands.includes("--version-id 'version-1'")); assert.ok(commands.includes("sha256sum -c -"));
+    assert.throws(() => releaseCommands({ region: "us-west-2" }, { ArtifactBucket: "bad bucket" }, "version-1", "a".repeat(64)));
+    assert.throws(() => releaseCommands({ region: "us-west-2" }, { ArtifactBucket: "synthetic-kfc-bucket" }, "null", "a".repeat(64)));
   });
   console.log(`${count} chat regression checks passed (mock only).`);
 }

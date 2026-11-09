@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { adminApi } from "@/lib/server/admin-api";
+import { readCatalogRevision } from "@/lib/server/catalog-precondition";
+import { adminApi, requireAdminSession } from "@/lib/server/admin-api";
 import { ApiError, readJson } from "@/lib/server/api";
 import { services } from "@/lib/agent/agent-core";
 import { adminMenuSchema, adminMenuUpdateSchema } from "@/lib/validation/admin";
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
         "Kiểm tra tên món, danh mục và giá (1.000–5.000.000đ).",
       );
     return NextResponse.json(
-      { item: await services.adminService.saveMenu(input.data) },
+      { item: await services.adminService.saveMenu(input.data, undefined, requireAdminSession) },
       { status: 201 },
     );
   });
@@ -28,7 +29,7 @@ export async function PATCH(request: Request) {
     if (!input.success) throw new ApiError(400, "Thông tin món không hợp lệ.");
     const { itemId, ...fields } = input.data;
     return NextResponse.json({
-      item: await services.adminService.saveMenu(fields, itemId),
+      item: await services.adminService.saveMenu(fields, itemId, requireAdminSession, readCatalogRevision(request)),
     });
   });
 }

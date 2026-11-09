@@ -105,3 +105,7 @@ Hoàn tất đơn qua workflow quản trị. Khách vào Đơn của tôi →ch�
 ## Minh hoạ dữ liệu giỏ cũ — FR36
 
 Mở hai tab cùng phiên, thêm món rồi thay số lượng ở tab còn lại. App chủ động đồng bộ nên tab thường tự cập nhật; nếu một tab thật sự giữ snapshot cũ, thao tác sửa trả thông báo giỏ đã thay đổi và hiển thị số lượng mới để khách xem lại. Không ép gửi revision/chữ ký mới để bỏ qua cảnh báo. Khi mất phản hồi thêm món, đọc giỏ trước khi thêm tiếp; bản kiểm thử có fault injection response và lỗi đĩa bằng dữ liệu giả, không cần phá file demo thật để trình diễn. Để giải thích tính nguyên tử, xem evidence/cart/cart-atomic-before.json và cart-atomic-after.json trong ZIP.
+
+## Minh hoạ hai tab sửa món
+
+Mở cùng món ở hai tab quản trị. TabA đổi giá và lưu, tabB sửa mô tả rồi lưu bằng snapshot cũ. TabB nhận thông báo409, mô tả đang soạn được giữ, giá mới ở server tiếp tục có hiệu lực. Đọc lại draft rồi chọn Tải lại món · bỏ bản nháp để xem giá mới. Sau khi kiểm tra, sửa và lưu theo dữ liệu mới. Danh mục có cùng luồng. Trên mobile, tám mục điều hướng xếp thành hai hàng để các nút nằm trong màn hình.

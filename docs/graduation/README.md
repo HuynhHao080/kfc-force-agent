@@ -14,13 +14,17 @@ Hồ sơ này bám theo mã nguồn và kết quả chạy của KFC Force Agent
 | [Khung báo cáo](report-outline.md)      | Cấu trúc chương để sinh viên biên tập                       |
 | [Nguồn tham khảo](references.md)        | Nguồn chính thức và nội dung áp dụng                        |
 
+## Mục tiêu mới: AI thật và AWS trước 01/01/2027
+
+Yêu cầu giảng viên cập nhật 09/11 đã mở rộng phạm vi so với baseline local. Xem [kế hoạch nước rút](sprint-plan-2026-11-09.md) và [AWS readiness/runbook](aws-readiness.md). Hạ tầng và canary đã được chuẩn bị; preflight chỉ đọc không chứng minh inference hoặc deploy thành công.
+
 ## Báo cáo tiến độ với giảng viên — 07/11/2026
 
 Mở [bản báo cáo 5–7 phút](supervisor-progress-2026-11-07.md) và [checklist chạy tối nay](tonight-demo.md). Đây là báo cáo một phần, không phải nghiệm thu toàn bộ khóa luận.
 
 ## Bằng chứng hiện có
 
-Vận hành dữ liệu: [sao lưu mã hoá và khôi phục local](../local-backup.md), có 8 nhóm kiểm tra riêng trong npm run check.
+Vận hành dữ liệu: [sao lưu mã hoá và khôi phục local](../local-backup.md), có 9 nhóm kiểm tra riêng trong npm run check.
 
 Xem [bảng nghiệm thu các phân hệ](acceptance-checklist.md) để phân biệt chức năng đã triển khai của bản local và tích hợp ngoài chưa được nghiệm thu.
 
@@ -29,13 +33,13 @@ Xem [bảng nghiệm thu các phân hệ](acceptance-checklist.md) để phân b
 - Storefront tại /chat và giao diện vận hành tại /admin.
 - Phiên khách, tài khoản khách có đăng nhập và vai trò quản trị riêng.
 - Menu động, giỏ, chat có xác nhận, checkout, hai luồng xử lý đơn, báo cáo và CSV.
-- 89 nhóm kiểm tra nghiệp vụ/provider/client helper + 73 nhóm HTTP + 9 nhóm backup/recovery đã chạy local (171 nhóm); không phải số đo code coverage.
+- 101 nhóm kiểm tra nghiệp vụ/provider/client helper + 76 nhóm HTTP + 9 nhóm backup/recovery đã chạy local (186 nhóm); không phải số đo code coverage.
 - Dataset 50 câu tự xây dựng: 40 câu theo cấu trúc hỗ trợ, 10 câu thử thách ngoài mẫu. Không có khảo sát người dùng hoặc đo Bedrock.
 - CI đã được cấu hình; chưa có bằng chứng GitHub Actions chạy thật cho đến khi repository được người dùng đẩy lên và workflow chạy.
 
 ## Bản local đã chốt
 
-Xem [phạm vi và bàn giao local](local-release-scope.md) cho điều kiện nghiệm thu, lệnh chạy và xác minh ZIP. `npm run test:submission` có thêm 3 test chống sửa gói/đường dẫn; không cộng vào 171 nhóm nghiệp vụ–HTTP–recovery.
+Xem [phạm vi và bàn giao local](local-release-scope.md) cho điều kiện nghiệm thu, lệnh chạy và xác minh ZIP. `npm run test:submission` có thêm 3 test chống sửa gói/đường dẫn; không cộng vào 186 nhóm nghiệp vụ–HTTP–recovery.
 
 ## Trước khi nộp
 

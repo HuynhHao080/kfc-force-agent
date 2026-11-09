@@ -1,0 +1,567 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "KFC graduation single-process EC2/EBS and Bedrock pilot. Source release is a separate step.",
+  "Parameters": {
+    "AmiId": {
+      "Type": "AWS::EC2::Image::Id",
+      "Description": "Explicitly reviewed Amazon Linux 2023 x86_64 AMI ID"
+    },
+    "CloudFrontPrefixListId": {
+      "Type": "String",
+      "AllowedPattern": "^pl-[a-f0-9]+$"
+    },
+    "InstanceType": {
+      "Type": "String",
+      "Default": "t3.medium",
+      "AllowedValues": [
+        "t3.medium"
+      ]
+    },
+    "DailyRequestLimit": {
+      "Type": "Number",
+      "Default": 25,
+      "MinValue": 0,
+      "MaxValue": 1000
+    }
+  },
+  "Resources": {
+    "Vpc": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.42.0.0/16",
+        "EnableDnsHostnames": true,
+        "EnableDnsSupport": true
+      }
+    },
+    "InternetGateway": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {}
+    },
+    "GatewayAttachment": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "InternetGatewayId": {
+          "Ref": "InternetGateway"
+        }
+      }
+    },
+    "Subnet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "CidrBlock": "10.42.1.0/24",
+        "MapPublicIpOnLaunch": true,
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        }
+      }
+    },
+    "RouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        }
+      }
+    },
+    "DefaultRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "RouteTable"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "InternetGateway"
+        }
+      },
+      "DependsOn": "GatewayAttachment"
+    },
+    "SubnetRoute": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "Subnet"
+        },
+        "RouteTableId": {
+          "Ref": "RouteTable"
+        }
+      }
+    },
+    "OriginSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        },
+        "GroupDescription": "CloudFront origin HTTP only; administration through SSM",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 80,
+            "ToPort": 80,
+            "SourcePrefixListId": {
+              "Ref": "CloudFrontPrefixListId"
+            }
+          }
+        ]
+      }
+    },
+    "Artifacts": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "ArtifactPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "Artifacts"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "Artifacts",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${Artifacts.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "AdminSecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "Properties": {
+        "Description": "KFC graduation AdminSecret",
+        "GenerateSecretString": {
+          "PasswordLength": 64,
+          "ExcludePunctuation": true
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "SessionSecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "Properties": {
+        "Description": "KFC graduation SessionSecret",
+        "GenerateSecretString": {
+          "PasswordLength": 64,
+          "ExcludePunctuation": true
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "OriginSecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "Properties": {
+        "Description": "KFC graduation OriginSecret",
+        "GenerateSecretString": {
+          "PasswordLength": 64,
+          "ExcludePunctuation": true
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "HostRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ec2.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+          }
+        ],
+        "Policies": [
+          {
+            "PolicyName": "KfcScopedRuntime",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "bedrock:InvokeModel"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:bedrock:us-east-1::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:bedrock:us-east-2::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:bedrock:us-west-2::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": [
+                    {
+                      "Ref": "AdminSecret"
+                    },
+                    {
+                      "Ref": "SessionSecret"
+                    },
+                    {
+                      "Ref": "OriginSecret"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObjectVersion"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "${Artifacts.Arn}/releases/*"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "HostProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Roles": [
+          {
+            "Ref": "HostRole"
+          }
+        ]
+      }
+    },
+    "DataVolume": {
+      "Type": "AWS::EC2::Volume",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "Size": 20,
+        "VolumeType": "gp3",
+        "Encrypted": true
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "Host": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "ImageId": {
+          "Ref": "AmiId"
+        },
+        "InstanceType": {
+          "Ref": "InstanceType"
+        },
+        "IamInstanceProfile": {
+          "Ref": "HostProfile"
+        },
+        "SubnetId": {
+          "Ref": "Subnet"
+        },
+        "SecurityGroupIds": [
+          {
+            "Ref": "OriginSecurityGroup"
+          }
+        ],
+        "MetadataOptions": {
+          "HttpTokens": "required",
+          "HttpEndpoint": "enabled",
+          "HttpPutResponseHopLimit": 1
+        },
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/xvda",
+            "Ebs": {
+              "VolumeSize": 32,
+              "VolumeType": "gp3",
+              "Encrypted": true,
+              "DeleteOnTermination": true
+            }
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#!/bin/bash\nset -euo pipefail\numask 077\nmkdir -p /etc/kfc\ncat > /etc/kfc/config.json <<'KFCCONFIG'\n",
+                "{\"region\":\"",
+                {
+                  "Ref": "AWS::Region"
+                },
+                "\",\"volume\":\"",
+                {
+                  "Ref": "DataVolume"
+                },
+                "\",\"adminSecret\":\"",
+                {
+                  "Ref": "AdminSecret"
+                },
+                "\",\"sessionSecret\":\"",
+                {
+                  "Ref": "SessionSecret"
+                },
+                "\",\"originSecret\":\"",
+                {
+                  "Ref": "OriginSecret"
+                },
+                "\",\"model\":\"us.anthropic.claude-haiku-4-5-20251001-v1:0\",\"dailyLimit\":",
+                {
+                  "Ref": "DailyRequestLimit"
+                },
+                "}\nKFCCONFIG\n",
+                "set -euo pipefail\numask 077\ndnf install -y docker\nsystemctl enable --now docker\nvolume=$(python3 -c 'import json; print(json.load(open(\"/etc/kfc/config.json\"))[\"volume\"])')\nserial=$(printf '%s' \"$volume\" | tr -d '-')\ndevice=''\nfor attempt in $(seq 1 90); do\n  device=$(lsblk -ndo PATH,SERIAL | awk -v serial=\"$serial\" '$2 == serial {print $1}')\n  [ -n \"$device\" ] && break\n  sleep 2\ndone\n[ -b \"$device\" ] || { echo 'Expected retained data volume was not attached'; exit 1; }\nfilesystem=$(lsblk -ndo FSTYPE \"$device\")\nif [ -z \"$filesystem\" ]; then\n  [ \"$(lsblk -n \"$device\" | wc -l)\" -eq 1 ] || { echo 'Unexpected volume partitions'; exit 1; }\n  mkfs.ext4 -L kfc-data \"$device\"\nelse\n  [ \"$filesystem\" = 'ext4' ] || { echo 'Unexpected data filesystem'; exit 1; }\nfi\nmkdir -p /srv/kfc\nuuid=$(blkid -s UUID -o value \"$device\")\ngrep -q \"UUID=$uuid \" /etc/fstab || printf 'UUID=%s /srv/kfc ext4 defaults,nofail 0 2\\n' \"$uuid\" >> /etc/fstab\nmountpoint -q /srv/kfc || mount /srv/kfc\n[ \"$(findmnt -n -o UUID /srv/kfc)\" = \"$uuid\" ] || { echo 'Unexpected mounted data volume'; exit 1; }\nprintf '%s' \"$uuid\" > /etc/kfc/data-volume-uuid\nmkdir -p /srv/kfc/data /opt/kfc/releases\nchown 1000:1000 /srv/kfc/data\nprintf 'KFC host ready for a separately approved source release.\\n'\n"
+              ]
+            ]
+          }
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Sub": "${AWS::StackName}-host"
+            }
+          },
+          {
+            "Key": "Project",
+            "Value": "kfc-force-agent"
+          }
+        ]
+      },
+      "DependsOn": [
+        "DefaultRoute",
+        "SubnetRoute"
+      ]
+    },
+    "DataAttachment": {
+      "Type": "AWS::EC2::VolumeAttachment",
+      "Properties": {
+        "InstanceId": {
+          "Ref": "Host"
+        },
+        "VolumeId": {
+          "Ref": "DataVolume"
+        },
+        "Device": "/dev/sdf"
+      }
+    },
+    "Address": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc"
+      }
+    },
+    "AddressAttachment": {
+      "Type": "AWS::EC2::EIPAssociation",
+      "Properties": {
+        "InstanceId": {
+          "Ref": "Host"
+        },
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "Address",
+            "AllocationId"
+          ]
+        }
+      }
+    },
+    "Distribution": {
+      "Type": "AWS::CloudFront::Distribution",
+      "Properties": {
+        "DistributionConfig": {
+          "Enabled": true,
+          "HttpVersion": "http2",
+          "IPV6Enabled": true,
+          "PriceClass": "PriceClass_100",
+          "ViewerCertificate": {
+            "CloudFrontDefaultCertificate": true
+          },
+          "Origins": [
+            {
+              "Id": "KfcHost",
+              "DomainName": {
+                "Fn::GetAtt": [
+                  "Host",
+                  "PublicDnsName"
+                ]
+              },
+              "OriginCustomHeaders": [
+                {
+                  "HeaderName": "X-KFC-Origin",
+                  "HeaderValue": {
+                    "Fn::Sub": "{{resolve:secretsmanager:${OriginSecret}:SecretString}}"
+                  }
+                }
+              ],
+              "CustomOriginConfig": {
+                "HTTPPort": 80,
+                "OriginProtocolPolicy": "http-only",
+                "OriginReadTimeout": 30
+              }
+            }
+          ],
+          "DefaultCacheBehavior": {
+            "TargetOriginId": "KfcHost",
+            "ViewerProtocolPolicy": "redirect-to-https",
+            "AllowedMethods": [
+              "GET",
+              "HEAD",
+              "OPTIONS",
+              "PUT",
+              "POST",
+              "PATCH",
+              "DELETE"
+            ],
+            "CachedMethods": [
+              "GET",
+              "HEAD"
+            ],
+            "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+            "OriginRequestPolicyId": "216adef6-5c7f-47e4-b989-5492eafa07d3",
+            "Compress": true
+          },
+          "CustomErrorResponses": [
+            {
+              "ErrorCode": 400,
+              "ErrorCachingMinTTL": 0
+            },
+            {
+              "ErrorCode": 403,
+              "ErrorCachingMinTTL": 0
+            },
+            {
+              "ErrorCode": 404,
+              "ErrorCachingMinTTL": 0
+            },
+            {
+              "ErrorCode": 500,
+              "ErrorCachingMinTTL": 0
+            },
+            {
+              "ErrorCode": 502,
+              "ErrorCachingMinTTL": 0
+            },
+            {
+              "ErrorCode": 503,
+              "ErrorCachingMinTTL": 0
+            },
+            {
+              "ErrorCode": 504,
+              "ErrorCachingMinTTL": 0
+            }
+          ]
+        }
+      },
+      "DependsOn": "AddressAttachment"
+    }
+  },
+  "Outputs": {
+    "Url": {
+      "Value": {
+        "Fn::Sub": "https://${Distribution.DomainName}"
+      }
+    },
+    "HostId": {
+      "Value": {
+        "Ref": "Host"
+      }
+    },
+    "ArtifactBucket": {
+      "Value": {
+        "Ref": "Artifacts"
+      }
+    },
+    "DataVolumeId": {
+      "Value": {
+        "Ref": "DataVolume"
+      }
+    },
+    "AdminSecretArn": {
+      "Value": {
+        "Ref": "AdminSecret"
+      }
+    },
+    "DistributionId": {
+      "Value": {
+        "Ref": "Distribution"
+      }
+    }
+  }
+}

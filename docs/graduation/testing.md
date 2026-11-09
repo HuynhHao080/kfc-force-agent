@@ -9,7 +9,7 @@ npm run evaluate:report
 npm audit --omit=dev
 ```
 
-Check chạy lint, TypeScript, 89 test nghiệp vụ/provider/client helper, 9 nhóm backup/recovery, build và 73 nhóm HTTP. HTTP mở server 3197 với thư mục tạm và mật khẩu quản trị ngẫu nhiên, không dùng dữ liệu đang vận hành. Script có restart để kiểm tra persistence. Cần cổng 3197 trống.
+Check chạy lint, TypeScript, 97 test nghiệp vụ/provider/client helper, 9 nhóm backup/recovery, build và 75 nhóm HTTP. HTTP mở server 3197 với thư mục tạm và mật khẩu quản trị ngẫu nhiên, không dùng dữ liệu đang vận hành. Script có restart để kiểm tra persistence. Cần cổng 3197 trống.
 
 ## Ma trận
 
@@ -26,11 +26,11 @@ Check chạy lint, TypeScript, 89 test nghiệp vụ/provider/client helper, 9 n
 | FR15    | Counts/value khớp records                                               | Dashboard, ngày, CSV              |
 | FR16    | Restart, HTML/network/timeout                                           | Làm mới, đồng bộ tab              |
 
-89/73 là số nhóm assert được script in, không phải line/branch coverage. Chưa đo coverage, tải production, pentest độc lập hoặc toàn bộ WCAG.
+97/75 là số nhóm assert được script in, không phải line/branch coverage. Chưa đo coverage, tải production, pentest độc lập hoặc toàn bộ WCAG.
 
 ## Hiểu câu
 
-FR26: npm run test:data thêm 9 nhóm CLI/recovery, ngoài 89 nhóm nghiệp vụ và 73 nhóm HTTP (tổng 171 nhóm). Kiểm tra dữ liệu giả trong thư mục tạm; process mới đọc lại login/session/cart/order/audit/address sau restore. Test không sao lưu dữ liệu preview thật.
+FR26: npm run test:data thêm 9 nhóm CLI/recovery, ngoài 97 nhóm nghiệp vụ và 75 nhóm HTTP (tổng 181 nhóm). Kiểm tra dữ liệu giả trong thư mục tạm; process mới đọc lại login/session/cart/order/audit/address sau restore. Test không sao lưu dữ liệu preview thật.
 
 FR25: unit kiểm tra no-op/validation lỗi không tạo nhật ký, field allowlist bỏ thông tin ngoài catalog, trùng ID audit không làm cập nhật dữ liệu một phần. HTTP kiểm tra staff-only/no-store/405, price before-after, category events và canonical record + history qua restart. Browser kiểm tra tab Nhật ký, bộ lọc và 320px.
 
@@ -107,6 +107,27 @@ FR35:6unit schemas/owner/eligibility/CAS/retry/freeze/old-order-feedbackwindow/D
 
 ## FR36 — Commit giỏ và snapshot guard
 
-Bản hiện hành:89unit+9data+73HTTP=171 nhóm chính, thêm3 test verifier độc lập. Năm unit mới kiểm tra một commit/mutation, failure không đổi mảng live, concurrent create/edit, revision/legacy/invalid/ownership, stale checkout không đóng và closedcart không reopen; Dynamo command dùng transport giả kiểm tra transaction/conditions/consistent flags, không AWS. Một data group mới tạo7 lỗi filesystem trên store.json.tmp trong thư mục tạm, so raw Maps và bytes file, rồi xác nhận commit thành công khi bỏ chặn. Hai HTTP group mới kiểm tra stale add/qty/remove/clear, malformedheader400, cùng snapshot đồng thời201/409, firstadd retryempty409, owner409 và revision/signature qua restart.
+Tại mốc FR36 ngày07/11/2026:89unit+9data+73HTTP=171 nhóm chính, thêm3 test verifier độc lập. Năm unit mới kiểm tra một commit/mutation, failure không đổi mảng live, concurrent create/edit, revision/legacy/invalid/ownership, stale checkout không đóng và closedcart không reopen; Dynamo command dùng transport giả kiểm tra transaction/conditions/consistent flags, không AWS. Một data group mới tạo7 lỗi filesystem trên store.json.tmp trong thư mục tạm, so raw Maps và bytes file, rồi xác nhận commit thành công khi bỏ chặn. Hai HTTP group mới kiểm tra stale add/qty/remove/clear, malformedheader400, cùng snapshot đồng thời201/409, firstadd retryempty409, owner409 và revision/signature qua restart.
 
 Browser dùng Edge qua Playwright CLI, local fixture riêng: mất response sau commit/old-header retry không trùng; UIqty1/directAPIqty3/stalebutton409/no overwrite; explicitnextintentqty4; price89→90k/stalebutton409/qty4/tổng360k. Mobile320px không tràn. Các console errors do abort và409 là kết quả fault injection được chờ trước, không tính là lỗi JavaScript ứng dụng. Chữ ký optional cho caller cũ; không có cart UUID idempotency để retry mù theo snapshot mới.
+
+## Hồi quy cập nhật bán hàng trong checkout — 08/11/2026
+
+Thêm5 unit group. Checkout-first giữ menu/coupon snapshot khi3 cập nhật staff chờ gate. Catalog-first kiểm tra hết món/giá mới, giữ giỏ và tái sử dụng key sau sửa điều kiện. Cả6 route POST/PATCH menu/categories/promotions dùng auth-state stub với route/lock/service thật, thu hồi khi đã chờ gate trả401 và giữ catalog/audit/promotions. Clock stub đúng endsAt trong final shop check chứng minh mã hết hạn trước commit bị chặn. Repository write failures menu/category/promotion giải phóng gate và checkout tiếp theo chạy được.
+
+Bằng chứng trước/sau có source SHA256 trong evidence/checkout của ZIP. Clock/auth/barrier được điều khiển trong unit. Các ca HTTP hiện có tiếp tục kiểm tra contract API và persistence qua restart.
+
+Lần npm run check ngày08/11/2026 exit0,94unit+9data+73HTTP=176 nhóm. Browser Edge dùng dữ liệu riêng .local/catalog-checkout-review-20261108 trên3101. Mã fixed10k bị đổi20k sau quote79k, POSTorder trả400/PROMOTION_CHANGED và0đơn. Áp lại quote69k bỏ tick cũ, xác nhận mới tạo201. Thêm giỏ mới rồi staff hết món trả400/ITEM_UNAVAILABLE, lịch sử vẫn1đơn. Tắt mã sau accepted vẫn replay đúng đơn/tổng69k/discount20k/unit89k. Document320/viewport320. Hai ảnh trong evidence/ui có tiền và thông báo của đúng giai đoạn. Các race bên trong commit được kiểm tra bằng barrier unit riêng.
+
+## Form món và danh mục từ nhiều tab — 08/11/2026
+
+Bộ hiện hành có97 unit+9 data+75 HTTP=181 nhóm chính, qua lint/typecheck/build. Ba unit mới kiểm tra hash và DTO, concurrent saves của menu/category, exact replay và audit, định dạng header cùng khả năng gửi lại sau lỗi ghi. Hai HTTP mới kiểm tra stale/cross-entity header, caller cũ, replay và revision qua restart. GET giữ nguyên bytes store, catalogRevision không đi vào dữ liệu lưu. Staff đăng nhập lại sau restart theo chính sách session hiện có.
+
+Browser dùng Edge với fixture riêng tại3101. Hai tab món kiểm tra giá89k/99k,409 giữ draft và focus, reload lỗi rồi phục hồi, cùng lost acknowledgement khi lưu100k. Hai PATCH của lần gửi lại chỉ thêm một audit. Hai tab danh mục kiểm tra409, reload lấy tên mới, reload cùng revision bỏ draft và401 xoá form riêng tư. Các race backend dùng gate thật và repositories giả trong unit.
+
+Review phát hiện điều hướng có document365 ở viewport320 khi đủ8 tab. Bản build cuối chuyển thành grid4 cột dưới720px, nút cao tối thiểu44px. Đã đo320/390/430/720/768/1440, mỗi document bằng viewport và đủ8 tab. Bốn ảnh mới đã mở kiểm tra. Ảnh dialog thể hiện phần nhìn thấy trong viewport và form hỗ trợ cuộn.
+
+
+## Cập nhật phạm vi 09/11/2026
+
+Giảng viên yêu cầu AI thật và triển khai AWS trước 01/01/2027. [Kế hoạch nước rút](sprint-plan-2026-11-09.md) và [AWS readiness](aws-readiness.md) bổ sung mục tiêu/bằng chứng cho phạm vi này. Bộ hiện hành đạt 101 unit + 9 recovery + 76 HTTP = 186 nhóm local, thêm 3 test AWS package offline và 3 test verifier ZIP riêng. Các mốc/số đếm trước đó là lịch sử. Preflight AWS chỉ đọc đã qua; inference, image Linux và nghiệm thu trên AWS còn chờ thực hiện, chưa đánh dấu hoàn tất.

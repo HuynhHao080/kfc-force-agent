@@ -22,7 +22,7 @@ Phạm vi được chốt cho bản demo local một tiến trình, không có r
 | Nhất quán giao diện | Snapshot một owner; thao tác mang owner đang hiển thị, không retry khi đổi phiên | HTTP headers/snapshot, browser stale display |
 | Đồng bộ admin | Broadcast/focus và polling 15 giây khi visible; tạm dừng form đang mở, xoá state khi 401 | Browser background sync |
 | Khôi phục | Snapshot JSON local qua restart, lỗi API/network/timeout dễ hiểu | HTTP restart, browser fault injection |
-| Backup local | Archive mã hoá, manifest/hash, không overwrite, khôi phục đăng nhập/giỏ/đơn/audit | 8 nhóm test:data, process mới |
+| Backup local | Archive mã hoá, manifest/hash, không overwrite, khôi phục đăng nhập/giỏ/đơn/audit | 9 nhóm test:data, process mới |
 | Responsive | Storefront/admin/dialog/receipt có kiểm tra 320px, không tràn ngang ở ca đã ghi | Ảnh và measurements trong verification |
 | Tái lập | npm ci/check/evaluate, CI cấu hình, archive manifest/hash và không secret | Log local, workflow, package verifier |
 | Hồ sơ khóa luận | FR/use case, kiến trúc/ER/sequence/state, API, test/evaluation, runbook, nguồn, outline | docs/graduation |
@@ -73,3 +73,12 @@ FR34 [x] thông tin/giờ/kênh/tạm dừng/fee/minimum, revision/gate/auth, pu
 FR35 [x] ownercompletefeedback, edit/revision/replay, staff inbox200feedback+filters/average, one immutable reply, stalecontext/private/auth/backup/restart/mobile. Bộ chính163 nhóm +3 verifier. Không public review, multi-round ticket, attachment hoặc delete/redactionUI.
 
 FR36 [x] một commit metadata/items/totals; firstadd/edit/remove/clear/reprice rollback; owner/ACTIVE/revision CAS và legacy; stale UI/snapshot409/refresh; lost-response retry với snapshot cũ không cộng thêm; checkout/closedcart guard; restart. Bộ hiện hành171 nhóm chính +3 verifier. API cũ không header không có stale-UI guarantee; không nghiệm thu AWS/multi-instance.
+
+Ngày 08/11/2026 đã kiểm tra bổ sung đồng bộ checkout với món/danh mục/khuyến mãi, reauth sau chờ ở6route và revalidate coupon trước commit. Bộ hiện hành94unit+9data+73HTTP=176 nhóm,3 verifier riêng. Browser320px kiểm tra mã cũ/hết món bị chặn, áp lại mã bỏ tick cũ, đơn accepted69.000đ giữ snapshot và replay sau catalog update.
+
+Đợt form catalog08/11/2026 [x] version DTO/optional PATCH header, stale409 giữ dữ liệu và draft, exact replay giữ audit/updatedAt, explicitreload/failedreload/samerevision reset/401 clear, legacy snapshot/restart.97unit+9data+75HTTP=181 nhóm chính,3verifier riêng. Mobile nav8tabs qua320–1440. Caller cũ bỏ header tiếp tục hành vi cũ.
+
+
+## Cập nhật phạm vi 09/11/2026
+
+Giảng viên yêu cầu AI thật và triển khai AWS trước 01/01/2027. [Kế hoạch nước rút](sprint-plan-2026-11-09.md) và [AWS readiness](aws-readiness.md) bổ sung mục tiêu/bằng chứng cho phạm vi này. Bộ hiện hành đạt 101 unit + 9 recovery + 76 HTTP = 186 nhóm local, thêm 3 test AWS package offline và 3 test verifier ZIP riêng. Các mốc/số đếm trước đó là lịch sử. Preflight AWS chỉ đọc đã qua; inference, image Linux và nghiệm thu trên AWS còn chờ thực hiện, chưa đánh dấu hoàn tất.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "KFC Team Development"
+  short_description: "Develop KFC safely across three team branches"
+  default_prompt: "Use $kfc-team-development to implement this task and prepare a verified PR for the KFC project."

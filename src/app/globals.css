@@ -1891,6 +1891,7 @@ dialog::backdrop {
     align-items: center;
     justify-content: space-between;
     gap: 15px;
+    flex-wrap: wrap;
   }
   .admin-brand {
     font-size: 30px;
@@ -1906,13 +1907,17 @@ dialog::backdrop {
     display: none;
   }
   .admin-sidebar nav {
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
     gap: 5px;
   }
   .admin-sidebar nav button {
     padding: 10px 12px;
     font-size: 0;
     gap: 0;
+    min-height: 44px;
+    justify-content: center;
   }
   .admin-sidebar nav button span {
     font-size: 11px;

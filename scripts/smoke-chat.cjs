@@ -3196,6 +3196,88 @@ async function main() {
       const explicit = await request(owner, "/api/cart", "POST", body, { "X-KFC-Cart-Signature": restored.signature });
       assert.equal(explicit.status, 201); assert.equal(explicit.data.items[0].quantity, 2);
     });
+    let editorStaff, editedMenu, editedCategory;
+    await check("staff catalog revisions reject stale editors, accept exact replay and preserve legacy PATCH callers", async () => {
+      editorStaff = (await request("", "/api/admin/auth", "POST", { password: adminPassword })).cookie;
+      const catalog = (await request(editorStaff, "/api/admin/menu")).data;
+      const item = catalog.items[0];
+      const fields = { itemId: item.id, name: item.name, description: item.description ?? "", categoryId: item.categoryId,
+        price: item.price + 1000, isActive: item.isActive, isAvailable: item.isAvailable, imageUrl: item.imageUrl.replace(/\.png$/, ".svg") };
+      const headers = { "X-KFC-Catalog-Revision": item.catalogRevision };
+      assert.match(item.catalogRevision, /^[a-f0-9]{64}$/);
+      const saved = await request(editorStaff, "/api/admin/menu", "PATCH", fields, headers);
+      assert.equal(saved.status, 200);
+      const auditCount = (await request(editorStaff, "/api/admin/catalog-audit")).data.entries.length;
+      const replay = await request(editorStaff, "/api/admin/menu", "PATCH", fields, headers);
+      assert.deepEqual(replay, saved);
+      assert.equal((await request(editorStaff, "/api/admin/catalog-audit")).data.entries.length, auditCount);
+      const stale = await request(editorStaff, "/api/admin/menu", "PATCH", { ...fields, price: item.price, description: "Old editor draft" }, headers);
+      assert.equal(stale.status, 409); assert.equal(stale.data.code, "CATALOG_CHANGED");
+      assert.equal((await request(editorStaff, "/api/admin/menu")).data.items.find(entry => entry.id === item.id).price, fields.price);
+      assert.equal((await request(editorStaff, "/api/admin/catalog-audit")).data.entries.length, auditCount);
+      for (const invalid of ["", "bad", "A".repeat(64)]) {
+        const bad = await request(editorStaff, "/api/admin/menu", "PATCH", fields, { "X-KFC-Catalog-Revision": invalid });
+        assert.equal(bad.status, 400); assert.equal(bad.data.code, "INVALID_CATALOG_REVISION");
+      }
+      const crossEntity = await request(editorStaff, "/api/admin/menu", "PATCH", { ...fields, price: fields.price + 1000 }, { "X-KFC-Catalog-Revision": catalog.categories[0].catalogRevision });
+      assert.equal(crossEntity.status, 409);
+      const legacy = await request(editorStaff, "/api/admin/menu", "PATCH", { ...fields, description: "Legacy API update without header" });
+      assert.equal(legacy.status, 200);
+      editedMenu = (await request(editorStaff, "/api/admin/menu")).data.items.find(entry => entry.id === item.id);
+      const category = catalog.categories[0];
+      const alternatives = ["First category editor", "Second category editor"].map(name => ({ categoryId: category.id, name, description: category.description ?? "", displayOrder: category.displayOrder, isActive: category.isActive }));
+      const outcomes = await Promise.all(alternatives.map(body => request(editorStaff, "/api/admin/categories", "PATCH", body, { "X-KFC-Catalog-Revision": category.catalogRevision })));
+      assert.deepEqual(outcomes.map(result => result.status).sort(), [200, 409]);
+      const winner = outcomes.findIndex(result => result.status === 200);
+      const count = (await request(editorStaff, "/api/admin/catalog-audit")).data.entries.length;
+      assert.equal((await request(editorStaff, "/api/admin/categories", "PATCH", alternatives[winner], { "X-KFC-Catalog-Revision": category.catalogRevision })).status, 200);
+      assert.equal((await request(editorStaff, "/api/admin/catalog-audit")).data.entries.length, count);
+      editedCategory = (await request(editorStaff, "/api/admin/categories")).data.categories.find(entry => entry.id === category.id);
+      assert.equal(editedCategory.name, alternatives[winner].name);
+      assert.notEqual(editedCategory.catalogRevision, category.catalogRevision);
+      assert.equal((await request("", "/api/admin/menu", "PATCH", fields, headers)).status, 401);
+    });
+    await check("catalog versions are reproducible after restart and staff reads do not persist DTO revision fields", async () => {
+      await stop(); await start();
+      const login = await request("", "/api/admin/auth", "POST", { password: adminPassword });
+      assert.equal(login.status, 200);
+      editorStaff = login.cookie;
+      const fs = require("node:fs");
+      const source = path.join(dataDirectory, "store.json");
+      const before = fs.readFileSync(source);
+      const catalog = (await request(editorStaff, "/api/admin/menu")).data;
+      const categories = (await request(editorStaff, "/api/admin/categories")).data.categories;
+      assert.equal(catalog.items.find(item => item.id === editedMenu.id).catalogRevision, editedMenu.catalogRevision);
+      assert.equal(categories.find(category => category.id === editedCategory.id).catalogRevision, editedCategory.catalogRevision);
+      assert.ok(before.equals(fs.readFileSync(source)));
+      assert.ok(!before.toString("utf8").includes('"catalogRevision"'));
+    });
+    await check("HTTPS reverse-proxy headers preserve secure cookies and same-origin writes on a forwarded CloudFront host", async () => {
+      // Raw HTTP preserves Host exactly as Nginx does. Node fetch may rewrite it.
+      const proxy = (route, method = "GET", body, cookie, origin = "https://dsynthetic.cloudfront.net") => new Promise((resolve, reject) => {
+        const outgoing = require("node:http").request({ hostname: "localhost", port: 3197, path: route, method,
+          headers: { Host: "dsynthetic.cloudfront.net", "X-Forwarded-Proto": "https", Origin: origin,
+            "Content-Type": "application/json", ...(cookie ? { Cookie: cookie } : {}) } }, response => {
+          let text = "";
+          response.on("data", chunk => text += chunk);
+          response.on("end", () => {
+            try { resolve({ status: response.statusCode, data: JSON.parse(text), cookie: response.headers["set-cookie"]?.[0] }); }
+            catch (error) { reject(error); }
+          });
+        });
+        outgoing.on("error", reject);
+        if (body) outgoing.write(JSON.stringify(body));
+        outgoing.end();
+      });
+      const guest = await proxy("/api/session");
+      assert.equal(guest.status, 200); assert.match(guest.cookie, /; Secure/i);
+      const cookie = guest.cookie.split(";")[0];
+      const available = (await request(cookie, "/api/menu")).data.items[0];
+      assert.equal((await proxy("/api/cart", "POST", { menuItemId: available.id, quantity: 1 }, cookie)).status, 201);
+      assert.equal((await proxy("/api/cart", "DELETE", undefined, cookie, "https://different.invalid")).status, 403);
+      const staff = await proxy("/api/admin/auth", "POST", { password: adminPassword });
+      assert.equal(staff.status, 200); assert.match(staff.cookie, /; Secure/i);
+    });
     console.log(
       `${checks} HTTP integration checks passed, including local persistence across restart. No AWS calls. Data: ${dataDirectory}`,
     );

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { adminApi } from "@/lib/server/admin-api";
+import { readCatalogRevision } from "@/lib/server/catalog-precondition";
+import { adminApi, requireAdminSession } from "@/lib/server/admin-api";
 import { ApiError, readJson } from "@/lib/server/api";
 import { services } from "@/lib/agent/agent-core";
 import {
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
         "Kiểm tra tên, mô tả và thứ tự danh mục (0–999).",
       );
     return NextResponse.json(
-      { category: await services.adminService.saveCategory(parsed.data) },
+      { category: await services.adminService.saveCategory(parsed.data, undefined, requireAdminSession) },
       { status: 201 },
     );
   });
@@ -35,7 +36,7 @@ export async function PATCH(request: Request) {
       throw new ApiError(400, "Thông tin danh mục không hợp lệ.");
     const { categoryId, ...fields } = parsed.data;
     return NextResponse.json({
-      category: await services.adminService.saveCategory(fields, categoryId),
+      category: await services.adminService.saveCategory(fields, categoryId, requireAdminSession, readCatalogRevision(request)),
     });
   });
 }

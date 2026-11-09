@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { adminApi } from "@/lib/server/admin-api";
+import { adminApi, requireAdminSession } from "@/lib/server/admin-api";
 import { ApiError, readJson } from "@/lib/server/api";
 import { services } from "@/lib/agent/agent-core";
 import {
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
         400,
         "Thông tin khuyến mãi không hợp lệ. Kiểm tra mã, số tiền, phần trăm và thời gian.",
       );
-    return NextResponse.json(await services.promotionService.save(input.data), {
+    return NextResponse.json(await services.promotionService.save(input.data, undefined, requireAdminSession), {
       status: 201,
     });
   });
@@ -34,7 +34,7 @@ export async function PATCH(request: Request) {
       );
     const { revision, ...fields } = input.data;
     return NextResponse.json(
-      await services.promotionService.save(fields, revision),
+      await services.promotionService.save(fields, revision, requireAdminSession),
     );
   });
 }

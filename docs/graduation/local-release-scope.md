@@ -2,6 +2,8 @@
 
 Ngày chốt: 07/11/2026. Phạm vi người dùng chọn: **bản khóa luận chạy local, đầy đủ luồng và hồ sơ nghiệm thu**. Bộ yêu cầu của bản này là FR01–FR36 trong [requirements](requirements.md). Những tích hợp ngoài được ghi riêng trong [bảng nghiệm thu](acceptance-checklist.md).
 
+> Cập nhật 09/11: đây là baseline local lịch sử. Bản bàn giao cuối đã bổ sung bắt buộc AI thật và AWS; xem [kế hoạch mới](sprint-plan-2026-11-09.md). Các kết quả local dưới đây không thay thế nghiệm thu cloud.
+
 ## Luồng phải trình diễn được
 
 | Luồng | Kết quả kiểm chứng của bản local |
@@ -20,7 +22,7 @@ Ngày chốt: 07/11/2026. Phạm vi người dùng chọn: **bản khóa luận 
 | Độ bền local | Một tiến trình Node, lưu JSON, ghi atomic/rollback khi lỗi ghi, restart, sao lưu mã hoá và restore vào thư mục mới |
 | Bàn giao | Mã nguồn, hướng dẫn, ma trận yêu cầu–kiểm thử, đánh giá parser, bằng chứng local, ZIP có manifest/hash và trình kiểm tra |
 
-Kiểm tra tự động chính: 89 nhóm nghiệp vụ + 9 nhóm backup/recovery + 73 nhóm HTTP = **171 nhóm assertion**. Có thêm 3 test công cụ kiểm tra gói nộp qua `npm run test:submission`. Các số này không phải code coverage. Log của lần chạy hiện hành nằm trong `output/verification/check.log`; archive chứa bản sao tại `evidence/check.log`.
+Kiểm tra tự động chính: 97 nhóm nghiệp vụ + 9 nhóm backup/recovery + 75 nhóm HTTP = **181 nhóm assertion**. Có thêm 3 test công cụ kiểm tra gói nộp qua `npm run test:submission`. Các số này không phải code coverage. Log của lần chạy hiện hành nằm trong `output/verification/check.log`; archive chứa bản sao tại `evidence/check.log`.
 
 Parser mock đúng 49/50 intent và joint trên tập phát triển đã biết; có 61 câu hồi quy tổng hợp riêng trong unit suite. Đây không phải holdout hoặc kết quả LLM thật. Xem [kết quả và giới hạn](evaluation-results.md).
 
@@ -73,3 +75,7 @@ Nếu tự chạy lại `npm run check` và muốn đóng gói log mới, trong 
 Dữ liệu cũ chưa có checkout request hash vẫn được đọc: retry so các trường khôi phục được từ snapshot đơn; không thể đối chiếu cartSignature gốc vì bản cũ không lưu. Không sửa lại lịch sử để tạo bằng chứng giả.
 
 Hồ sơ đã có yêu cầu, kiến trúc/ER/sequence/state, API, review, ma trận kiểm thử, đánh giá parser, vận hành và khung báo cáo. Sinh viên cần điền thông tin trường/sinh viên/giảng viên thật, biên tập theo mẫu trường và xin xác nhận của người hướng dẫn. Chưa có chữ ký nghiệm thu hoặc phê duyệt học thuật; không ghi những việc này là đã hoàn thành.
+
+Cập nhật kiểm chứng ngày 08/11/2026 bổ sung đồng bộ catalog/khuyến mãi với checkout và reauth sau chờ. Bộ hiện hành94unit+9data+73HTTP=176 nhóm. Phạm vi FR01–FR36 tiếp tục áp dụng.
+
+Cập nhật tiếp ngày08/11/2026 bổ sung phiên bản form món/danh mục, giữ draft và reload khi xung đột, exact PATCH retry giữ audit, navigation mobile. Bộ hiện hành97unit+9data+75HTTP=181 nhóm.

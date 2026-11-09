@@ -4,6 +4,7 @@ import {
 } from "@aws-sdk/client-bedrock-runtime";
 import { z } from "zod";
 import type { ConversationTurn } from "@/lib/types/agent";
+import { reserveBedrockInvocation } from "./invocation-budget";
 export interface BedrockConfig {
   modelId: string;
   maxTokens?: number;
@@ -32,10 +33,13 @@ const modelReplySchema = z.object({
 });
 /** Anthropic Messages body over Bedrock InvokeModel. No implicit mock fallback. */
 export class BedrockService {
+  private readonly injectedTransport: boolean;
   constructor(
     private config: BedrockConfig,
     private client?: BedrockRuntimeClient,
-  ) {}
+  ) {
+    this.injectedTransport = !!client;
+  }
   async generateResponse(
     systemPrompt: string,
     userPrompt: string,
@@ -54,6 +58,14 @@ export class BedrockService {
         },
       };
     }
+    if ((this.config.temperature !== undefined && this.config.topP !== undefined) ||
+        !Number.isInteger(this.config.maxTokens ?? 512) ||
+        (this.config.maxTokens ?? 512) < 1 || (this.config.maxTokens ?? 512) > 2048 ||
+        !Number.isFinite(this.config.temperature ?? this.config.topP ?? 0.1) ||
+        (this.config.temperature ?? this.config.topP ?? 0.1) < 0 ||
+        (this.config.temperature ?? this.config.topP ?? 0.1) > 1) {
+      return { success: false, error: { type: "validation_error", message: "Use one sampling parameter, with a value from 0 to 1, and maxTokens from 1 to 2048." } };
+    }
     try {
       this.client ??= new BedrockRuntimeClient({
         region: process.env.AWS_REGION || "ap-southeast-1",
@@ -69,18 +81,21 @@ export class BedrockService {
           })),
         { role: "user", content: [{ type: "text", text: userPrompt }] },
       ];
+      const body = JSON.stringify({
+        anthropic_version: "bedrock-2023-05-31",
+        system: systemPrompt,
+        messages,
+        max_tokens: this.config.maxTokens ?? 512,
+        ...(this.config.topP !== undefined ? { top_p: this.config.topP } : { temperature: this.config.temperature ?? 0.1 }),
+      });
+      if (Buffer.byteLength(body, "utf8") > 32000)
+        return { success: false, error: { type: "validation_error", message: "The model request exceeds the 32000-byte input ceiling." } };
+      if (!this.injectedTransport) reserveBedrockInvocation();
       const command = new InvokeModelCommand({
         modelId: this.config.modelId,
         contentType: "application/json",
         accept: "application/json",
-        body: JSON.stringify({
-          anthropic_version: "bedrock-2023-05-31",
-          system: systemPrompt,
-          messages,
-          max_tokens: this.config.maxTokens ?? 1000,
-          temperature: this.config.temperature ?? 0.1,
-          top_p: this.config.topP ?? 0.9,
-        }),
+        body,
       });
       const response = await this.client.send(command, {
         abortSignal: AbortSignal.timeout(15000),
