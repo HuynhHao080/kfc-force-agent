@@ -4,7 +4,7 @@ Mỗi người đọc `AGENTS.md`, dùng Node.js 24 và Python 3; cài dependenc
 
 ## Nhận việc và tránh sửa chồng
 
-Chọn một người tích hợp/release, hai người cùng phát triển. Bảng dưới là gợi ý chia việc, **chưa gán tên cho thành viên**. Ghi người nhận, branch, file dự kiến và tiêu chí nghiệm thu vào issue/PR trước khi làm.
+Chọn một người tích hợp/release, hai người cùng phát triển. **Trước khi code, ghi vào issue:** người nhận, branch, file dự kiến, `LOCAL_DATA_DIR`, cổng dev/demo/test, tiêu chí nghiệm thu và người review. Không có issue thì không tạo branch. Bảng dưới là gợi ý chia việc, **chưa gán tên cho thành viên** — nhóm phải gán tên người tích hợp/release trong issue đầu tiên và ghi lại ở đây.
 
 | Luồng | Phạm vi gợi ý | Điểm phải phối hợp |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ Chọn một người tích hợp/release, hai người cùng phát triển. B�
 
 `package*.json`, shared types, `next.config.ts`, `AGENTS.md`, skill, CI và script test tổng hợp là file dùng chung: một task sửa mỗi lần, người tích hợp review. Không hạn chế mỗi người chỉ được một ngôn ngữ/phân hệ; phối hợp theo task thực tế.
 
-Mỗi người một clone là cách dễ nhất. Nếu dùng worktree, tạo từ checkout sạch và branch nền đã được tích hợp. Không tạo worktree từ đợt code chưa commit rồi tưởng nó đã được mang sang. Không build hai branch trên cùng checkout; `.next` và `.local` không dùng chung. Data riêng mặc định nằm trong clone; custom `LOCAL_DATA_DIR` phải khác nhau. Cổng dev/demo/test không được trùng nếu chạy cùng máy.
+Mỗi người một clone là cách dễ nhất. Nếu dùng worktree, tạo từ checkout sạch và branch nền đã được tích hợp. Không tạo worktree từ đợt code chưa commit rồi tưởng nó đã được mang sang. Không build hai branch trên cùng checkout; `.next` và `.local` không dùng chung. Data riêng mặc định nằm trong clone; custom `LOCAL_DATA_DIR` phải khác nhau và ghi vào issue/PR. Cổng dev/demo/test không được trùng nếu chạy cùng máy — ghi cổng đã dùng vào issue/PR trước khi chạy.
 
 ## Không dùng agent phá project
 
@@ -62,6 +62,27 @@ git push -u origin feat/<ten-ban>-<task>
 ```
 
 Mở PR về `main`, điền template; cần ít nhất một người khác review và CI xanh trên Windows/Linux. Không force push hoặc tự merge khi agent vừa viết code. Conflict phải hiểu cả hai thay đổi rồi chạy lại test; không chọn toàn bộ ours/theirs. Khi đổi API, đưa cập nhật caller/types/tests/docs vào cùng PR hoặc thống nhất thứ tự merge tương thích.
+
+## Commit message
+
+Dùng tiền tố `feat:`, `fix:`, `docs:`, `chore:`, `test:`; subject viết hoa, không dấu chấm cuối, tối đa 50 ký tự, dùng thể mệnh lệnh. Body (nếu cần) cách subject một dòng trống, mỗi dòng tối đa 72 ký tự, không lặp lại subject. Ví dụ: `feat: add catalog revision guard`.
+
+## Definition of Done
+
+PR chỉ merge khi đủ:
+
+- [ ] Issue đã ghi người nhận, branch, file, `LOCAL_DATA_DIR`, cổng và tiêu chí nghiệm thu.
+- [ ] Template PR đã điền đầy đủ, không để trống mục kiểm chứng.
+- [ ] `npm run team:check`, `npm run test:team`, `git diff --check` qua; `npm run check` qua nếu sửa code ứng dụng.
+- [ ] Ít nhất 1 approval của người khác (không phải tác giả/agent), CI `verify (ubuntu/windows)` xanh, không còn conversation chưa resolve.
+- [ ] Không chứa credentials/runtime data; đã xem staged diff.
+- [ ] Người merge không phải người vừa viết code bằng agent.
+
+## Conflict, revert và hotfix
+
+- Conflict: giải quyết từng hunk, hiểu cả hai thay đổi, chạy lại test. Không chọn toàn bộ ours/theirs. Không hiểu hợp đồng thì để người phụ trách review.
+- Revert: tạo PR revert (không force push, không sửa lịch sử). Ghi lý do và ảnh hưởng dữ liệu trong PR revert.
+- Hotfix: vẫn qua branch + PR + review + CI, không push trực tiếp `main`. Nếu cần khẩn cấp, người tích hợp/release quyết định và ghi lại bằng chứng.
 
 ## Kiểm tra và dữ liệu
 

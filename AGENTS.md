@@ -18,7 +18,7 @@ Agent không hỗ trợ skill vẫn phải tuân thủ hướng dẫn trong file
 
 - Đọc `git status --short`, branch hiện tại, diff liên quan và các tài liệu của phân hệ trước khi viết. Giữ nguyên công việc chưa commit của người khác; không nhận đó là thay đổi của mình.
 - Mỗi thành viên dùng clone hoặc worktree, branch và `LOCAL_DATA_DIR` riêng. Một agent ghi trên mỗi worktree. Không sửa cùng thư mục `.next` hoặc dữ liệu demo khi người khác đang chạy.
-- Làm theo task/issue đã nhận, ghi rõ file/phân hệ và tiêu chí nghiệm thu. Xem phân vùng tại `CONTRIBUTING.md`; muốn đổi API/schema hoặc sang phần người khác đang làm thì thống nhất giao diện và người tích hợp trước.
+- Làm theo task/issue đã nhận, ghi rõ file/phân hệ, `LOCAL_DATA_DIR`, cổng và tiêu chí nghiệm thu. Không có issue thì không tạo branch. Xem phân vùng, commit message, Definition of Done và quy trình conflict/revert tại `CONTRIBUTING.md`; muốn đổi API/schema hoặc sang phần người khác đang làm thì thống nhất giao diện và người tích hợp trước.
 - Không tự tạo thêm agent cùng sửa workspace; chỉ phân công song song khi người dùng yêu cầu, và phải tách worktree/phạm vi.
 
 ## Quy tắc cho agent (bắt buộc)
