@@ -7,11 +7,13 @@ export function CartPanel({
   onQuantity,
   onRemove,
   onCheckout,
+  onClose,
   checkoutDisabled = false,
 }: {
   basket: Basket;
   busy: boolean;
   checkoutDisabled?: boolean;
+  onClose?: () => void;
   onQuantity: (id: string, quantity: number) => void;
   onRemove: (id: string) => void;
   onCheckout: () => void;
@@ -23,15 +25,58 @@ export function CartPanel({
       id="gio-hang"
       aria-labelledby="cart-title"
     >
-      <div className="section-heading">
+      <div className="section-heading cart-panel-heading">
         <h2 id="cart-title">
-          Giỏ của bạn<span className="count-badge">{count}</span>
+          <svg
+            className="cart-heading-icon"
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <path
+              d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 1.9-1.4L21 8H6"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle cx="10" cy="20" r="1.4" fill="currentColor" />
+            <circle cx="18" cy="20" r="1.4" fill="currentColor" />
+          </svg>
+          Giỏ hàng
+          <span className="count-badge" aria-live="polite" aria-label={`${count} món trong giỏ`}>
+            {count}
+          </span>
         </h2>
-        <span className="eyebrow">VỪA ĐỦ NGON</span>
+        <div className="cart-heading-actions">
+          <span className="eyebrow">VỪA ĐỦ NGON</span>
+          {onClose && (
+            <button
+              className="cart-close"
+              type="button"
+              aria-label="Đóng giỏ hàng"
+              onClick={onClose}
+            >
+              ×
+            </button>
+          )}
+        </div>
       </div>
       {!basket.items.length ? (
         <div className="empty-cart">
-          <span aria-hidden="true">⌑</span>
+          <span aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 1.9-1.4L21 8H6"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle cx="10" cy="20" r="1.4" fill="currentColor" />
+              <circle cx="18" cy="20" r="1.4" fill="currentColor" />
+            </svg>
+          </span>
           <h3>Đói bụng rồi đúng không?</h3>
           <p>
             Chọn món yêu thích.
