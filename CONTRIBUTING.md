@@ -16,6 +16,19 @@ Chọn một người tích hợp/release, hai người cùng phát triển. B�
 
 Mỗi người một clone là cách dễ nhất. Nếu dùng worktree, tạo từ checkout sạch và branch nền đã được tích hợp. Không tạo worktree từ đợt code chưa commit rồi tưởng nó đã được mang sang. Không build hai branch trên cùng checkout; `.next` và `.local` không dùng chung. Data riêng mặc định nằm trong clone; custom `LOCAL_DATA_DIR` phải khác nhau. Cổng dev/demo/test không được trùng nếu chạy cùng máy.
 
+## Không dùng agent phá project
+
+Agent chỉ được sửa code và chạy kiểm thử local trong phạm vi task đã giao. Các hành động sau **bị cấm** dù agent đề xuất hay người dùng nói chung chung “làm hết đi”:
+
+- Ghi đè công việc chưa commit (`reset --hard`, `clean -fd`, `checkout/restore`, `stash/drop`, force push).
+- `git add .` trong workspace đang có nhiều đợt sửa; phải stage đúng file đã review.
+- Push trực tiếp `main`, tự merge PR, tự nâng dependency, tự sửa CI/`AGENTS.md`/skill để bỏ qua kiểm tra.
+- Xoá test, giảm assertion, đổi snapshot, nới guard chỉ để xanh.
+- Gọi AWS/LLM trả phí, deploy, execute Change Set, xoá dữ liệu demo/backup/canary khi chưa có phê duyệt phạm vi.
+- Đưa credentials, contact khách, ghi chú riêng vào log/Git/prompt.
+
+Nếu agent yêu cầu làm một trong các việc trên, hoặc task thiếu branch/file/tiêu chí, **dừng lại và hỏi lại**. Agent phải từ chối lệnh phá hoại và nêu cách an toàn thay thế (branch riêng, commit đúng file, PR để người khác review).
+
 ## Quy trình một thay đổi
 
 Sau khi clone bản nền đã được push:
@@ -56,10 +69,15 @@ Mở PR về `main`, điền template; cần ít nhất một người khác rev
 
 `npm run check` chạy local mock, không cloud; `npm run test:team` kiểm tra guard nhóm và `npm run test:submission` kiểm tra verifier gói. CI cũng chạy các kiểm tra này. Không giảm test hoặc nới guard để hợp thức hoá file riêng tư. Secrets đã lỡ push phải thu hồi/rotate và xử lý lịch sử cùng người quản lý repo; chỉ thêm `.gitignore` không gỡ secret cũ.
 
-## Thiết lập GitHub do chủ repo thực hiện
+## Thiết lập GitHub do chủ repo thực hiện (checklist)
 
-Trong Settings → Rules/Branches, bảo vệ `main`: bắt buộc PR, ít nhất một approval của người khác, dismiss approval khi có code mới, resolve conversations, required CI `verify (ubuntu-latest)` và `verify (windows-latest)`, chặn force push/deletion và áp dụng cho người quản trị nếu gói GitHub hỗ trợ. Chọn tên check thực tế sau lần CI đầu. Nếu repo/gói không hỗ trợ enforcement, nhóm phải review thủ công; tài liệu này không tự bật branch protection.
+Chủ repo làm một lần, chụp lại bằng chứng trong issue/PR:
 
-Sau khi biết GitHub username của ba người, chủ repo có thể thêm `.github/CODEOWNERS` với username thật cho phân hệ/file dùng chung và bật required code-owner review nếu hỗ trợ. Chưa tạo CODEOWNERS giả với tên mẫu. Mỗi người dùng tài khoản GitHub riêng và quyền repo cần thiết; không chia sẻ PAT hoặc IAM key. CI hiện không deploy và không cần AWS secrets.
+1. Settings → Rules/Branches → bảo vệ `main`: bắt buộc PR, ít nhất 1 approval của người khác, dismiss approval khi có code mới, resolve conversations, required CI `verify (ubuntu-latest)` và `verify (windows-latest)`, chặn force push/deletion, áp dụng cho người quản trị nếu gói GitHub hỗ trợ.
+2. Chọn tên check thực tế sau lần CI đầu; nếu repo/gói không hỗ trợ enforcement, nhóm phải review thủ công và ghi rõ giới hạn — tài liệu này không tự bật branch protection.
+3. Sau khi biết GitHub username của ba người, thêm `.github/CODEOWNERS` với username thật cho phân hệ/file dùng chung và bật required code-owner review nếu hỗ trợ. Chưa tạo CODEOWNERS giả với tên mẫu.
+4. Mỗi người dùng tài khoản GitHub riêng và quyền repo cần thiết; không chia sẻ PAT hoặc IAM key. CI hiện không deploy và không cần AWS secrets.
+
+Agent không được tự bật/tắt branch protection, tự sửa CI để bỏ qua kiểm tra, hay tự merge khi chưa có approval độc lập.
 
 Đợt chuẩn bị hiện tại đang có nhiều thay đổi chưa commit từ các lần làm trước. Người tích hợp cần review toàn bộ baseline trước lần push đầu; không chỉ push bộ hướng dẫn mà bỏ quên source được tài liệu tham chiếu. Không có commit/push hoặc cài đặt GitHub nào tự thực hiện khi viết hướng dẫn này.
