@@ -65,7 +65,7 @@ Mở PR về `main`, điền template; cần ít nhất một người khác rev
 
 ## Kiểm tra và dữ liệu
 
-`npm run team:check` đọc danh sách file tracked/staged, chặn một số đường dẫn private/build/backup trong Git. Nó **không quét nội dung secret, lịch sử Git hay chứng minh code đúng**. Luôn xem staged diff, dùng GitHub secret scanning nếu repo hỗ trợ. `.env.example` chỉ chứa placeholder; `.local`, credentials, dữ liệu khách và `output` không push. Bằng chứng công khai được chọn lọc/ẩn danh trong tài liệu, không force-add toàn bộ runtime folder.
+`npm run team:check` đọc danh sách file tracked/staged, chặn một số đường dẫn private/build/backup trong Git và quét staged diff cho secret độ tin cậy cao (AWS access key, private key). Nó **không quét lịch sử Git hay chứng minh code đúng**. Luôn xem staged diff, dùng GitHub secret scanning nếu repo hỗ trợ. `.env.example` chỉ chứa placeholder; `.local`, credentials, dữ liệu khách và `output` không push. Bằng chứng công khai được chọn lọc/ẩn danh trong tài liệu, không force-add toàn bộ runtime folder.
 
 `npm run check` chạy local mock, không cloud; `npm run test:team` kiểm tra guard nhóm và `npm run test:submission` kiểm tra verifier gói. CI cũng chạy các kiểm tra này. Không giảm test hoặc nới guard để hợp thức hoá file riêng tư. Secrets đã lỡ push phải thu hồi/rotate và xử lý lịch sử cùng người quản lý repo; chỉ thêm `.gitignore` không gỡ secret cũ.
 
@@ -75,7 +75,7 @@ Chủ repo làm một lần, chụp lại bằng chứng trong issue/PR:
 
 1. Settings → Rules/Branches → bảo vệ `main`: bắt buộc PR, ít nhất 1 approval của người khác, dismiss approval khi có code mới, resolve conversations, required CI `verify (ubuntu-latest)` và `verify (windows-latest)`, chặn force push/deletion, áp dụng cho người quản trị nếu gói GitHub hỗ trợ.
 2. Chọn tên check thực tế sau lần CI đầu; nếu repo/gói không hỗ trợ enforcement, nhóm phải review thủ công và ghi rõ giới hạn — tài liệu này không tự bật branch protection.
-3. Sau khi biết GitHub username của ba người, thêm `.github/CODEOWNERS` với username thật cho phân hệ/file dùng chung và bật required code-owner review nếu hỗ trợ. Chưa tạo CODEOWNERS giả với tên mẫu.
+3. `.github/CODEOWNERS` đã liệt kê username thật cho file dùng chung (`@HuynhHao080`, `@minhkhanh39`); khi biết username thành viên thứ ba thì bổ sung và bật required code-owner review nếu hỗ trợ. Không dùng tên mẫu.
 4. Mỗi người dùng tài khoản GitHub riêng và quyền repo cần thiết; không chia sẻ PAT hoặc IAM key. CI hiện không deploy và không cần AWS secrets.
 
 Agent không được tự bật/tắt branch protection, tự sửa CI để bỏ qua kiểm tra, hay tự merge khi chưa có approval độc lập.

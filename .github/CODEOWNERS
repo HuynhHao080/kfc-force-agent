@@ -1,0 +1,13 @@
+# Shared files require integrator review. Add the third member username when known.
+# Do not use placeholder names. Each person uses their own GitHub account.
+
+/AGENTS.md @HuynhHao080 @minhkhanh39
+/CONTRIBUTING.md @HuynhHao080 @minhkhanh39
+/package.json @HuynhHao080 @minhkhanh39
+/package-lock.json @HuynhHao080 @minhkhanh39
+/next.config.ts @HuynhHao080 @minhkhanh39
+/.github/workflows/ @HuynhHao080 @minhkhanh39
+/scripts/team-check.cjs @HuynhHao080 @minhkhanh39
+/scripts/test-team-guard.cjs @HuynhHao080 @minhkhanh39
+/.agents/skills/ @HuynhHao080 @minhkhanh39
+/infra/aws/ @HuynhHao080 @minhkhanh39

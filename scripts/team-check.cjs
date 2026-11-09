@@ -16,6 +16,19 @@ function privatePath(filename) {
   return null;
 }
 
+const SECRET_PATTERNS = [
+  { name: "AWS access key", pattern: /AKIA[0-9A-Z]{16}/ },
+  { name: "private key", pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
+];
+
+function secretInContent(content) {
+  if (typeof content !== "string") return null;
+  for (const { name, pattern } of SECRET_PATTERNS) {
+    if (pattern.test(content)) return name;
+  }
+  return null;
+}
+
 function main() {
   const root = path.resolve(__dirname, "..");
   const files = execFileSync("git", ["ls-files", "--cached", "-z"], {
@@ -28,8 +41,17 @@ function main() {
     process.exitCode = 1;
     return;
   }
-  console.log(`Git path guard passed for ${files.length} tracked/staged paths. Content and Git history were not scanned.`);
+  const stagedDiff = execFileSync("git", ["diff", "--cached", "--no-color"], {
+    cwd: root, encoding: "utf8", windowsHide: true, maxBuffer: 50 * 1024 * 1024,
+  });
+  const secret = secretInContent(stagedDiff);
+  if (secret) {
+    console.error(`High-confidence secret pattern found in staged diff: ${secret}. Remove it and rotate if already pushed.`);
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`Git path guard passed for ${files.length} tracked/staged paths. Staged content scanned for high-confidence secrets; Git history was not scanned.`);
 }
 
-module.exports = { privatePath };
+module.exports = { privatePath, secretInContent };
 if (require.main === module) main();
