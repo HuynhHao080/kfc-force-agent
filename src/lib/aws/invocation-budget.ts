@@ -24,6 +24,10 @@ export function reserveBedrockInvocation(directory = process.env.LOCAL_DATA_DIR 
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
+  // RANG BUỘC: fonction này được thiết kế cho MỘT TIẾN TRÌNH duyệt (single-process),
+  // không hỗ trợ nhiều process đồng thời. Read-modify-write trên file JSON không có
+  // file locking, không thay thế được atomic locking. Nếu cần multi-process, phải
+  // bổ sung cơ chế khóa nguyên tại lớp triển khai AWS.
   if (used >= limit) throw new Error("The daily Bedrock request ceiling has been reached.");
   const temporary = file + ".tmp";
   writeFileSync(temporary, JSON.stringify({ day, used: used + 1 }) + "\n", { mode: 0o600 });

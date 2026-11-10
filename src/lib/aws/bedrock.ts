@@ -67,10 +67,23 @@ export class BedrockService {
       return { success: false, error: { type: "validation_error", message: "Use one sampling parameter, with a value from 0 to 1, and maxTokens from 1 to 2048." } };
     }
     try {
-      this.client ??= new BedrockRuntimeClient({
-        region: process.env.AWS_REGION || "ap-southeast-1",
-        maxAttempts: 1,
-      });
+      if (!this.client) {
+        const region = process.env.AWS_REGION;
+        if (!region || !region.trim()) {
+          return {
+            success: false,
+            error: {
+              type: "validation_error",
+              message:
+                "AWS_REGION must be explicitly configured for the Bedrock provider.",
+            },
+          };
+        }
+        this.client = new BedrockRuntimeClient({
+          region,
+          maxAttempts: 1,
+        });
+      }
       const messages = [
         ...(conversationHistory ?? [])
           .filter((turn) => turn.role !== "system" && turn.content.trim())
