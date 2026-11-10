@@ -13,7 +13,7 @@
     "test": "node scripts/test-chat.cjs",
     "typecheck": "tsc --noEmit",
     "test:smoke": "node scripts/smoke-chat.cjs",
-    "check": "npm run lint && npm run typecheck && npm test && npm run test:data && npm run test:aws && npm run build && npm run test:smoke",
+    "check": "npm run lint && npm run typecheck && npm test && npm run test:data && npm run test:aws && npm run test:bedrock && npm run build && npm run test:smoke",
     "test:data": "node scripts/test-local-data.cjs",
     "data:backup": "node scripts/local-data.cjs backup",
     "data:verify": "node scripts/local-data.cjs verify",
@@ -30,7 +30,8 @@
     "aws:preflight": "node scripts/aws-canary.cjs",
     "aws:plan": "node scripts/aws-deploy.cjs plan",
     "aws:artifact": "python scripts/build-aws-release.py",
-    "test:aws": "python scripts/test-aws-package.py"
+    "test:aws": "python scripts/test-aws-package.py",
+    "test:bedrock": "node scripts/test-bedrock-guardrails.cjs"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1137.0",
