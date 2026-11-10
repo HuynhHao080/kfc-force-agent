@@ -38,43 +38,67 @@ function makeService(configOverrides = {}, injectedClient = false) {
 
 // P0: Thiếu AWS_REGION → fail-closed
 check("BedrockService: thiếu AWS_REGION thì validation_error", async () => {
+  const prevRegion = process.env.AWS_REGION;
   delete process.env.AWS_REGION;
-  const svc = makeService({ modelId: "us.anthropic.claude-haiku-4-5-20251001-v1:0" });
-  const result = await svc.generateResponse("system", "user");
-  assert.equal(result.success, false);
-  assert.equal(result.error.type, "validation_error");
-  assert.ok(result.error.message.includes("AWS_REGION"));
+  try {
+    const svc = makeService({ modelId: "us.anthropic.claude-haiku-4-5-20251001-v1:0" });
+    const result = await svc.generateResponse("system", "user");
+    assert.equal(result.success, false);
+    assert.equal(result.error.type, "validation_error");
+    assert.ok(result.error.message.includes("AWS_REGION"));
+  } finally {
+    if (prevRegion === undefined) delete process.env.AWS_REGION;
+    else process.env.AWS_REGION = prevRegion;
+  }
 });
 
 // P0: Thiếu BEDROCK_MODEL_ID → fail-closed
 check("BedrockService: thiếu BEDROCK_MODEL_ID thì validation_error", async () => {
+  const prevRegion = process.env.AWS_REGION;
   process.env.AWS_REGION = "us-west-2";
-  const svc = makeService({ modelId: "" });
-  const result = await svc.generateResponse("system", "user");
-  assert.equal(result.success, false);
-  assert.equal(result.error.type, "validation_error");
-  assert.ok(result.error.message.includes("BEDROCK_MODEL_ID"));
+  try {
+    const svc = makeService({ modelId: "" });
+    const result = await svc.generateResponse("system", "user");
+    assert.equal(result.success, false);
+    assert.equal(result.error.type, "validation_error");
+    assert.ok(result.error.message.includes("BEDROCK_MODEL_ID"));
+  } finally {
+    if (prevRegion === undefined) delete process.env.AWS_REGION;
+    else process.env.AWS_REGION = prevRegion;
+  }
 });
 
 // P0: modelId = "mock-model" → fail-closed
 check("BedrockService: modelId 'mock-model' thì validation_error", async () => {
+  const prevRegion = process.env.AWS_REGION;
   process.env.AWS_REGION = "us-west-2";
-  const svc = makeService({ modelId: "mock-model" });
-  const result = await svc.generateResponse("system", "user");
-  assert.equal(result.success, false);
-  assert.equal(result.error.type, "validation_error");
+  try {
+    const svc = makeService({ modelId: "mock-model" });
+    const result = await svc.generateResponse("system", "user");
+    assert.equal(result.success, false);
+    assert.equal(result.error.type, "validation_error");
+  } finally {
+    if (prevRegion === undefined) delete process.env.AWS_REGION;
+    else process.env.AWS_REGION = prevRegion;
+  }
 });
 
 // P0: Không tự fallback sang mock khi Bedrock lỗi (sau khi validation pass)
 check("BedrockService: SDK lỗi thì trả về bedrock_error, không fallback mock", async () => {
+  const prevRegion = process.env.AWS_REGION;
   process.env.AWS_REGION = "us-west-2";
-  const svc = new BedrockService(
-    { modelId: "us.anthropic.claude-haiku-4-5-20251001-v1:0" },
-    { send: async () => { throw new Error("fixture transport failed"); } }
-  );
-  const result = await svc.generateResponse("system", "user");
-  assert.equal(result.success, false);
-  assert.equal(result.error.type, "bedrock_error");
+  try {
+    const svc = new BedrockService(
+      { modelId: "us.anthropic.claude-haiku-4-5-20251001-v1:0" },
+      { send: async () => { throw new Error("fixture transport failed"); } }
+    );
+    const result = await svc.generateResponse("system", "user");
+    assert.equal(result.success, false);
+    assert.equal(result.error.type, "bedrock_error");
+  } finally {
+    if (prevRegion === undefined) delete process.env.AWS_REGION;
+    else process.env.AWS_REGION = prevRegion;
+  }
 });
 
 // P1: InvocationBudget limit = 0 → tắt inference
@@ -129,3 +153,4 @@ check("Guardrails: không ghi prompt vào log", () => {
 
 console.log(`\nKết quả: ${passed} pass, ${failed} fail`);
 if (failed > 0) process.exitCode = 1;
+
