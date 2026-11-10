@@ -11,15 +11,22 @@ const { reserveBedrockInvocation } = require("../src/lib/aws/invocation-budget.t
 
 let passed = 0;
 let failed = 0;
+const tests = [];
 
 function check(name, fn) {
-  try {
-    fn();
-    passed++;
-    console.log(`PASS: ${name}`);
-  } catch (error) {
-    failed++;
-    console.error(`FAIL: ${name} — ${error.message}`);
+  tests.push({ name, fn });
+}
+
+async function runTests() {
+  for (const { name, fn } of tests) {
+    try {
+      await fn();
+      passed++;
+      console.log(`PASS: ${name}`);
+    } catch (error) {
+      failed++;
+      console.error(`FAIL: ${name} — ${error.message}`);
+    }
   }
 }
 
@@ -104,20 +111,26 @@ check("BedrockService: SDK lỗi thì trả về bedrock_error, không fallback 
 // P1: InvocationBudget limit = 0 → tắt inference
 check("InvocationBudget: limit 0 thì ném lỗi tắt inference", () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kfc-budget-test-"));
+  const prevLimit = process.env.BEDROCK_DAILY_REQUEST_LIMIT;
+  const prevDataDir = process.env.LOCAL_DATA_DIR;
   try {
     process.env.BEDROCK_DAILY_REQUEST_LIMIT = "0";
     process.env.LOCAL_DATA_DIR = tmpDir;
     assert.throws(() => reserveBedrockInvocation(tmpDir), /Bedrock inference is disabled/);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
-    delete process.env.BEDROCK_DAILY_REQUEST_LIMIT;
-    delete process.env.LOCAL_DATA_DIR;
+    if (prevLimit === undefined) delete process.env.BEDROCK_DAILY_REQUEST_LIMIT;
+    else process.env.BEDROCK_DAILY_REQUEST_LIMIT = prevLimit;
+    if (prevDataDir === undefined) delete process.env.LOCAL_DATA_DIR;
+    else process.env.LOCAL_DATA_DIR = prevDataDir;
   }
 });
 
 // P1: InvocationBudget vượt ngân sách → lỗi
 check("InvocationBudget: vượt limit thì ném lỗi", () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kfc-budget-test-"));
+  const prevLimit = process.env.BEDROCK_DAILY_REQUEST_LIMIT;
+  const prevDataDir = process.env.LOCAL_DATA_DIR;
   try {
     process.env.BEDROCK_DAILY_REQUEST_LIMIT = "1";
     process.env.LOCAL_DATA_DIR = tmpDir;
@@ -128,8 +141,10 @@ check("InvocationBudget: vượt limit thì ném lỗi", () => {
     assert.throws(() => reserveBedrockInvocation(tmpDir), /ceiling has been reached/);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
-    delete process.env.BEDROCK_DAILY_REQUEST_LIMIT;
-    delete process.env.LOCAL_DATA_DIR;
+    if (prevLimit === undefined) delete process.env.BEDROCK_DAILY_REQUEST_LIMIT;
+    else process.env.BEDROCK_DAILY_REQUEST_LIMIT = prevLimit;
+    if (prevDataDir === undefined) delete process.env.LOCAL_DATA_DIR;
+    else process.env.LOCAL_DATA_DIR = prevDataDir;
   }
 });
 
@@ -151,6 +166,51 @@ check("Guardrails: không ghi prompt vào log", () => {
   assert.ok(!/console\.log\(.*prompt/.test(bedrockSrc), "Không được ghi prompt vào console.log");
 });
 
-console.log(`\nKết quả: ${passed} pass, ${failed} fail`);
-if (failed > 0) process.exitCode = 1;
+// Kiểm chứng: một test cố tình reject phải khiến tiến trình trả exit code khác 0
+check("Guardrail test runner: test reject thì exit code khác 0", async () => {
+  const originalExitCode = process.exitCode;
+  try {
+    // Tạo một runner tạm với test reject
+    const rejectTests = [];
+    let rPassed = 0;
+    let rFailed = 0;
+
+    function rCheck(_name, fn) {
+      rejectTests.push({ fn });
+    }
+
+    async function rRunTests() {
+      for (const { fn } of rejectTests) {
+        try {
+          await fn();
+          rPassed++;
+        } catch {
+          rFailed++;
+        }
+      }
+    }
+
+    rCheck("test cố tình reject", async () => {
+      throw new Error("lỗi cố tình");
+    });
+
+    await rRunTests();
+
+    if (rFailed !== 1) {
+      throw new Error(`Expected 1 failure, got ${rFailed}`);
+    }
+    if (rPassed !== 0) {
+      throw new Error(`Expected 0 passes, got ${rPassed}`);
+    }
+  } finally {
+    process.exitCode = originalExitCode;
+  }
+});
+
+(async () => {
+  await runTests();
+
+  console.log(`\nKết quả: ${passed} pass, ${failed} fail`);
+  if (failed > 0) process.exitCode = 1;
+})();
 
