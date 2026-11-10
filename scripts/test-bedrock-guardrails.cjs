@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
 const assert = require("node:assert/strict");
+const { spawnSync } = require("node:child_process");
 const ROOT = path.resolve(__dirname, "..");
 require("./register-typescript.cjs");
 
@@ -166,46 +167,41 @@ check("Guardrails: không ghi prompt vào log", () => {
   assert.ok(!/console\.log\(.*prompt/.test(bedrockSrc), "Không được ghi prompt vào console.log");
 });
 
-// Kiểm chứng: một test cố tình reject phải khiến tiến trình trả exit code khác 0
-check("Guardrail test runner: test reject thì exit code khác 0", async () => {
-  const originalExitCode = process.exitCode;
-  try {
-    // Tạo một runner tạm với test reject
-    const rejectTests = [];
-    let rPassed = 0;
-    let rFailed = 0;
+// Khi biến môi trường này được đặt, thêm một test cố tình reject để
+// kiểm chứng tiến trình con thoát với mã khác 0.
+if (process.env.BEDROCK_TEST_REJECT === "1") {
+  check("test cố tình reject (môi trường kiểm tra)", async () => {
+    throw new Error("lỗi cố tình");
+  });
+}
 
-    function rCheck(_name, fn) {
-      rejectTests.push({ fn });
+// Kiểm chứng: một test cố tình reject phải khiến tiến trình con trả exit code khác 0
+// Bỏ qua khi đang chạy trong tiến trình con reject để tránh infinite recursion
+if (process.env.BEDROCK_TEST_REJECT !== "1") {
+  check("Guardrail test runner: test reject thì tiến trình con exit code khác 0", () => {
+    const originalEnv = {
+      AWS_REGION: process.env.AWS_REGION,
+      BEDROCK_DAILY_REQUEST_LIMIT: process.env.BEDROCK_DAILY_REQUEST_LIMIT,
+      LOCAL_DATA_DIR: process.env.LOCAL_DATA_DIR,
+      BEDROCK_TEST_REJECT: process.env.BEDROCK_TEST_REJECT,
+    };
+    try {
+      process.env.BEDROCK_TEST_REJECT = "1";
+      const result = spawnSync(process.execPath, [__filename], {
+        env: { ...process.env },
+        encoding: "utf8",
+        timeout: 30000,
+      });
+      assert.ok(result.status !== null, "Tiến trình con không thoát bình thường");
+      assert.equal(result.status, 1, `Expected exit code 1, got ${result.status}`);
+    } finally {
+      process.env.AWS_REGION = originalEnv.AWS_REGION;
+      process.env.BEDROCK_DAILY_REQUEST_LIMIT = originalEnv.BEDROCK_DAILY_REQUEST_LIMIT;
+      process.env.LOCAL_DATA_DIR = originalEnv.LOCAL_DATA_DIR;
+      process.env.BEDROCK_TEST_REJECT = originalEnv.BEDROCK_TEST_REJECT;
     }
-
-    async function rRunTests() {
-      for (const { fn } of rejectTests) {
-        try {
-          await fn();
-          rPassed++;
-        } catch {
-          rFailed++;
-        }
-      }
-    }
-
-    rCheck("test cố tình reject", async () => {
-      throw new Error("lỗi cố tình");
-    });
-
-    await rRunTests();
-
-    if (rFailed !== 1) {
-      throw new Error(`Expected 1 failure, got ${rFailed}`);
-    }
-    if (rPassed !== 0) {
-      throw new Error(`Expected 0 passes, got ${rPassed}`);
-    }
-  } finally {
-    process.exitCode = originalExitCode;
-  }
-});
+  });
+}
 
 (async () => {
   await runTests();
