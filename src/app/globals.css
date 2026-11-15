@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./purchase-storefront.css";
 :root {
   --cream: #faf7f0;
   --ink: #28201d;
@@ -315,6 +316,34 @@ nav button.active {
   justify-content: center;
   min-width: 0;
 }
+.storefront .hero.hero-purchase {
+  background: #fff;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+.storefront .hero.hero-purchase h1,
+.storefront .hero.hero-purchase .eyebrow {
+  color: var(--red);
+}
+.storefront .hero.hero-purchase p {
+  color: var(--muted);
+}
+.storefront .hero.hero-purchase .button {
+  background: var(--red);
+  color: #fff;
+}
+.storefront .hero.hero-purchase::before,
+.storefront .hero.hero-purchase::after {
+  display: none;
+}
+.storefront .hero.hero-purchase .hero-art > img {
+  animation: none;
+  width: 100%;
+  height: 100%;
+  max-height: 340px;
+  object-fit: contain;
+  transform: none;
+}
 .hero-art > img {
   width: 110%;
   height: auto;
@@ -454,6 +483,175 @@ nav button.active {
   border-radius: 12px;
   overflow: hidden;
   animation: rise-in 0.35s both;
+}
+.menu-tools {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.menu-tools .search-box {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+.menu-sort {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.menu-sort select {
+  max-width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fffdf9;
+  color: var(--ink);
+  font: inherit;
+}
+.product-title-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.menu-budget {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.menu-budget input {
+  width: 140px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+}
+.compare-choice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-block: 8px 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.compare-choice input {
+  accent-color: var(--red);
+}
+.comparison-panel {
+  margin-bottom: 20px;
+}
+.comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+}
+.comparison-grid article {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.comparison-grid h4 {
+  margin: 0;
+  font-size: 14px;
+}
+.comparison-grid strong {
+  color: var(--red);
+}
+.comparison-grid p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.product-title-button:hover, .product-source a {
+  color: var(--red);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.product-photo {
+  margin-block: 20px;
+  background: white;
+  border-radius: 12px;
+}
+.product-photo img {
+  width: 100%;
+  height: auto;
+  max-height: 340px;
+  object-fit: contain;
+}
+.product-description {
+  line-height: 1.7;
+}
+.handoff-intro {
+  margin-block: 16px;
+  line-height: 1.7;
+}
+.handoff-list {
+  display: grid;
+  gap: 8px;
+  font-weight: 650;
+}
+.handoff-list textarea {
+  width: 100%;
+  padding: 12px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+  line-height: 1.7;
+}
+.product-source {
+  margin-block: 12px;
+  line-height: 1.6;
+}
+.product-quantity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-block: 24px;
+}
+.product-quantity-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.product-quantity-controls button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: white;
+  font-size: 22px;
+}
+.product-quantity-controls input {
+  width: 65px;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  text-align: center;
+}
+@media (max-width: 600px) {
+  .menu-tools {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .menu-sort {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+  }
 }
 .food-art {
   height: 190px;

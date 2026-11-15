@@ -2,17 +2,24 @@
 import { useEffect, useRef, useState } from "react";
 import { ChatInput } from "./chat-input";
 import { ChatMessage } from "./chat-message";
+import type { ChatTurn } from "@/lib/storefront-types";
 interface ChatWindowProps {
-  messages: Array<{ role: "user" | "assistant"; content: string }>;
+  inputId?: string;
+  messages: ChatTurn[];
+  onChooseProduct?: (id: string) => void;
+  onViewProduct?: (id: string) => void;
   onSendMessage: (message: string) => void;
   isLoading: boolean;
   disabled?: boolean;
 }
 export function ChatWindow({
+  inputId,
   messages,
   onSendMessage,
   isLoading,
   disabled = false,
+  onChooseProduct,
+  onViewProduct,
 }: ChatWindowProps) {
   const [input, setInput] = useState("");
   const log = useRef<HTMLDivElement>(null);
@@ -30,7 +37,13 @@ export function ChatWindow({
         aria-busy={isLoading}
       >
         {messages.map((message, index) => (
-          <ChatMessage key={index} {...message} />
+          <ChatMessage
+            key={index}
+            {...message}
+            disabled={disabled || isLoading}
+            onChooseProduct={onChooseProduct}
+            onViewProduct={onViewProduct}
+          />
         ))}
         {isLoading && (
           <p className="typing-status" role="status">
@@ -39,6 +52,7 @@ export function ChatWindow({
         )}
       </div>
       <ChatInput
+        id={inputId}
         value={input}
         onChange={setInput}
         disabled={disabled || isLoading}

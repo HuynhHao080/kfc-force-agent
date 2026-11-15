@@ -8,6 +8,7 @@ import { FeedbackService } from "@/lib/services/feedback-service";
 import { AdminService } from "@/lib/services/admin-service";
 import { AccountService } from "@/lib/services/account-service";
 import { AddressService } from "@/lib/services/address-service";
+import { FavoritesService } from "@/lib/services/favorites-service";
 import { ShopService } from "@/lib/services/shop-service";
 import { CheckoutService } from "@/lib/services/checkout-service";
 import { PromotionService } from "@/lib/services/promotion-service";
@@ -15,7 +16,7 @@ import { ReorderService } from "@/lib/services/reorder-service";
 import { ChatService } from "@/lib/services/chat-service";
 import { SessionService } from "@/lib/services/session-service";
 import { UserService } from "@/lib/services/user-service";
-import { normalizeVietnamese, MenuService } from "@/lib/services/menu-service";
+import { normalizeVietnamese, matchesMenuQuery, MenuService } from "@/lib/services/menu-service";
 import { CartService } from "@/lib/services/cart-service";
 import { OrderService } from "@/lib/services/order-service";
 import { createRepositories } from "@/lib/db/repositories/repositories";
@@ -34,11 +35,14 @@ import {
 } from "@/lib/types/agent";
 import { MockLLMProvider } from "@/lib/agent/providers/mock-llm-provider";
 import { BedrockLLMProvider } from "@/lib/agent/providers/bedrock-llm-provider";
-import { LLMProvider } from "@/lib/agent/providers/llm-provider";
+import { LLMProvider, type LLMResult } from "@/lib/agent/providers/llm-provider";
 import { ToolExecutionContext, ToolResult } from "@/lib/agent/tools/agent-tool";
 import { toolRegistry } from "@/lib/agent/tools/tool-registry";
 import { getToolMapping, PolicyEngine } from "@/lib/policy/policy-engine";
 import { systemPrompt } from "@/lib/agent/prompts/system-prompt";
+import { catalogContext } from "./catalog-context";
+import { officialAnswer } from "./official-answer";
+import { chatProducts } from "./chat-products";
 
 export interface AgentCoreResult {
   reply: string;
@@ -54,6 +58,7 @@ export class ServiceContainer {
   shopService: ShopService;
   accountService: AccountService;
   addressService: AddressService;
+  favoritesService: FavoritesService;
   adminService: AdminService;
   sessionService: SessionService;
   userService: UserService;
@@ -84,6 +89,7 @@ export class ServiceContainer {
     this.sessionService = new SessionService(repositories.sessionRepository);
     this.userService = new UserService(repositories.userRepository);
     this.menuService = new MenuService(repositories.menuRepository);
+    this.favoritesService = new FavoritesService(repositories.userRepository, this.menuService);
     this.cartService = new CartService(
       repositories.cartRepository,
       this.menuService,
@@ -263,13 +269,31 @@ export async function agentCore(
       updatedAt: new Date().toISOString(),
     });
     const conversation = await loadConversation(sessionId);
-    const userPrompt = buildUserPrompt(request.message);
+    const sourceAnswer = request.selectedProduct ? undefined : officialAnswer(request.message);
+    if (sourceAnswer) {
+      return { reply: sourceAnswer, sessionId, actions: [], requiresConfirmation: false, execution: [] };
+    }
+    const [menu, basket] = await Promise.all([
+      services.menuService.getAvailableMenuItems(),
+      services.cartService.getCartView(request.userId),
+    ]);
+    const recentMessages = await services.sessionService.getMessages(sessionId);
+    const lastProducts = recentMessages.findLast(message => message.role === "assistant" && !!message.productIds?.length)?.productIds ?? [];
+    const shownProducts = chatProducts(lastProducts, menu).map((item, index) => ({ position: index + 1, id: item.id, name: item.name, priceVnd: item.price }));
+    const userPrompt = catalogContext(request.message, menu, basket?.items ?? []) + "\nDISPLAYED_PRODUCTS_JSON:" + JSON.stringify(shownProducts) + "\n" + buildUserPrompt(request.message);
 
-    const llmResponse = await services.llmProvider.generateResponse(
-      systemPrompt,
-      userPrompt,
-      conversation,
-    );
+    let llmResponse: LLMResult;
+    if (request.selectedProduct) {
+      // Explicit card clicks already identify the SKU. Policy still owns validation
+      // and confirmation, so this path needs no paid model interpretation.
+      llmResponse = { success: true, response: {
+        message: "Bạn đã chọn món. Hãy kiểm tra đề xuất trước khi xác nhận.",
+        intent: "ADD_TO_CART", confidence: 1, requiresConfirmation: true,
+        actions: [{ id: randomUUID(), type: "ADD_TO_CART", parameters: { ...request.selectedProduct }, requiresConfirmation: true }],
+      } };
+    } else {
+      llmResponse = await services.llmProvider.generateResponse(systemPrompt, userPrompt, conversation);
+    }
 
     if (!llmResponse.success) {
       console.error("LLM provider failure:", llmResponse.error);
@@ -391,16 +415,13 @@ export async function executeProposedActions(
       typeof action.parameters.query === "string"
     ) {
       const view = await services.cartService.getCartView(context.userId);
-      const tokens = normalizeVietnamese(action.parameters.query)
-        .split(" ")
-        .filter(Boolean);
-      const matches =
+      const normalizedQuery = normalizeVietnamese(action.parameters.query);
+      const exactNames = view?.items.filter(item =>
+        normalizeVietnamese(item.nameSnapshot) === normalizedQuery) ?? [];
+      const matches = exactNames.length ? exactNames :
         view?.items.filter(
           (item) =>
-            tokens.length > 0 &&
-            tokens.every((token) =>
-              normalizeVietnamese(item.nameSnapshot).includes(token),
-            ),
+            normalizedQuery.length > 0 && matchesMenuQuery({ name: item.nameSnapshot }, normalizedQuery),
         ) ?? [];
       if (matches.length === 1) action.parameters.itemId = matches[0].id;
     }
@@ -536,7 +557,7 @@ function composeReply(
     : types.some((type) =>
           ["SEARCH_MENU", "LIST_MENU", "GET_MENU_ITEM"].includes(type),
         )
-      ? "Thông tin món từ thực đơn hiện tại:"
+      ? "Đây là kết quả mình vừa tra trong thực đơn."
       : types.includes("VIEW_CART")
         ? "Giỏ hàng hiện tại của bạn:"
         : agentResponse.message;
@@ -582,7 +603,8 @@ function formatToolResult(data: unknown): string | undefined {
   const lines = result.message ? [result.message] : [];
   if (result.item?.name)
     lines.push(`${result.item.name}: ${money(result.item.price ?? 0)}`);
-  for (const item of result.items ?? []) {
+  const displayedItems = result.cart ? result.items ?? [] : (result.items ?? []).slice(0, 6);
+  for (const item of displayedItems) {
     if (item.nameSnapshot !== undefined) {
       lines.push(
         `${item.quantity} × ${item.nameSnapshot}: ${money(item.subtotal ?? 0)}`,
@@ -591,6 +613,7 @@ function formatToolResult(data: unknown): string | undefined {
       lines.push(`${item.name}: ${money(item.price ?? 0)}`);
     }
   }
+  if (!result.cart && (result.items?.length ?? 0) > 6) lines.push(`Còn ${(result.items?.length ?? 0) - 6} món khác. Bạn có thể nói tên món hoặc khoảng giá để mình lọc tiếp.`);
   if (result.cart) lines.push(`Tổng cộng: ${money(result.cart.total)}`);
   return lines.length ? lines.join("\n") : undefined;
 }

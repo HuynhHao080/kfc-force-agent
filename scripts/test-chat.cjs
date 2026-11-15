@@ -2943,10 +2943,10 @@ async function main() {
     assert.throws(() => assertCreateChangeSet(change, "CREATE_COMPLETE", template, template, target));
     assert.throws(() => assertCreateChangeSet({ ...change, Changes: [] }, "REVIEW_IN_PROGRESS", template, template, target));
     assert.throws(() => assertCreateChangeSet(change, "REVIEW_IN_PROGRESS", template, template, { ...target, dailyRequestLimit: 100 }));
-    const commands = releaseCommands({ region: "us-west-2" }, { ArtifactBucket: "synthetic-kfc-bucket" }, "version-1", "a".repeat(64)).join("\n");
+    const commands = releaseCommands({ region: "ap-southeast-1" }, { ArtifactBucket: "synthetic-kfc-bucket" }, "version-1", "a".repeat(64)).join("\n");
     assert.ok(commands.includes("--version-id 'version-1'")); assert.ok(commands.includes("sha256sum -c -"));
-    assert.throws(() => releaseCommands({ region: "us-west-2" }, { ArtifactBucket: "bad bucket" }, "version-1", "a".repeat(64)));
-    assert.throws(() => releaseCommands({ region: "us-west-2" }, { ArtifactBucket: "synthetic-kfc-bucket" }, "null", "a".repeat(64)));
+    assert.throws(() => releaseCommands({ region: "ap-southeast-1" }, { ArtifactBucket: "bad bucket" }, "version-1", "a".repeat(64)));
+    assert.throws(() => releaseCommands({ region: "ap-southeast-1" }, { ArtifactBucket: "synthetic-kfc-bucket" }, "null", "a".repeat(64)));
   });
   console.log(`${count} chat regression checks passed (mock only).`);
 }

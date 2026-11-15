@@ -1,6 +1,8 @@
 "use client";
 import type { Basket } from "@/lib/storefront-types";
 import { money } from "@/lib/storefront-types";
+import type { MenuItem } from "@/lib/types/menu";
+import { MenuImage } from "./menu-image";
 export function CartPanel({
   basket,
   busy,
@@ -9,10 +11,16 @@ export function CartPanel({
   onCheckout,
   onClose,
   checkoutDisabled = false,
+  purchaseAssistant = false,
+  menu = [],
+  onClear,
 }: {
   basket: Basket;
   busy: boolean;
   checkoutDisabled?: boolean;
+  purchaseAssistant?: boolean;
+  menu?: MenuItem[];
+  onClear?: () => void;
   onClose?: () => void;
   onQuantity: (id: string, quantity: number) => void;
   onRemove: (id: string) => void;
@@ -44,12 +52,26 @@ export function CartPanel({
             <circle cx="18" cy="20" r="1.4" fill="currentColor" />
           </svg>
           Giỏ hàng
-          <span className="count-badge" aria-live="polite" aria-label={`${count} món trong giỏ`}>
+          <span
+            className="count-badge"
+            aria-live="polite"
+            aria-label={`${count} món trong giỏ`}
+          >
             {count}
           </span>
         </h2>
         <div className="cart-heading-actions">
-          <span className="eyebrow">VỪA ĐỦ NGON</span>
+          {onClear && basket.items.length > 0 && (
+            <button
+              type="button"
+              className="text-button"
+              disabled={busy}
+              onClick={onClear}
+              aria-label="Xóa toàn bộ giỏ"
+            >
+              Xóa giỏ
+            </button>
+          )}
           {onClose && (
             <button
               className="cart-close"
@@ -77,47 +99,62 @@ export function CartPanel({
               <circle cx="18" cy="20" r="1.4" fill="currentColor" />
             </svg>
           </span>
-          <h3>Đói bụng rồi đúng không?</h3>
+          <h3>Giỏ hàng đang trống</h3>
           <p>
-            Chọn món yêu thích.
-            <br />
-            Bữa ngon bắt đầu từ đây.
+            Chọn món trong thực đơn hoặc nhờ trợ lý tìm giúp.
           </p>
         </div>
       ) : (
         <ul className="cart-lines">
           {basket.items.map((item) => (
             <li key={item.id}>
-              <div className="cart-line-heading">
-                <strong>{item.nameSnapshot}</strong>
-                <button
-                  className="text-button"
-                  disabled={busy}
-                  aria-label={`Xoá ${item.nameSnapshot}`}
-                  onClick={() => onRemove(item.id)}
-                >
-                  Xoá
-                </button>
-              </div>
-              <div className="cart-line-bottom">
-                <div className="stepper">
-                  <button
-                    disabled={busy || item.quantity <= 1}
-                    aria-label={`Giảm ${item.nameSnapshot}`}
-                    onClick={() => onQuantity(item.id, item.quantity - 1)}
-                  >
-                    −
-                  </button>
-                  <span aria-label="Số lượng">{item.quantity}</span>
-                  <button
-                    disabled={busy || item.quantity >= 100}
-                    aria-label={`Tăng ${item.nameSnapshot}`}
-                    onClick={() => onQuantity(item.id, item.quantity + 1)}
-                  >
-                    +
-                  </button>
+              <div
+                className={purchaseAssistant ? "cart-product-line" : undefined}
+              >
+                {purchaseAssistant && (
+                  <MenuImage
+                    imageUrl={
+                      menu.find((product) => product.id === item.menuItemId)
+                        ?.imageUrl
+                    }
+                    alt={item.nameSnapshot}
+                    width={70}
+                    height={70}
+                  />
+                )}
+                <div className="cart-product-details">
+                  <div className="cart-line-heading">
+                    <strong>{item.nameSnapshot}</strong>
+                    <button
+                      className="text-button"
+                      disabled={busy}
+                      aria-label={`Xoá ${item.nameSnapshot}`}
+                      onClick={() => onRemove(item.id)}
+                    >
+                      Xoá
+                    </button>
+                  </div>
+                  <div className="cart-line-bottom">
+                    <div className="stepper">
+                      <button
+                        disabled={busy || item.quantity <= 1}
+                        aria-label={`Giảm ${item.nameSnapshot}`}
+                        onClick={() => onQuantity(item.id, item.quantity - 1)}
+                      >
+                        −
+                      </button>
+                      <span aria-label="Số lượng">{item.quantity}</span>
+                      <button
+                        disabled={busy || item.quantity >= 100}
+                        aria-label={`Tăng ${item.nameSnapshot}`}
+                        onClick={() => onQuantity(item.id, item.quantity + 1)}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <strong>{money(item.subtotal)}</strong>
+                  </div>
                 </div>
-                <strong>{money(item.subtotal)}</strong>
               </div>
             </li>
           ))}
@@ -127,13 +164,18 @@ export function CartPanel({
         <span>Tạm tính</span>
         <strong>{money(basket.cart?.total ?? 0)}</strong>
       </div>
-      <p className="small muted">Phí giao hàng hiển thị tại bước xác nhận.</p>
+      <p className="small muted">
+        {purchaseAssistant
+          ? "Giá tham khảo từ thực đơn KFC. Giá cuối cùng và phí giao hàng được KFC xác nhận."
+          : "Phí giao hàng hiển thị tại bước xác nhận."}
+      </p>
       <button
         disabled={busy || checkoutDisabled || !basket.items.length}
         className="button primary full-width"
         onClick={onCheckout}
       >
-        Tiếp tục đặt món <span aria-hidden="true">↗</span>
+        {purchaseAssistant ? "Mua trên KFC Việt Nam" : "Tiếp tục đặt món"}{" "}
+        <span aria-hidden="true">↗</span>
       </button>
     </section>
   );

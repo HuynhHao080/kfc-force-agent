@@ -24,25 +24,27 @@ import type { ShopView } from "@/lib/types/shop";
 import { shopDayLabels } from "@/lib/shop-settings";
 import type { CustomerProfile } from "@/lib/types/account";
 import { CartPanel } from "./cart-panel";
+import { MenuImage } from "./menu-image";
+import { ProductDialog } from "./product-dialog";
+import { KfcHandoffDialog } from "./kfc-handoff-dialog";
+import { ClearCartDialog } from "./clear-cart-dialog";
+import type { CartReview } from "@/lib/types/cart-review";
 import { CheckoutDialog, type CheckoutInput } from "./checkout-dialog";
 import { OrderPanel } from "./order-panel";
 import { FeedbackDialog } from "./feedback-dialog";
 import type { FeedbackView, OrderFeedback } from "@/lib/types/feedback";
 import { ReorderDialog } from "./reorder-dialog";
 import type { ReorderPreview } from "@/lib/types/reorder";
-import { ChatWindow } from "@/components/chat/chat-window";
+import { AssistantPanel } from "./assistant-panel";
+import { matchesMenuQuery } from "@/lib/menu-search";
+import type { FavoritesView } from "@/lib/types/favorites";
+import { CatalogFreshness } from "./catalog-freshness";
 
 const welcome: ChatTurn = {
   role: "assistant",
   content:
-    "Chào bạn! Mình giúp bạn tìm món và chuẩn bị giỏ hàng nhé. Thử nói: “Thêm 2 Pepsi vào giỏ hàng”.",
+    "Chào bạn! Mình giúp bạn tìm món, xem giá và chuẩn bị danh sách mua. Bạn muốn tìm món gì?",
 };
-const normalize = (text: string) =>
-  text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[đĐ]/g, "d")
-    .toLowerCase();
 async function bootstrap() {
   return api<StorefrontSnapshot>("/api/storefront");
 }
@@ -58,6 +60,19 @@ export function Storefront() {
   const selectedId = useRef<string | null>(null);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
+  const [product, setProduct] = useState<MenuItem | null>(null);
+  const [menuSort, setMenuSort] = useState("default");
+  const [purchaseMode, setPurchaseMode] = useState<"kfc-assistant" | "internal">("internal");
+  const [handoffOpen, setHandoffOpen] = useState(false);
+  const [handoffReview, setHandoffReview] = useState<CartReview | null>(null);
+  const [clearCartDraft, setClearCartDraft] = useState<{ signature: string; count: number; total: number } | null>(null);
+  const [maximumPrice, setMaximumPrice] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<FavoritesView | null>(null);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [catalogVersion, setCatalogVersion] = useState<string>();
+  const [conversationOwner, setConversationOwner] = useState<string | null>(null);
   const [basket, setBasket] = useState<Basket>({ cart: null, items: [] });
   const [orders, setOrders] = useState<Order[]>([]);
   const [selected, setSelected] = useState<OrderDetail | null>(null);
@@ -77,6 +92,7 @@ export function Storefront() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"menu" | "orders">("menu");
   const [cartOpen, setCartOpen] = useState(false);
+  const [mobileAssistantOpen, setMobileAssistantOpen] = useState(false);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const boot = useRef<ReturnType<typeof bootstrap> | null>(null);
   const working = useRef(false);
@@ -88,6 +104,20 @@ export function Storefront() {
   const cancelDialog = useRef<HTMLDialogElement>(null);
   const cartMenuRef = useRef<HTMLDivElement>(null);
   const cartTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileAssistantDialog = useRef<HTMLDialogElement>(null);
+  const mobileAssistantTrigger = useRef<HTMLButtonElement>(null);
+  const categoryList = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const mobile = window.matchMedia("(max-width: 800px)");
+    const closeOnDesktop = () => {
+      if (!mobile.matches) mobileAssistantDialog.current?.close();
+    };
+    mobile.addEventListener("change", closeOnDesktop);
+    return () => mobile.removeEventListener("change", closeOnDesktop);
+  }, []);
+  useEffect(() => {
+    if (mobileAssistantOpen) mobileAssistantDialog.current?.querySelector("input")?.focus();
+  }, [mobileAssistantOpen]);
   useEffect(() => {
     if (!cartOpen) return;
     const closeOnOutsideClick = (event: PointerEvent) => {
@@ -118,17 +148,24 @@ export function Storefront() {
       .then(
         ({
           ownerId,
+          purchaseMode: loadedPurchaseMode,
           shop: loadedShop,
           session,
           menu,
           basket: loadedBasket,
           history,
           addressBook: loadedAddresses,
+          favorites: loadedFavorites,
+          catalogVersion: loadedCatalogVersion,
         }) => {
           if (!active) return;
           owner.current = ownerId;
+          setConversationOwner(ownerId);
+          setPurchaseMode(loadedPurchaseMode ?? "internal");
           applyShop(loadedShop);
           setAddressBook(loadedAddresses);
+          setFavorites(loadedFavorites ?? null);
+          setCatalogVersion(loadedCatalogVersion);
           setProfile(session.profile);
           setItems(menu.items);
           setCategories(menu.categories);
@@ -155,13 +192,22 @@ export function Storefront() {
   const clearIdentityView = useCallback(() => {
     refreshVersion.current++;
     owner.current = null;
+    setConversationOwner(null);
     setCheckoutOpen(false);
     setReorder(null);
     setFeedbackDraft(null);
     setReorderError("");
+    setProduct(null);
+    setHandoffOpen(false);
+    setHandoffReview(null);
+    setClearCartDraft(null);
+    mobileAssistantDialog.current?.close();
     setSettingsOpen(false);
     setAddressesOpen(false);
     setAddressBook(null);
+    setFavorites(null);
+    setFavoritesOnly(false);
+    setCompareIds([]);
     setCancelId(null);
     cancelDialog.current?.close();
     selectedId.current = null;
@@ -190,8 +236,12 @@ export function Storefront() {
     if (owner.current && owner.current !== snapshot.ownerId)
       clearIdentityView();
     owner.current = snapshot.ownerId;
+    setConversationOwner(snapshot.ownerId);
+    setPurchaseMode(snapshot.purchaseMode ?? "internal");
     applyShop(snapshot.shop);
     setAddressBook(snapshot.addressBook);
+    setFavorites(snapshot.favorites ?? null);
+    setCatalogVersion(snapshot.catalogVersion);
     setBasket(updated);
     setOrders(history.orders);
     setProfile(session.profile);
@@ -267,6 +317,7 @@ export function Storefront() {
   }, [pending]);
   useEffect(() => {
     let active = true, fetching = false;
+    if (purchaseMode === "kfc-assistant") return;
     let controller: AbortController | undefined;
     const syncShop = async () => {
       if (fetching || document.hidden) return;
@@ -289,7 +340,7 @@ export function Storefront() {
     document.addEventListener("visibilitychange", wake);
     return () => { active = false; controller?.abort(); window.clearInterval(timer); channel?.close();
       window.removeEventListener("focus", wake); document.removeEventListener("visibilitychange", wake); };
-  }, []);
+  }, [purchaseMode]);
   const customerRequest = <T,>(url: string, options?: RequestInit) => {
     const headers = new Headers(options?.headers);
     if (owner.current) headers.set("X-KFC-Owner", owner.current);
@@ -311,7 +362,7 @@ export function Storefront() {
         clearIdentityView();
         await refresh().catch(() => {});
       }
-      if (err instanceof RequestError && err.code === "CART_CHANGED") await refresh().catch(() => {});
+      if (err instanceof RequestError && (err.code === "CART_CHANGED" || err.code === "FAVORITES_CHANGED")) await refresh().catch(() => {});
       setError(
         err instanceof Error
           ? err.message
@@ -392,6 +443,7 @@ export function Storefront() {
     method: string,
     body?: object,
     message?: string,
+    onSaved?: () => void,
   ) =>
     run(async () => {
       let updated: Basket;
@@ -411,8 +463,53 @@ export function Storefront() {
       checkoutKey.current = null;
       setCheckoutAttempt(null);
       if (message) setNotice(message);
+      onSaved?.();
     });
-  const sendMessage = (message: string, confirmation?: PendingConfirmation) =>
+  const prepareHandoff = () => run(async () => {
+    const readReview = (signature: string) => customerRequest<CartReview>("/api/cart/review", {
+      method: "POST", headers: { "X-KFC-Cart-Signature": signature },
+    });
+    let review: CartReview;
+    try {
+      review = await readReview(basket.signature ?? "empty");
+    } catch (err) {
+      if (!(err instanceof RequestError) || err.code !== "CART_CHANGED") throw err;
+      // The review is a read. Refresh once after a concurrent edit or reprice.
+      // Destructive cart operations always retain their original signature.
+      const latest = await customerRequest<Basket>("/api/cart");
+      setBasket(latest);
+      review = await readReview(latest.signature ?? "empty");
+    }
+    setBasket(review.basket);
+    setHandoffReview(review);
+    setCartOpen(false);
+    setHandoffOpen(true);
+  });
+  const clearBasket = () => run(async () => {
+    if (!clearCartDraft) return;
+    let updated: Basket;
+    try {
+      updated = await customerRequest<Basket>("/api/cart", {
+        method: "DELETE",
+        headers: { "X-KFC-Cart-Signature": clearCartDraft.signature },
+      });
+    } catch (err) {
+      if (!(err instanceof RequestError) || err.status >= 500) {
+        await refresh().catch(() => {});
+        throw new Error("Chưa nhận được kết quả xóa giỏ. Hãy kiểm tra giỏ hiện tại trước khi thử lại.");
+      }
+      throw err;
+    }
+    setBasket(updated);
+    setPending(null);
+    checkoutKey.current = null;
+    setCheckoutAttempt(null);
+    setClearCartDraft(null);
+    setNotice("Đã xóa toàn bộ giỏ hàng.");
+    setCartOpen(true);
+    requestAnimationFrame(() => cartTriggerRef.current?.focus());
+  });
+  const sendMessage = (message: string, confirmation?: PendingConfirmation, selectedProduct?: { itemId: string; quantity: number }) =>
     run(async () => {
       setMessages((previous) => [
         ...previous,
@@ -426,16 +523,26 @@ export function Storefront() {
             message,
             confirm: !!confirmation,
             confirmationId: confirmation?.id,
+            selectedProduct,
           }),
         });
         setMessages((previous) => [
           ...previous,
-          { role: "assistant", content: response.reply },
+          { role: "assistant", content: response.reply, products: response.products },
         ]);
         setPending(response.pendingConfirmation ?? null);
         checkoutKey.current = null;
         setCheckoutAttempt(null);
         await refresh();
+      } catch (err) {
+        if (!(err instanceof RequestError) || err.status >= 500) {
+          setPending(null);
+          await refresh().catch(() => {});
+          throw new Error(
+            "Phản hồi chat bị gián đoạn. Kiểm tra giỏ và đề xuất hiện tại trước khi gửi lại yêu cầu.",
+          );
+        }
+        throw err;
       } finally {
         setChatBusy(false);
       }
@@ -529,15 +636,50 @@ export function Storefront() {
   };
   const filtered = items.filter(
     (item) =>
+      (!favoritesOnly || favorites?.itemIds.includes(item.id)) &&
       (category === "all" || item.categoryId === category) &&
-      normalize(`${item.name} ${item.description ?? ""}`).includes(
-        normalize(query),
-      ),
+      (!maximumPrice || item.price <= Number(maximumPrice)) &&
+      matchesMenuQuery(item, query, { allowNamePrefix: true }),
   );
+  if (menuSort === "price-asc") filtered.sort((a, b) => a.price - b.price || a.name.localeCompare(b.name, "vi"));
+  if (menuSort === "price-desc") filtered.sort((a, b) => b.price - a.price || a.name.localeCompare(b.name, "vi"));
+  if (menuSort === "name") filtered.sort((a, b) => a.name.localeCompare(b.name, "vi"));
   const count = basket.items.reduce((sum, item) => sum + item.quantity, 0);
   const disabled = busy || !ready;
+  const purchaseAssistant = purchaseMode === "kfc-assistant";
+  const compared = items.filter(item => compareIds.includes(item.id));
+  const favoriteCount = items.filter(item => favorites?.itemIds.includes(item.id)).length;
+  const toggleFavorite = (item: MenuItem) => run(async () => {
+    if (!favorites) return;
+    const saved = !favorites.itemIds.includes(item.id);
+    const updated = await customerRequest<FavoritesView>("/api/favorites", {
+      method: "PUT",
+      body: JSON.stringify({ itemId: item.id, saved, revision: favorites.revision }),
+    });
+    setFavorites(updated);
+    setNotice(saved ? `Đã lưu ${item.name} vào món yêu thích.` : `Đã bỏ lưu ${item.name}.`);
+  });
+  const basketQuantities: Record<string, number> = {};
+  for (const line of basket.items) {
+    basketQuantities[line.menuItemId] = (basketQuantities[line.menuItemId] ?? 0) + line.quantity;
+  }
+  const openAssistant = () => {
+    if (window.matchMedia("(max-width: 800px)").matches) {
+      setCartOpen(false);
+      setMobileAssistantOpen(true);
+      mobileAssistantDialog.current?.showModal();
+    } else {
+      document.getElementById("desktop-assistant")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document.getElementById("desktop-assistant-message")?.focus({ preventScroll: true });
+    }
+  };
+  const dismissPending = () => run(async () => {
+    if (!pending) return;
+    await customerRequest(`/api/chat?confirmationId=${encodeURIComponent(pending.id)}`, { method: "DELETE" });
+    setPending(null);
+  });
   return (
-    <div className="storefront">
+    <div className={purchaseAssistant ? "storefront purchase-storefront" : "storefront"}>
       <a href="#main-content" className="skip-link">
         Đến nội dung chính
       </a>
@@ -565,7 +707,8 @@ export function Storefront() {
             >
               <span className="nav-icon" aria-hidden="true">☷</span> Thực đơn
             </button>
-            <button
+            {purchaseAssistant && <button type="button" onClick={openAssistant}>Trợ lý chọn món</button>}
+            {!purchaseAssistant && <button
               className={tab === "orders" ? "active" : ""}
               aria-current={tab === "orders" ? "page" : undefined}
               onClick={() => setTab("orders")}
@@ -574,7 +717,7 @@ export function Storefront() {
               {orders.length > 0 && (
                 <span className="nav-count">{orders.length}</span>
               )}
-            </button>
+            </button>}
           </nav>
           <div className="cart-menu" ref={cartMenuRef}>
             <button
@@ -614,10 +757,13 @@ export function Storefront() {
                 <CartPanel
                   basket={basket}
                   busy={disabled}
+                  purchaseAssistant={purchaseAssistant}
+                  menu={items}
+                  onClear={() => { setError(""); setClearCartDraft({ signature: basket.signature ?? "empty", count, total: basket.cart?.total ?? 0 }); setCartOpen(false); }}
                   checkoutDisabled={
-                    !shop ||
+                    !purchaseAssistant && (!shop ||
                     (!shop.availability.canPickup &&
-                      !shop.availability.canDelivery)
+                      !shop.availability.canDelivery))
                   }
                   onQuantity={(id, quantity) =>
                     mutateCart("/api/cart", "PATCH", {
@@ -633,8 +779,8 @@ export function Storefront() {
                   }
                   onCheckout={() => {
                     setCheckoutError("");
-                    setCartOpen(false);
-                    setCheckoutOpen(true);
+                    if (purchaseAssistant) void prepareHandoff();
+                    else { setCartOpen(false); setCheckoutOpen(true); }
                   }}
                   onClose={() => {
                     setCartOpen(false);
@@ -651,7 +797,7 @@ export function Storefront() {
           <span>
             {profile
               ? `Xin chào, ${profile.fullName}`
-              : "Bạn đang đặt món với phiên khách"}
+              : purchaseAssistant ? "Phiên khách" : "Bạn đang đặt món với phiên khách"}
           </span>
           <div>
             {profile ? (
@@ -663,13 +809,13 @@ export function Storefront() {
                 >
                   Tài khoản của tôi
                 </button>
-                <button
+                {!purchaseAssistant && <button
                   className="text-button"
                   disabled={busy || !ready || !addressBook}
                   onClick={() => setAddressesOpen(true)}
                 >
                   Sổ địa chỉ
-                </button>
+                </button>}
                 <button
                   className="text-button"
                   disabled={busy}
@@ -696,25 +842,19 @@ export function Storefront() {
                 Đăng nhập / Đăng ký
               </button>
             )}
-            <Link href="/admin" className="text-button">
+            {!purchaseAssistant && <Link href="/admin" className="text-button">
               Trang quản trị ↗
-            </Link>
+            </Link>}
           </div>
         </div>
-        <section className="hero">
+        <section className={purchaseAssistant ? "hero hero-purchase" : "hero"}>
           <div className="hero-copy">
-            <span className="eyebrow light">
-              GIÒN TỪ MIẾNG ĐẦU · NGON ĐẾN MIẾNG CUỐI
-            </span>
+            <span className="eyebrow light">{purchaseAssistant ? "Thực đơn KFC Việt Nam" : "GIÒN TỪ MIẾNG ĐẦU · NGON ĐẾN MIẾNG CUỐI"}</span>
             <h1>
-              Bụng đói?
-              <br />
-              <em>Có KFC đây.</em>
+              {purchaseAssistant ? <>Chọn món KFC<span className="hero-title-continuation">cho bữa hôm nay.</span></> : <>Bụng đói?<br /><em>Có KFC đây.</em></>}
             </h1>
             <p>
-              Chọn món bạn mê, thêm chút giòn vui.
-              <br />
-              Bữa ngon chỉ cách vài lần chạm.
+              {purchaseAssistant ? "Tìm món bạn thích. Chuẩn bị giỏ cùng trợ lý." : <>Chọn món bạn mê, thêm chút giòn vui.<br />Bữa ngon chỉ cách vài lần chạm.</>}
             </p>
             <a
               className="button cream"
@@ -725,22 +865,17 @@ export function Storefront() {
             </a>
           </div>
           <div className="hero-art" aria-hidden="true">
-            <span className="hero-stamp">
+            {!purchaseAssistant && <span className="hero-stamp">
               GIÒN
               <br />
               <b>HẾT Ý!</b>
-            </span>
-            <Image
-              src="/images/feast.svg"
-              alt=""
-              width={560}
-              height={380}
-              priority
-            />
-            <span className="hero-caption">GOOD FOOD. GOOD MOOD.</span>
+            </span>}
+            {purchaseAssistant && items[0] ? <MenuImage imageUrl={items[0].imageUrl} alt="" width={560} height={380} priority /> :
+              <Image src="/images/feast.svg" alt="" width={560} height={380} priority />}
+            {!purchaseAssistant && <span className="hero-caption">GOOD FOOD. GOOD MOOD.</span>}
           </div>
         </section>
-        <section className="shop-public panel" aria-label="Thông tin cửa hàng">
+        {!purchaseAssistant && <section className="shop-public panel" aria-label="Thông tin cửa hàng">
           {!shop ? <p role="status">Chưa kiểm tra được điều kiện nhận đơn. Hãy làm mới trước khi đặt món.</p> : <>
             <div className="section-heading"><strong>{shop.settings.name}</strong><span className="status-badge">{shop.availability.canPickup || shop.availability.canDelivery ? "Đang nhận đơn" : "Tạm ngừng"}</span></div>
             <p role="status">{shop.availability.message}</p>
@@ -752,13 +887,18 @@ export function Storefront() {
               {shop.settings.scheduleEnabled && <ul>{shop.settings.hours.map(day => <li key={day.day}>{shopDayLabels[day.day]}: {day.closed ? "Nghỉ" : day.opensAt + "–" + day.closesAt}</li>)}</ul>}
             </details>
           </>}
-        </section>
+        </section>}
         <div className="service-strip">
+          {purchaseAssistant ? <>
+            <span><i className="green-dot" aria-hidden="true"/> Thực đơn từ KFC Việt Nam</span>
+            <a href="https://kfcvietnam.com.vn/menu" target="_blank" rel="noopener noreferrer">Đặt món tại KFC ↗</a>
+          </> : <>
           <span>
-            <i className="green-dot" /> Bản demo đặt món
+            <i className="green-dot" /> {purchaseAssistant ? "Trợ lý mua hàng KFC" : "Bản demo đặt món"}
           </span>
-          <span>Nhận tại cửa hàng hoặc giao tận nơi</span>
-          <span>Chưa gửi nhà hàng · Chưa thu tiền</span>
+          <span>{purchaseAssistant ? "Thực đơn, hình ảnh và giá từ KFC Việt Nam" : "Nhận tại cửa hàng hoặc giao tận nơi"}</span>
+          <span>{purchaseAssistant ? "Hoàn tất đặt hàng trên kfcvietnam.com.vn" : "Chưa gửi nhà hàng · Chưa thu tiền"}</span>
+          </>}
         </div>
         {error && (
           <div role="alert" className="error-box page-alert">
@@ -787,8 +927,9 @@ export function Storefront() {
           </div>
         )}
         {notice && (
-          <div role="status" className="notice-box">
-            {notice}
+          <div className="notice-box storefront-notice">
+            <span role="status">{notice}</span>
+            <button type="button" aria-label="Ẩn thông báo" onClick={() => setNotice("")}>×</button>
           </div>
         )}
         <div className="content-grid">
@@ -797,16 +938,19 @@ export function Storefront() {
               <section aria-labelledby="menu-title">
                 <div className="section-heading catalog-heading">
                   <div>
-                    <span className="eyebrow">HÔM NAY BẠN THÈM GÌ?</span>
                     <h2 id="menu-title" className="icon-heading">
-                      <span className="section-title-icon" aria-hidden="true">🍗</span>
-                      Chọn món. Chọn vui.
+                      {category === "all" ? "Thực đơn" : categories.find(entry => entry.id === category)?.name ?? "Thực đơn"}
                     </h2>
                   </div>
                   <span className="muted small">
-                    {ready ? `${items.length} món để yêu` : "Đang lên món…"}
+                    {ready ? `${filtered.length} / ${items.length} món` : "Đang lên món…"}
                   </span>
                 </div>
+                {purchaseAssistant && <CatalogFreshness version={catalogVersion}
+                  capturedAt={(items[0]?.metadata?.source as { fetchedAt?: string } | undefined)?.fetchedAt}
+                  paused={disabled || checkoutOpen || accountOpen || settingsOpen || addressesOpen || handoffOpen || !!product}
+                  onUpdate={refresh} />}
+                <div className="menu-tools">
                 <label className="search-box">
                   <span aria-hidden="true">⌕</span>
                   <span className="sr-only">Tìm món ăn</span>
@@ -817,7 +961,41 @@ export function Storefront() {
                     placeholder="Tìm gà rán, burger, Pepsi…"
                   />
                 </label>
+                </div>
+                <div className="menu-preferences">
+                <button type="button" className="catalog-filter-toggle" aria-label="Bộ lọc và sắp xếp"
+                  aria-expanded={filtersOpen} aria-controls="catalog-filter-fields" onClick={() => setFiltersOpen(open => !open)}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="white"/><circle cx="15" cy="17" r="3" fill="white"/></svg>
+                  Bộ lọc <span aria-hidden="true">{filtersOpen ? "−" : "+"}</span>
+                  {(maximumPrice || menuSort !== "default") && <strong aria-label="Đang áp dụng bộ lọc">{Number(!!maximumPrice) + Number(menuSort !== "default")}</strong>}
+                </button>
+                <button type="button" className="favorites-filter" aria-pressed={favoritesOnly}
+                  disabled={!ready} onClick={() => setFavoritesOnly(value => !value)}>
+                  <span aria-hidden="true">♥</span> Món yêu thích <strong>{favoriteCount}</strong>
+                </button>
+                </div>
+                {filtersOpen && <div className="catalog-filter-fields" id="catalog-filter-fields">
+                <label className="menu-sort">Sắp xếp
+                  <select value={menuSort} onChange={event => setMenuSort(event.target.value)}>
+                    <option value="default">Theo thực đơn</option>
+                    <option value="price-asc">Giá tăng dần</option>
+                    <option value="price-desc">Giá giảm dần</option>
+                    <option value="name">Tên món A–Z</option>
+                  </select>
+                </label>
+                <label className="menu-budget"><span>Giá tối đa mỗi món</span>
+                  <span className="catalog-price-field">
+                  <input type="number" min={1000} max={5000000} step={1000} placeholder="Không giới hạn" value={maximumPrice}
+                    onChange={event => setMaximumPrice(event.target.value)} />
+                  <span>đ</span>
+                  {maximumPrice && <button className="text-button" onClick={() => setMaximumPrice("")}>Bỏ giới hạn</button>}
+                  </span>
+                </label>
+                </div>}
+                <div className="category-navigation">
+                <button type="button" className="category-scroll" aria-label="Cuộn danh mục sang trái" onClick={() => categoryList.current?.scrollBy({ left: -240, behavior: "smooth" })}>‹</button>
                 <div
+                  ref={categoryList}
                   className="category-list"
                   role="group"
                   aria-label="Danh mục món"
@@ -838,6 +1016,13 @@ export function Storefront() {
                     </button>
                   ))}
                 </div>
+                <button type="button" className="category-scroll" aria-label="Cuộn danh mục sang phải" onClick={() => categoryList.current?.scrollBy({ left: 240, behavior: "smooth" })}>›</button>
+                </div>
+                {(query || maximumPrice || category !== "all" || favoritesOnly || menuSort !== "default") && <div className="active-filters">
+                  <span role="status">{filtered.length} món phù hợp{query ? ` với “${query}”` : ""}</span>
+                  <button className="text-button" onClick={() => { setQuery(""); setCategory("all"); setMaximumPrice(""); setFavoritesOnly(false); setMenuSort("default"); }}>Xoá bộ lọc</button>
+                </div>}
+                {favoritesOnly && !profile && <p className="muted small">Món yêu thích được lưu theo phiên trình duyệt hiện tại. Đăng nhập để dùng danh sách riêng của tài khoản.</p>}
                 {!ready && (
                   <div
                     className="menu-grid"
@@ -851,48 +1036,70 @@ export function Storefront() {
                 )}
                 {ready && !filtered.length && (
                   <div className="panel empty-state">
-                    <h3>Chưa tìm thấy món phù hợp.</h3>
+                    <h3>{favoritesOnly && !favoriteCount ? "Bạn chưa lưu món nào đang có trên thực đơn." : "Chưa tìm thấy món phù hợp."}</h3>
                     <p className="muted">
-                      Thử tên món khác hoặc xem lại tất cả món nhé.
+                      {favoritesOnly && !favoriteCount ? "Chạm biểu tượng trái tim trên món bạn thích để tìm lại nhanh ở đây." : "Thử tên món khác hoặc xem lại tất cả món nhé."}
                     </p>
                     <button
                       className="button secondary"
                       onClick={() => {
                         setQuery("");
                         setCategory("all");
+                        setMaximumPrice("");
+                        setFavoritesOnly(false);
+                        setMenuSort("default");
                       }}
                     >
                       Xem tất cả món
                     </button>
                   </div>
                 )}
+                {compared.length > 0 && <section className="comparison-panel panel" aria-labelledby="comparison-title">
+                  <div className="section-heading"><h3 id="comparison-title">So sánh món ({compared.length}/3)</h3>
+                    <button className="text-button" onClick={() => setCompareIds([])}>Bỏ so sánh</button></div>
+                  <div className="comparison-grid">
+                    {compared.map(item => <article key={item.id}>
+                      <h4>{item.name}</h4><strong>{money(item.price)}</strong>
+                      {item.description && <p>{item.description}</p>}
+                      <button className="text-button" onClick={() => { setError(""); setProduct(item); }}>Chi tiết món</button>
+                      <button className="text-button" aria-label={`Bỏ so sánh ${item.name}`} onClick={() => setCompareIds(ids => ids.filter(id => id !== item.id))}>Bỏ chọn</button>
+                    </article>)}
+                  </div>
+                </section>}
                 <div className="menu-grid">
                   {filtered.map((item, index) => (
                     <article
                       className="menu-card"
                       key={item.id}
-                      style={{ animationDelay: `${index * 40}ms` }}
+                      style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
                     >
-                      <div className={`food-art food-${index % 3}`}>
-                        <Image
-                          src={
-                            item.imageUrl?.replace(/\.png$/, ".svg") ??
-                            "/images/fried-chicken.svg"
-                          }
+                      <button type="button" className="favorite-button"
+                        aria-label={`${favorites?.itemIds.includes(item.id) ? "Bỏ lưu" : "Lưu yêu thích"} ${item.name}`}
+                        aria-pressed={favorites?.itemIds.includes(item.id) ?? false}
+                        disabled={disabled || !favorites} onClick={() => toggleFavorite(item)}>
+                        <span aria-hidden="true">{favorites?.itemIds.includes(item.id) ? "♥" : "♡"}</span>
+                      </button>
+                      <button type="button" className={`food-art product-photo-trigger food-${index % 3}`} aria-label={`Ảnh và thông tin ${item.name}`} onClick={() => { setError(""); setProduct(item); }}>
+                        <MenuImage
+                          imageUrl={item.imageUrl}
                           alt={item.name}
                           width={300}
                           height={210}
                         />
-                        {item.name.includes("Combo") && (
-                          <span className="food-tag">MỘT MÌNH VẪN VUI</span>
-                        )}
-                      </div>
+                        {!!basketQuantities[item.id] && <span className="item-in-basket">{basketQuantities[item.id]} trong giỏ</span>}
+                      </button>
                       <div className="menu-card-body">
-                        <h3>{item.name}</h3>
+                        <h3><button className="product-title-button" onClick={() => { setError(""); setProduct(item); }} aria-label={`Xem chi tiết ${item.name}`}>{item.name}</button></h3>
                         <p>
                           {item.description ??
-                            "Một phần ngon, trọn vị yêu thích."}
+                            ""}
                         </p>
+                        <label className="compare-choice">
+                          <input type="checkbox" checked={compareIds.includes(item.id)}
+                            disabled={!compareIds.includes(item.id) && compared.length >= 3}
+                            onChange={event => setCompareIds(ids => event.target.checked ? [...ids, item.id] : ids.filter(id => id !== item.id))} />
+                          So sánh món
+                        </label>
                         <div className="menu-card-footer">
                           <strong>{money(item.price)}</strong>
                           <button
@@ -937,89 +1144,17 @@ export function Storefront() {
               />
             )}
           </div>
-          <aside className="sidebar">
-            <section
-              className="panel assistant-panel"
-              aria-labelledby="assistant-title"
-            >
-              <div className="assistant-heading">
-                <span className="assistant-avatar" aria-hidden="true">
-                  ✦
-                </span>
-                <div>
-                  <h2 id="assistant-title">Ăn gì? Để mình lo.</h2>
-                  <p>Trợ lý chọn món của bạn</p>
-                </div>
-                <span className="green-dot" />
-              </div>
-              <ChatWindow
-                messages={messages}
-                onSendMessage={sendMessage}
-                isLoading={chatBusy}
-                disabled={disabled}
-              />
-              {pending && (
-                <div className="pending-action">
-                  <p>Kiểm tra thay đổi trước khi xác nhận:</p>
-                  <ul>
-                    {pending.summary.map((line, index) => (
-                      <li key={index}>{line}</li>
-                    ))}
-                  </ul>
-                  <p className="small muted">
-                    Có hiệu lực đến{" "}
-                    {new Date(pending.expiresAt).toLocaleTimeString("vi-VN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                    .
-                  </p>
-                  <div>
-                    <button
-                      disabled={disabled}
-                      className="button primary"
-                      onClick={() => sendMessage("Xác nhận", pending)}
-                    >
-                      Xác nhận thao tác
-                    </button>
-                    <button
-                      disabled={disabled}
-                      className="text-button"
-                      onClick={() =>
-                        run(async () => {
-                          await customerRequest(
-                            `/api/chat?confirmationId=${encodeURIComponent(pending.id)}`,
-                            { method: "DELETE" },
-                          );
-                          setPending(null);
-                        })
-                      }
-                    >
-                      Bỏ qua
-                    </button>
-                  </div>
-                </div>
-              )}
-              <div className="quick-prompts">
-                <button
-                  disabled={disabled}
-                  onClick={() => sendMessage("Cho mình xem thực đơn")}
-                >
-                  Xem thực đơn ↗
-                </button>
-                <button
-                  disabled={disabled}
-                  onClick={() => sendMessage("Xem giỏ hàng")}
-                >
-                  Kiểm tra giỏ ↗
-                </button>
-              </div>
-            </section>
+          <aside className="sidebar desktop-assistant">
+            <AssistantPanel key={conversationOwner ?? "loading"} id="desktop-assistant" messages={messages} pending={pending} busy={chatBusy}
+              onChooseProduct={id => { const item = items.find(item => item.id === id); if (item) sendMessage(`Thêm 1 ${item.name}`, undefined, { itemId: id, quantity: 1 }); }}
+              onViewProduct={id => { const item = items.find(item => item.id === id); if (item) setProduct(item); }}
+              disabled={disabled || mobileAssistantOpen || !!clearCartDraft || handoffOpen} onSend={sendMessage} onConfirm={() => sendMessage("Xác nhận", pending ?? undefined)}
+              onDismiss={dismissPending} />
           </aside>
         </div>
         <footer className="site-footer">
           <strong>IT’S FINGER LICKIN’ GOOD.</strong>
-          <p>Project học tập KFC Force Agent · Giá và thực đơn minh hoạ</p>
+          <p>{purchaseAssistant ? "KFC Force Agent · Trợ lý lựa chọn món độc lập · Đặt hàng tại KFC Việt Nam" : "Project học tập KFC Force Agent · Giá và thực đơn minh hoạ"}</p>
           <span className="brand-stripes" aria-hidden="true">
             <i />
             <i />
@@ -1177,6 +1312,58 @@ export function Storefront() {
           </button>
         </div>
       </dialog>
+      {product && <ProductDialog key={product.id} item={items.find(item => item.id === product.id) ?? { ...product, isAvailable: false }}
+        busy={busy} error={error} onClose={() => setProduct(null)}
+        onAdd={quantity => void mutateCart("/api/cart", "POST", { menuItemId: product.id, quantity },
+          `Đã thêm ${quantity} ${product.name} vào giỏ.`, () => setProduct(null))} />}
+      {handoffOpen && handoffReview && <KfcHandoffDialog review={handoffReview} busy={busy}
+        stale={handoffReview.basket.signature !== basket.signature} error={error}
+        onRefresh={() => void prepareHandoff()}
+        onEdit={() => { setHandoffOpen(false); setCartOpen(true); cartTriggerRef.current?.focus(); }}
+        onClose={() => { setHandoffOpen(false); cartTriggerRef.current?.focus(); }} />}
+      {clearCartDraft && <ClearCartDialog count={clearCartDraft.count} total={clearCartDraft.total}
+        busy={busy} error={error} stale={clearCartDraft.signature !== (basket.signature ?? "empty")}
+        onConfirm={() => void clearBasket()}
+        onClose={() => { setClearCartDraft(null); setCartOpen(true); cartTriggerRef.current?.focus(); }} />}
+      {purchaseAssistant && <>
+        <nav className="mobile-shopping-nav" aria-label="Điều hướng mua hàng">
+          <button type="button" onClick={() => { setTab("menu"); document.getElementById("menu-title")?.scrollIntoView({ behavior: "smooth" }); }}>
+            <span aria-hidden="true">☷</span> Thực đơn
+          </button>
+          <button ref={mobileAssistantTrigger} type="button" aria-haspopup="dialog" aria-expanded={mobileAssistantOpen} onClick={openAssistant}>
+            <span aria-hidden="true">✦</span> Trợ lý{pending && <i aria-label="Có đề xuất chờ xác nhận" />}
+          </button>
+          <button type="button" className="mobile-basket-button" aria-expanded={cartOpen} onClick={() => { setCartOpen(true); cartTriggerRef.current?.focus(); }}>
+            <span>Giỏ hàng{count ? ` (${count})` : ""}</span>
+            <strong>{money(basket.cart?.total ?? 0)}</strong>
+          </button>
+        </nav>
+        <dialog ref={mobileAssistantDialog} className="mobile-assistant-dialog" aria-labelledby="mobile-assistant-title"
+          onClose={() => {
+            setMobileAssistantOpen(false);
+            if (window.matchMedia("(max-width: 800px)").matches) mobileAssistantTrigger.current?.focus({ preventScroll: true });
+          }}
+          onKeyDown={event => {
+            if (event.key !== "Tab") return;
+            const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), a[href], summary, [tabindex="0"]')]
+              .filter(element => element.getClientRects().length > 0);
+            const first = controls[0];
+            const last = controls.at(-1);
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault();
+              last?.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault();
+              first?.focus();
+            }
+          }}>
+          {mobileAssistantOpen && <AssistantPanel key={conversationOwner ?? "loading"} id="mobile-assistant" messages={messages} pending={pending} busy={chatBusy}
+            onChooseProduct={id => { const item = items.find(item => item.id === id); if (item) sendMessage(`Thêm 1 ${item.name}`, undefined, { itemId: id, quantity: 1 }); }}
+            onViewProduct={id => { const item = items.find(item => item.id === id); if (item) setProduct(item); }}
+            disabled={disabled || !!clearCartDraft || handoffOpen} onSend={sendMessage} onConfirm={() => sendMessage("Xác nhận", pending ?? undefined)}
+            onDismiss={dismissPending} onClose={() => mobileAssistantDialog.current?.close()} />}
+        </dialog>
+      </>}
     </div>
   );
 }

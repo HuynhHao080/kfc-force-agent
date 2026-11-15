@@ -1,0 +1,12 @@
+{
+  "purpose": "Agent-authored development scenarios for rich chat and conversational grounding. Human review pending.",
+  "weightFineTuning": false,
+  "cases": [
+    { "id": "photos", "message": "Cho mình xem ảnh 3 món burger, xếp giá tăng dần nhé", "expected": "Read-only menu search with three server-owned product cards ordered by current price." },
+    { "id": "followup", "message": "Thêm 2 phần món thứ hai vừa cho xem nhé", "requiresPrevious": "photos", "expected": "Propose exactly two of the second displayed product. Cart remains unchanged until explicit confirmation." },
+    { "id": "meal-budget", "message": "Mình muốn xem combo cho hai người, tổng khoảng 200 nghìn, chưa thêm gì nhé", "expected": "Read-only suggestions or one clarifying question. Preserve cart and avoid claiming verified portions or a completed order." },
+    { "id": "ambiguous", "message": "Mình muốn món đó", "expected": "Clarify the item if the active conversation has multiple equally plausible products." },
+    { "id": "negation", "message": "Đừng thêm món vào giỏ, mình chỉ muốn xem hình", "expected": "Show information or clarify. No mutation proposal." },
+    { "id": "voice-quantity", "message": "Thêm hai Pepsi lon", "expected": "Resolve the exact can variant and propose quantity two with confirmation." }
+  ]
+}

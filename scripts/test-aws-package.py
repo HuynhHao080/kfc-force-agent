@@ -4,9 +4,11 @@ import hashlib
 import importlib.util
 import io
 import json
+import runpy
 import tarfile
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,11 +30,51 @@ class AwsPreparationTests(unittest.TestCase):
         self.assertEqual(behavior['ViewerProtocolPolicy'], 'redirect-to-https')
         self.assertEqual(behavior['CachePolicyId'], '4135ea2d-6df8-44a3-9df3-4b5a84be39ad')
         self.assertIn('POST', behavior['AllowedMethods'])
-        statement = resources['HostRole']['Properties']['Policies'][0]['PolicyDocument']['Statement'][0]
-        self.assertEqual(statement['Action'], ['bedrock:InvokeModel'])
-        self.assertEqual(len(statement['Resource']), 4)
+        statements = resources['HostRole']['Properties']['Policies'][0]['PolicyDocument']['Statement']
+        grants = [statement for statement in statements if statement['Action'] == ['bedrock:InvokeModel']]
+        self.assertEqual(len(grants), 3)
+        model = 'anthropic.claude-haiku-5-5'
+        profile = {'Fn::Sub': 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/global.' + model}
+        self.assertEqual(grants[0]['Resource'], [profile])
+        self.assertEqual(grants[0]['Condition']['StringEquals'], {'aws:RequestedRegion': {'Ref': 'AWS::Region'}})
+        self.assertEqual(grants[1]['Resource'], [{'Fn::Sub': 'arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/' + model}])
+        self.assertEqual(grants[1]['Condition']['StringEquals'], {
+            'aws:RequestedRegion': {'Ref': 'AWS::Region'}, 'bedrock:InferenceProfileArn': profile})
+        self.assertEqual(grants[2]['Resource'], [{'Fn::Sub': 'arn:${AWS::Partition}:bedrock:::foundation-model/' + model}])
+        self.assertEqual(grants[2]['Condition']['StringEquals'], {
+            'aws:RequestedRegion': 'unspecified', 'bedrock:InferenceProfileArn': profile})
+        self.assertTrue(all(statement['Effect'] == 'Allow' for statement in grants))
+        bootstrap = resources['Host']['Properties']['UserData']['Fn::Base64']['Fn::Join'][1]
+        self.assertTrue(any(isinstance(part, str) and '"model":"global.' + model + '"' in part for part in bootstrap))
         for name in ['AdminSecret', 'SessionSecret', 'OriginSecret']:
             self.assertEqual(resources[name]['Properties']['GenerateSecretString']['PasswordLength'], 64)
+
+    def test_committed_template_matches_generator(self):
+        with patch.object(Path, 'write_text') as write, contextlib.redirect_stdout(io.StringIO()):
+            runpy.run_path(str(ROOT / 'infra/aws/build-template.py'))
+        write.assert_called_once()
+        self.assertEqual(json.loads(write.call_args.args[0]), json.loads((ROOT / 'infra/aws/stack.json').read_text()))
+
+    def test_windows_shell_sources_are_packaged_with_linux_line_endings(self):
+        with tempfile.TemporaryDirectory(prefix='kfc-shell-package-') as directory:
+            root = Path(directory)
+            for name in package.FILES:
+                target = root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(b'synthetic\r\n')
+            (root / 'src').mkdir()
+            (root / 'public').mkdir()
+            shell = root / 'infra/aws/release.sh'
+            shell.write_bytes(b'set -euo pipefail\r\nprintf "ready\\n"\r\n')
+            entries = package.source_entries(root)
+            self.assertEqual(entries['infra/aws/release.sh'], b'set -euo pipefail\nprintf "ready\\n"\n')
+            self.assertEqual(entries['package.json'], b'synthetic\r\n')
+            previous = package.ROOT
+            package.ROOT = root
+            try:
+                self.assertEqual(package.source_entries(), entries)
+            finally:
+                package.ROOT = previous
 
     def test_archive_excludes_private_runtime_and_has_reproducible_hashes(self):
         with tempfile.TemporaryDirectory(prefix='kfc-aws-package-') as directory:

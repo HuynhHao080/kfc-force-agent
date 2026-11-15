@@ -67,6 +67,7 @@ export interface OrderItem {
 }
 
 export interface ChatRequest {
+  selectedProduct?: { itemId: string; quantity: number };
   platform: string;
   userId: string;
   sessionId: string;
@@ -80,6 +81,7 @@ export interface ChatRequest {
 }
 
 export interface ChatResponse {
+  products?: import("./chat-product").ChatProduct[];
   reply: string;
   sessionId: string;
   actions: ProposedAction[];

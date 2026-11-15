@@ -5,8 +5,11 @@ import type { MenuCategory, MenuItem } from "./types/menu";
 import type { PendingConfirmation } from "./agent/confirmation";
 import type { AddressBook } from "./types/address-book";
 export interface StorefrontSnapshot {
+  purchaseMode?: "kfc-assistant" | "internal";
   shop: import("./types/shop").ShopView;
   addressBook: AddressBook | null;
+  favorites?: import("./types/favorites").FavoritesView;
+  catalogVersion?: string;
   ownerId: string;
   session: {
     profile: CustomerProfile | null;
@@ -25,7 +28,7 @@ export interface Basket {
   items: CartItem[];
 }
 export type OrderDetail = Order & { items: OrderItem[]; events: OrderEvent[] };
-export type ChatTurn = { role: "user" | "assistant"; content: string };
+export type ChatTurn = { role: "user" | "assistant"; content: string; products?: import("./types/chat-product").ChatProduct[] };
 export const money = (value: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
     value,

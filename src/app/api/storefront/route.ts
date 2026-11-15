@@ -7,6 +7,9 @@ import { ApiError, errorResponse } from "@/lib/server/api";
 import { withUserLock } from "@/lib/server/user-lock";
 import { activeConfirmation } from "@/lib/agent/confirmation";
 import { services } from "@/lib/agent/agent-core";
+import { kfcPurchaseAssistantEnabled } from "@/lib/purchase-mode";
+import { catalogFingerprint } from "@/lib/catalog/catalog-fingerprint";
+import { hydrateChatMessages } from "@/lib/agent/chat-products";
 
 export async function GET(request: Request) {
   try {
@@ -40,17 +43,20 @@ export async function GET(request: Request) {
       const pending = activeConfirmation(saved?.context);
       return NextResponse.json(
         {
+          purchaseMode: kfcPurchaseAssistantEnabled() ? "kfc-assistant" : "internal",
           shop: await services.shopService.view(),
           ownerId: userId,
           addressBook,
+          favorites: await services.favoritesService.view(userId),
           session: {
             profile,
-            messages: messages.slice(-50),
+            messages: hydrateChatMessages(messages.slice(-50), items),
             requiresConfirmation: !!pending,
             pendingConfirmation: pending,
           },
           basket,
           menu: { categories, items },
+          catalogVersion: catalogFingerprint({ categories, items }),
           history: {
             orders: orders.sort((a, b) =>
               b.createdAt.localeCompare(a.createdAt),

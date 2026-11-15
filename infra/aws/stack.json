@@ -239,24 +239,65 @@
               "Version": "2012-10-17",
               "Statement": [
                 {
+                  "Sid": "InvokeGlobalProfile",
                   "Effect": "Allow",
                   "Action": [
                     "bedrock:InvokeModel"
                   ],
                   "Resource": [
                     {
-                      "Fn::Sub": "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0"
-                    },
-                    {
-                      "Fn::Sub": "arn:${AWS::Partition}:bedrock:us-east-1::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
-                    },
-                    {
-                      "Fn::Sub": "arn:${AWS::Partition}:bedrock:us-east-2::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
-                    },
-                    {
-                      "Fn::Sub": "arn:${AWS::Partition}:bedrock:us-west-2::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
+                      "Fn::Sub": "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/global.anthropic.claude-haiku-5-5"
                     }
-                  ]
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": {
+                        "Ref": "AWS::Region"
+                      }
+                    }
+                  }
+                },
+                {
+                  "Sid": "InvokeRegionalModelThroughProfile",
+                  "Effect": "Allow",
+                  "Action": [
+                    "bedrock:InvokeModel"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/anthropic.claude-haiku-5-5"
+                    }
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": {
+                        "Ref": "AWS::Region"
+                      },
+                      "bedrock:InferenceProfileArn": {
+                        "Fn::Sub": "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/global.anthropic.claude-haiku-5-5"
+                      }
+                    }
+                  }
+                },
+                {
+                  "Sid": "InvokeGlobalModelThroughProfile",
+                  "Effect": "Allow",
+                  "Action": [
+                    "bedrock:InvokeModel"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:bedrock:::foundation-model/anthropic.claude-haiku-5-5"
+                    }
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "unspecified",
+                      "bedrock:InferenceProfileArn": {
+                        "Fn::Sub": "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/global.anthropic.claude-haiku-5-5"
+                      }
+                    }
+                  }
                 },
                 {
                   "Effect": "Allow",
@@ -382,7 +423,7 @@
                 {
                   "Ref": "OriginSecret"
                 },
-                "\",\"model\":\"us.anthropic.claude-haiku-4-5-20251001-v1:0\",\"dailyLimit\":",
+                "\",\"model\":\"global.anthropic.claude-haiku-5-5\",\"dailyLimit\":",
                 {
                   "Ref": "DailyRequestLimit"
                 },

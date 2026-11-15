@@ -10,6 +10,7 @@ export interface BedrockConfig {
   maxTokens?: number;
   temperature?: number;
   topP?: number;
+  thinking?: { type: string };
 }
 export interface BedrockResponse {
   content: string;
@@ -58,13 +59,25 @@ export class BedrockService {
         },
       };
     }
-    if ((this.config.temperature !== undefined && this.config.topP !== undefined) ||
-        !Number.isInteger(this.config.maxTokens ?? 512) ||
-        (this.config.maxTokens ?? 512) < 1 || (this.config.maxTokens ?? 512) > 2048 ||
-        !Number.isFinite(this.config.temperature ?? this.config.topP ?? 0.1) ||
-        (this.config.temperature ?? this.config.topP ?? 0.1) < 0 ||
-        (this.config.temperature ?? this.config.topP ?? 0.1) > 1) {
-      return { success: false, error: { type: "validation_error", message: "Use one sampling parameter, with a value from 0 to 1, and maxTokens from 1 to 2048." } };
+    const isHaiku55 = /claude-haiku-5-5/.test(this.config.modelId);
+    const maxTokens = this.config.maxTokens ?? 512;
+    if (!Number.isInteger(maxTokens) || maxTokens < 1 || maxTokens > 2048) {
+      return { success: false, error: { type: "validation_error", message: "maxTokens must be an integer from 1 to 2048." } };
+    }
+    if (isHaiku55) {
+      if (this.config.temperature !== undefined || this.config.topP !== undefined) {
+        return { success: false, error: { type: "validation_error", message: "Haiku 5.5 does not accept sampling parameters. Use thinking.type=disabled instead." } };
+      }
+      if (this.config.thinking !== undefined && this.config.thinking.type !== "disabled") {
+        return { success: false, error: { type: "validation_error", message: "This adapter supports Haiku 5.5 with thinking.type=disabled." } };
+      }
+    } else {
+      if ((this.config.temperature !== undefined && this.config.topP !== undefined) ||
+          !Number.isFinite(this.config.temperature ?? this.config.topP ?? 0.1) ||
+          (this.config.temperature ?? this.config.topP ?? 0.1) < 0 ||
+          (this.config.temperature ?? this.config.topP ?? 0.1) > 1) {
+        return { success: false, error: { type: "validation_error", message: "Use one sampling parameter, with a value from 0 to 1." } };
+      }
     }
     try {
       if (!this.client) {
@@ -94,14 +107,21 @@ export class BedrockService {
           })),
         { role: "user", content: [{ type: "text", text: userPrompt }] },
       ];
-      const body = JSON.stringify({
+      const bodyObj: Record<string, unknown> = {
         anthropic_version: "bedrock-2023-05-31",
         system: systemPrompt,
         messages,
-        max_tokens: this.config.maxTokens ?? 512,
-        ...(this.config.topP !== undefined ? { top_p: this.config.topP } : { temperature: this.config.temperature ?? 0.1 }),
-      });
-      if (Buffer.byteLength(body, "utf8") > 32000)
+        max_tokens: maxTokens,
+      };
+      if (isHaiku55) {
+        bodyObj.thinking = { type: "disabled" };
+      } else if (this.config.topP !== undefined) {
+        bodyObj.top_p = this.config.topP;
+      } else {
+        bodyObj.temperature = this.config.temperature ?? 0.1;
+      }
+      const body = Buffer.from(JSON.stringify(bodyObj), "utf8");
+      if (body.byteLength > 32000)
         return { success: false, error: { type: "validation_error", message: "The model request exceeds the 32000-byte input ceiling." } };
       if (!this.injectedTransport) reserveBedrockInvocation();
       const command = new InvokeModelCommand({

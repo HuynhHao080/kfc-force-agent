@@ -63,7 +63,7 @@ check("BedrockService: thiếu AWS_REGION thì validation_error", async () => {
 // P0: Thiếu BEDROCK_MODEL_ID → fail-closed
 check("BedrockService: thiếu BEDROCK_MODEL_ID thì validation_error", async () => {
   const prevRegion = process.env.AWS_REGION;
-  process.env.AWS_REGION = "us-west-2";
+  process.env.AWS_REGION = "ap-southeast-1";
   try {
     const svc = makeService({ modelId: "" });
     const result = await svc.generateResponse("system", "user");
@@ -79,7 +79,7 @@ check("BedrockService: thiếu BEDROCK_MODEL_ID thì validation_error", async ()
 // P0: modelId = "mock-model" → fail-closed
 check("BedrockService: modelId 'mock-model' thì validation_error", async () => {
   const prevRegion = process.env.AWS_REGION;
-  process.env.AWS_REGION = "us-west-2";
+  process.env.AWS_REGION = "ap-southeast-1";
   try {
     const svc = makeService({ modelId: "mock-model" });
     const result = await svc.generateResponse("system", "user");
@@ -94,7 +94,7 @@ check("BedrockService: modelId 'mock-model' thì validation_error", async () => 
 // P0: Không tự fallback sang mock khi Bedrock lỗi (sau khi validation pass)
 check("BedrockService: SDK lỗi thì trả về bedrock_error, không fallback mock", async () => {
   const prevRegion = process.env.AWS_REGION;
-  process.env.AWS_REGION = "us-west-2";
+  process.env.AWS_REGION = "ap-southeast-1";
   try {
     const svc = new BedrockService(
       { modelId: "us.anthropic.claude-haiku-4-5-20251001-v1:0" },
@@ -110,6 +110,94 @@ check("BedrockService: SDK lỗi thì trả về bedrock_error, không fallback 
 });
 
 // P1: InvocationBudget limit = 0 → tắt inference
+check("Haiku 5.5: model-only configuration uses the selected profile and disables thinking", async () => {
+  let calls = 0;
+  const modelId = "global.anthropic.claude-haiku-5-5";
+  const client = { send: async command => {
+    calls++;
+    assert.equal(command.input.modelId, modelId);
+    const body = JSON.parse(Buffer.from(command.input.body).toString("utf8"));
+    assert.deepEqual(body.thinking, { type: "disabled" });
+    assert.equal(body.temperature, undefined);
+    assert.equal(body.top_p, undefined);
+    assert.equal(body.max_tokens, 512);
+    assert.equal(body.messages[0].content[0].text, "Thêm 2 Pepsi 1.5L");
+    return { body: Buffer.from(JSON.stringify({
+      content: [{ type: "text", text: "fixture response" }],
+      usage: { input_tokens: 10, output_tokens: 5 },
+    })) };
+  } };
+  const result = await new BedrockService({ modelId }, client).generateResponse("system", "Thêm 2 Pepsi 1.5L");
+  assert.equal(result.success, true);
+  assert.deepEqual(result.response.usage, { inputTokens: 10, outputTokens: 5 });
+  assert.equal(calls, 1);
+});
+
+check("Haiku 5.5: unsupported settings fail before transport", async () => {
+  let calls = 0;
+  const client = { send: async () => { calls++; throw new Error("Must not invoke"); } };
+  for (const settings of [{ temperature: 0.1 }, { topP: 0.1 }, { thinking: { type: "adaptive" } }, { maxTokens: 2049 }]) {
+    const result = await new BedrockService({ modelId: "global.anthropic.claude-haiku-5-5", ...settings }, client)
+      .generateResponse("system", "user");
+    assert.equal(result.success, false);
+    assert.equal(result.error.type, "validation_error");
+  }
+  assert.equal(calls, 0);
+});
+
+check("Canary: model selection is explicit and unknown profiles are rejected", () => {
+  const { parseArgs } = require("./aws-canary.cjs");
+  assert.equal(parseArgs([]).model, "global.anthropic.claude-haiku-5-5");
+  assert.equal(parseArgs([]).region, "ap-southeast-1");
+  assert.throws(() => parseArgs(["--region", "us-west-2"]));
+  const profile = "us.anthropic.claude-haiku-4-5-20251001-v1:0";
+  assert.equal(parseArgs(["--model", profile]).model, profile);
+  assert.equal(parseArgs(["--model", profile]).invoke, false);
+  assert.throws(() => parseArgs(["--model", "unreviewed-model"]));
+  assert.throws(() => parseArgs(["--model", profile, "--invoke"]));
+});
+
+check("LLM evaluation: distinct cases, explicit paid-run approval and error-inclusive metrics", () => {
+  const { validateDataset, summarize, parseArgs } = require("./evaluate-llm.cjs");
+  const cases = JSON.parse(fs.readFileSync(path.join(ROOT, "tests/data/llm-evaluation.vi.json")));
+  const development = JSON.parse(fs.readFileSync(path.join(ROOT, "tests/data/intent-cases.vi.json")));
+  assert.equal(validateDataset(cases, development).length, 24);
+  const duplicate = structuredClone(cases);
+  duplicate[1].id = duplicate[0].id;
+  assert.throws(() => validateDataset(duplicate, development));
+  const overlap = structuredClone(cases);
+  overlap[0].message = development[0].message;
+  assert.throws(() => validateDataset(overlap, development));
+  assert.equal(parseArgs([]).invoke, false);
+  assert.throws(() => parseArgs(["--invoke"]));
+  assert.throws(() => parseArgs(["--unexpected", "value"]));
+  assert.deepEqual(summarize([]), { attempted: 0, intentCorrect: 0, jointCorrect: 0, intentAccuracy: null, jointAccuracy: null });
+  const score = summarize([
+    { expectedAction: "ADD_TO_CART", actualAction: "ADD_TO_CART", expectedQuantity: 4, actualQuantity: 4 },
+    { expectedAction: "ADD_TO_CART", actualAction: "ADD_TO_CART", expectedQuantity: 4, actualQuantity: 2 },
+    { expectedAction: "UNKNOWN", actualAction: "INVALID" },
+  ]);
+  assert.equal(score.attempted, 3);
+  assert.equal(score.intentCorrect, 2);
+  assert.equal(score.jointCorrect, 1);
+  assert.equal(score.jointAccuracy, 1 / 3);
+});
+
+check("Deployment target: Singapore settings are consistent and stale regional targets are rejected", () => {
+  const { loadTarget } = require("./aws-deploy.cjs");
+  const target = loadTarget(path.join(ROOT, "infra/aws/target.example.json"));
+  assert.equal(target.region, "ap-southeast-1");
+  assert.equal(target.cloudFrontPrefixListId, "pl-31a34658");
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "kfc-region-test-"));
+  try {
+    const filename = path.join(directory, "target.json");
+    fs.writeFileSync(filename, JSON.stringify({ ...target, region: "us-west-2" }));
+    assert.throws(() => loadTarget(filename));
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 check("InvocationBudget: limit 0 thì ném lỗi tắt inference", () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kfc-budget-test-"));
   const prevLimit = process.env.BEDROCK_DAILY_REQUEST_LIMIT;

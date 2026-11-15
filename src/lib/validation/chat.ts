@@ -17,10 +17,11 @@ export const chatRequestSchema = z
      */
     confirm: z.boolean().optional(),
     confirmationId: z.string().uuid().optional(),
+    selectedProduct: z.object({ itemId: z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/), quantity: z.number().int().min(1).max(100) }).strict().optional(),
   })
   .refine((request) => !request.confirm || !!request.confirmationId, {
     path: ["confirmationId"],
     message: "Vui lòng xác nhận đúng đề xuất đang hiển thị.",
-  });
+  }).refine(request => !request.selectedProduct || !request.confirm, { message: "Chọn món và xác nhận là hai thao tác riêng.", path: ["selectedProduct"] });
 
 export type ChatRequest = z.infer<typeof chatRequestSchema>;

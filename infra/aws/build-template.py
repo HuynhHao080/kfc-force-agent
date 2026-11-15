@@ -29,14 +29,21 @@ resource('ArtifactPolicy', 'AWS::S3::BucketPolicy', {'Bucket': ref('Artifacts'),
 for name in ['AdminSecret', 'SessionSecret', 'OriginSecret']:
     resource(name, 'AWS::SecretsManager::Secret', {'Description': 'KFC graduation ' + name,
         'GenerateSecretString': {'PasswordLength': 64, 'ExcludePunctuation': True}}, DeletionPolicy='Retain', UpdateReplacePolicy='Retain')
-model = 'anthropic.claude-haiku-4-5-20251001-v1:0'
+model = 'anthropic.claude-haiku-5-5'
+profile_arn = sub('arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/global.' + model)
 resource('HostRole', 'AWS::IAM::Role', {'AssumeRolePolicyDocument': {'Version': '2012-10-17', 'Statement': [
     {'Effect': 'Allow', 'Principal': {'Service': 'ec2.amazonaws.com'}, 'Action': 'sts:AssumeRole'}]},
     'ManagedPolicyArns': [sub('arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore')],
     'Policies': [{'PolicyName': 'KfcScopedRuntime', 'PolicyDocument': {'Version': '2012-10-17', 'Statement': [
-        {'Effect': 'Allow', 'Action': ['bedrock:InvokeModel'], 'Resource': [
-            sub('arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.' + model),
-            *[sub('arn:${AWS::Partition}:bedrock:' + region + '::foundation-model/' + model) for region in ['us-east-1', 'us-east-2', 'us-west-2']]]},
+        {'Sid': 'InvokeGlobalProfile', 'Effect': 'Allow', 'Action': ['bedrock:InvokeModel'],
+            'Resource': [profile_arn],
+            'Condition': {'StringEquals': {'aws:RequestedRegion': ref('AWS::Region')}}},
+        {'Sid': 'InvokeRegionalModelThroughProfile', 'Effect': 'Allow', 'Action': ['bedrock:InvokeModel'],
+            'Resource': [sub('arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/' + model)],
+            'Condition': {'StringEquals': {'aws:RequestedRegion': ref('AWS::Region'), 'bedrock:InferenceProfileArn': profile_arn}}},
+        {'Sid': 'InvokeGlobalModelThroughProfile', 'Effect': 'Allow', 'Action': ['bedrock:InvokeModel'],
+            'Resource': [sub('arn:${AWS::Partition}:bedrock:::foundation-model/' + model)],
+            'Condition': {'StringEquals': {'aws:RequestedRegion': 'unspecified', 'bedrock:InferenceProfileArn': profile_arn}}},
         {'Effect': 'Allow', 'Action': ['secretsmanager:GetSecretValue'], 'Resource': [ref(name) for name in ['AdminSecret', 'SessionSecret', 'OriginSecret']]},
         {'Effect': 'Allow', 'Action': ['s3:GetObjectVersion'], 'Resource': [sub('${Artifacts.Arn}/releases/*')]}
     ]}}]})
@@ -46,7 +53,7 @@ resource('DataVolume', 'AWS::EC2::Volume', {'AvailabilityZone': {'Fn::Select': [
 config_parts = ['#!/bin/bash\nset -euo pipefail\numask 077\nmkdir -p /etc/kfc\ncat > /etc/kfc/config.json <<\'KFCCONFIG\'\n',
     '{"region":"', ref('AWS::Region'), '","volume":"', ref('DataVolume'), '","adminSecret":"', ref('AdminSecret'),
     '","sessionSecret":"', ref('SessionSecret'), '","originSecret":"', ref('OriginSecret'),
-    '","model":"us.' + model + '","dailyLimit":', ref('DailyRequestLimit'), '}\nKFCCONFIG\n',
+    '","model":"global.' + model + '","dailyLimit":', ref('DailyRequestLimit'), '}\nKFCCONFIG\n',
     (ROOT / 'bootstrap.sh').read_text(encoding='utf-8-sig')]
 resource('Host', 'AWS::EC2::Instance', {'ImageId': ref('AmiId'), 'InstanceType': ref('InstanceType'),
     'IamInstanceProfile': ref('HostProfile'), 'SubnetId': ref('Subnet'), 'SecurityGroupIds': [ref('OriginSecurityGroup')],

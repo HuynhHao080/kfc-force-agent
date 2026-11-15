@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isMenuImage } from "@/lib/menu-images";
 export const adminLoginSchema = z.object({
   password: z.string().min(1).max(128),
 });
@@ -33,14 +34,7 @@ export const adminMenuSchema = z.object({
   price: z.number().int().min(1000).max(5000000),
   isActive: z.boolean(),
   isAvailable: z.boolean(),
-  imageUrl: z.enum([
-    "/images/burger.svg",
-    "/images/combo.svg",
-    "/images/fried-chicken.svg",
-    "/images/fries.svg",
-    "/images/pepsi.svg",
-    "/images/wings.svg",
-  ]),
+  imageUrl: z.string().max(2000).refine(isMenuImage, "Chọn ảnh minh họa hoặc ảnh HTTPS từ KFC."),
 });
 export const adminMenuUpdateSchema = adminMenuSchema.extend({
   itemId: z.string().min(1).max(100),

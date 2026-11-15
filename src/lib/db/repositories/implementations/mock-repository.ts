@@ -252,8 +252,13 @@ export class MockMenuRepository implements IMenuRepository {
   private bundles: Map<string, ProductBundle> = new Map();
   private bundleItems: Map<string, BundleItem[]> = new Map();
 
-  constructor() {
-    this.seedData();
+  constructor(catalog?: { categories: MenuCategory[]; items: MenuItem[] }) {
+    if (catalog) {
+      this.categories = new Map(catalog.categories.map(category => [category.id, category]));
+      this.items = new Map(catalog.items.map(item => [item.id, item]));
+    } else {
+      this.seedData();
+    }
   }
 
   private seedData() {
@@ -963,12 +968,16 @@ export class MockOrderRepository implements OrderRepository {
   }
 }
 
-const sharedCartRepository = new MockCartRepository();
-export const mockRepositories = {
-  accountRepository: new MockAccountRepository(),
-  userRepository: new MockUserRepository(),
-  sessionRepository: new MockSessionRepository(),
-  menuRepository: new MockMenuRepository(),
-  cartRepository: sharedCartRepository,
-  orderRepository: new MockOrderRepository(sharedCartRepository),
-};
+export function createMemoryRepositories(catalog?: { categories: MenuCategory[]; items: MenuItem[] }) {
+  const cartRepository = new MockCartRepository();
+  return {
+    accountRepository: new MockAccountRepository(),
+    userRepository: new MockUserRepository(),
+    sessionRepository: new MockSessionRepository(),
+    menuRepository: new MockMenuRepository(catalog),
+    cartRepository,
+    orderRepository: new MockOrderRepository(cartRepository),
+  };
+}
+
+export const mockRepositories = createMemoryRepositories();

@@ -1,0 +1,391 @@
+{
+  "version": 1,
+  "purpose": "Development examples for prompt and domain-tool regression; agent-authored labels require team review. Not a held-out LLM benchmark.",
+  "catalogRawSha256": "3ecc17fd9900a4a8207b07b109e9434e7dd3065a7b14e6bf12d53a075939e90c",
+  "cases": [
+    {
+      "id": "KFC-DEV-001",
+      "message": "Tìm 5 món gà giá tối đa 40 nghìn, xếp rẻ trước",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "gà",
+        "maxPrice": 40000,
+        "sort": "price_asc",
+        "limit": 5
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-002",
+      "message": "Tìm 5 món gà giá tối đa 60 nghìn, xếp rẻ trước",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "gà",
+        "maxPrice": 60000,
+        "sort": "price_asc",
+        "limit": 5
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-003",
+      "message": "Tìm 5 món gà giá tối đa 100 nghìn, xếp rẻ trước",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "gà",
+        "maxPrice": 100000,
+        "sort": "price_asc",
+        "limit": 5
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-004",
+      "message": "Tìm 5 món burger giá tối đa 40 nghìn, xếp rẻ trước",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "burger",
+        "maxPrice": 40000,
+        "sort": "price_asc",
+        "limit": 5
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-005",
+      "message": "Tìm 5 món burger giá tối đa 60 nghìn, xếp rẻ trước",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "burger",
+        "maxPrice": 60000,
+        "sort": "price_asc",
+        "limit": 5
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-006",
+      "message": "Tìm 5 món burger giá tối đa 100 nghìn, xếp rẻ trước",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "burger",
+        "maxPrice": 100000,
+        "sort": "price_asc",
+        "limit": 5
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-007",
+      "message": "Tìm 5 món Pepsi giá tối đa 40 nghìn, xếp rẻ trước",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "Pepsi",
+        "maxPrice": 40000,
+        "sort": "price_asc",
+        "limit": 5
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-008",
+      "message": "Tìm 5 món Pepsi giá tối đa 60 nghìn, xếp rẻ trước",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "Pepsi",
+        "maxPrice": 60000,
+        "sort": "price_asc",
+        "limit": 5
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-009",
+      "message": "Tìm 5 món Pepsi giá tối đa 100 nghìn, xếp rẻ trước",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "Pepsi",
+        "maxPrice": 100000,
+        "sort": "price_asc",
+        "limit": 5
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-010",
+      "message": "Tìm 5 món combo giá tối đa 40 nghìn, xếp rẻ trước",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "combo",
+        "maxPrice": 40000,
+        "sort": "price_asc",
+        "limit": 5
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-011",
+      "message": "Tìm 5 món combo giá tối đa 60 nghìn, xếp rẻ trước",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "combo",
+        "maxPrice": 60000,
+        "sort": "price_asc",
+        "limit": 5
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-012",
+      "message": "Tìm 5 món combo giá tối đa 100 nghìn, xếp rẻ trước",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "combo",
+        "maxPrice": 100000,
+        "sort": "price_asc",
+        "limit": 5
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-013",
+      "message": "Cho mình món gà rẻ nhất",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "gà",
+        "sort": "price_asc",
+        "limit": 1
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-014",
+      "message": "Cho mình món burger rẻ nhất",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "burger",
+        "sort": "price_asc",
+        "limit": 1
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-015",
+      "message": "Cho mình món combo rẻ nhất",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "combo",
+        "sort": "price_asc",
+        "limit": 1
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-016",
+      "message": "Cho mình món Pepsi rẻ nhất",
+      "expectedAction": "SEARCH_MENU",
+      "expectedParameters": {
+        "query": "Pepsi",
+        "sort": "price_asc",
+        "limit": 1
+      },
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-017",
+      "message": "Thêm 2 Pepsi (Lon) vào giỏ",
+      "expectedAction": "ADD_TO_CART",
+      "expectedParameters": {
+        "query": "Pepsi (Lon)",
+        "quantity": 2
+      },
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-018",
+      "message": "Đổi Pepsi (Lon) thành 3 phần",
+      "expectedAction": "UPDATE_CART",
+      "expectedParameters": {
+        "query": "Pepsi (Lon)",
+        "quantity": 3
+      },
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-019",
+      "message": "Thêm 2 1 Miếng Gà Rán vào giỏ",
+      "expectedAction": "ADD_TO_CART",
+      "expectedParameters": {
+        "query": "1 Miếng Gà Rán",
+        "quantity": 2
+      },
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-020",
+      "message": "Đổi 1 Miếng Gà Rán thành 3 phần",
+      "expectedAction": "UPDATE_CART",
+      "expectedParameters": {
+        "query": "1 Miếng Gà Rán",
+        "quantity": 3
+      },
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-021",
+      "message": "Thêm 2 Xô Zòn Zã 159K vào giỏ",
+      "expectedAction": "ADD_TO_CART",
+      "expectedParameters": {
+        "query": "Xô Zòn Zã 159K",
+        "quantity": 2
+      },
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-022",
+      "message": "Đổi Xô Zòn Zã 159K thành 3 phần",
+      "expectedAction": "UPDATE_CART",
+      "expectedParameters": {
+        "query": "Xô Zòn Zã 159K",
+        "quantity": 3
+      },
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-023",
+      "message": "Thêm 2 Xô Zui Zẻ 139K vào giỏ",
+      "expectedAction": "ADD_TO_CART",
+      "expectedParameters": {
+        "query": "Xô Zui Zẻ 139K",
+        "quantity": 2
+      },
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-024",
+      "message": "Đổi Xô Zui Zẻ 139K thành 3 phần",
+      "expectedAction": "UPDATE_CART",
+      "expectedParameters": {
+        "query": "Xô Zui Zẻ 139K",
+        "quantity": 3
+      },
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-025",
+      "message": "Thêm 2 1 Bánh Trứng vào giỏ",
+      "expectedAction": "ADD_TO_CART",
+      "expectedParameters": {
+        "query": "1 Bánh Trứng",
+        "quantity": 2
+      },
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-026",
+      "message": "Đổi 1 Bánh Trứng thành 3 phần",
+      "expectedAction": "UPDATE_CART",
+      "expectedParameters": {
+        "query": "1 Bánh Trứng",
+        "quantity": 3
+      },
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-027",
+      "message": "Thêm 2 Cơm trắng vào giỏ",
+      "expectedAction": "ADD_TO_CART",
+      "expectedParameters": {
+        "query": "Cơm trắng",
+        "quantity": 2
+      },
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-028",
+      "message": "Đổi Cơm trắng thành 3 phần",
+      "expectedAction": "UPDATE_CART",
+      "expectedParameters": {
+        "query": "Cơm trắng",
+        "quantity": 3
+      },
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-029",
+      "message": "Bỏ Pepsi (Lon) khỏi giỏ",
+      "expectedAction": "REMOVE_FROM_CART",
+      "expectedParameters": {
+        "query": "Pepsi (Lon)"
+      },
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-030",
+      "message": "Bỏ 1 Miếng Gà Rán khỏi giỏ",
+      "expectedAction": "REMOVE_FROM_CART",
+      "expectedParameters": {
+        "query": "1 Miếng Gà Rán"
+      },
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-031",
+      "message": "Bỏ 1 Bánh Trứng khỏi giỏ",
+      "expectedAction": "REMOVE_FROM_CART",
+      "expectedParameters": {
+        "query": "1 Bánh Trứng"
+      },
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-032",
+      "message": "Xoá toàn bộ giỏ hàng",
+      "expectedAction": "CLEAR_CART",
+      "expectedParameters": {},
+      "requiresConfirmation": true
+    },
+    {
+      "id": "KFC-DEV-033",
+      "message": "Xem giỏ hàng",
+      "expectedAction": "VIEW_CART",
+      "expectedParameters": {},
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-034",
+      "message": "Cho xem thực đơn",
+      "expectedAction": "LIST_MENU",
+      "expectedParameters": {},
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-035",
+      "message": "Tôi dị ứng đậu phộng, món nào an toàn?",
+      "expectedAction": "OFFICIAL_SOURCE",
+      "expectedParameters": {},
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-036",
+      "message": "Xem bảng thành phần dị ứng KFC",
+      "expectedAction": "OFFICIAL_SOURCE",
+      "expectedParameters": {},
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-037",
+      "message": "Tìm nhà hàng KFC gần nhất",
+      "expectedAction": "OFFICIAL_SOURCE",
+      "expectedParameters": {},
+      "requiresConfirmation": false
+    },
+    {
+      "id": "KFC-DEV-038",
+      "message": "Địa chỉ cửa hàng KFC ở đâu?",
+      "expectedAction": "OFFICIAL_SOURCE",
+      "expectedParameters": {},
+      "requiresConfirmation": false
+    }
+  ]
+}

@@ -8,7 +8,7 @@ function loadTarget(filename) {
   const target = JSON.parse(fs.readFileSync(filename, 'utf8').replace(/^\uFEFF/, ''));
   const fields = ['profile', 'region', 'stackName', 'expectedAccount', 'amiId', 'cloudFrontPrefixListId', 'instanceType', 'dailyRequestLimit'];
   if (Object.keys(target).some(key => !fields.includes(key)) ||
-      !/^[A-Za-z0-9_-]+$/.test(target.profile) || target.region !== 'us-west-2' ||
+      !/^[A-Za-z0-9_-]+$/.test(target.profile) || target.region !== 'ap-southeast-1' ||
       !/^kfc-[a-z0-9-]{1,50}$/.test(target.stackName) || !/^(\d{12})?$/.test(target.expectedAccount) ||
       !/^(ami-[a-f0-9]{17})?$/.test(target.amiId) ||
       !/^pl-[a-f0-9]+$/.test(target.cloudFrontPrefixListId) || target.instanceType !== 't3.medium' ||
@@ -80,7 +80,8 @@ async function main() {
       persistentData: '20 GiB encrypted EBS, retained on replacement/deletion',
       nextStep: 'Review costs and target; prepare a CREATE change set after approval' };
     fs.mkdirSync(path.join(root, 'output/verification'), { recursive: true });
-    fs.writeFileSync(path.join(root, 'output/verification/aws-deployment-plan.json'), JSON.stringify(report, null, 2) + '\n');
+    const reportName = 'aws-deployment-plan-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json';
+    fs.writeFileSync(path.join(root, 'output/verification', reportName), JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
     console.log(JSON.stringify(report, null, 2));
     return;
   }

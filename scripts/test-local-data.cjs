@@ -129,6 +129,49 @@ async function main() {
     fs.writeFileSync(report, JSON.stringify({ scope: "Synthetic local disk faults; no AWS or preview data", rollbackCases: 7, memoryAndDiskUnchanged: true, recoveryCommitSucceeded: true,
       sourceSha256: crypto.createHash("sha256").update(fs.readFileSync(path.join(root, "src/lib/services/cart-service.ts"))).digest("hex") }, null, 2) + "\n");
   });
+  await check("transient snapshot sharing errors retry only rename and permanent errors preserve memory and disk", async () => {
+    const originalRename = fs.renameSync;
+    const owner = "synthetic-rename-" + crypto.randomUUID();
+    const file = path.join(source, "store.json");
+    let attempts = 0;
+    try {
+      fs.renameSync = (...args) => {
+        if (++attempts <= 2) throw Object.assign(new Error("Synthetic sharing violation"), { code: "EPERM" });
+        return originalRename(...args);
+      };
+      const basket = await carts.addMenuItem(owner, item, 1);
+      assert.equal(attempts, 3);
+      assert.equal(basket.items.length, 1);
+      assert.equal(basket.items[0].quantity, 1);
+      const beforeDisk = fs.readFileSync(file);
+      const beforeCart = structuredClone(await repositories.cartRepository.getCartById(basket.cart.id));
+      const beforeItems = structuredClone(await carts.getCartItems(basket.cart.id));
+      attempts = 0;
+      fs.renameSync = () => {
+        attempts++;
+        throw Object.assign(new Error("Synthetic persistent sharing violation"), { code: "EPERM" });
+      };
+      await assert.rejects(() => carts.updateItemQuantity(owner, basket.items[0].id, 3), /persistent sharing/);
+      assert.equal(attempts, 5);
+      assert.ok(beforeDisk.equals(fs.readFileSync(file)));
+      assert.deepEqual(await repositories.cartRepository.getCartById(basket.cart.id), beforeCart);
+      assert.deepEqual(await carts.getCartItems(basket.cart.id), beforeItems);
+      attempts = 0;
+      fs.renameSync = () => {
+        attempts++;
+        throw Object.assign(new Error("Synthetic storage failure"), { code: "EIO" });
+      };
+      await assert.rejects(() => carts.updateItemQuantity(owner, basket.items[0].id, 3), /storage failure/);
+      assert.equal(attempts, 1);
+      assert.ok(beforeDisk.equals(fs.readFileSync(file)));
+      assert.deepEqual(await repositories.cartRepository.getCartById(basket.cart.id), beforeCart);
+      assert.deepEqual(await carts.getCartItems(basket.cart.id), beforeItems);
+    } finally {
+      fs.renameSync = originalRename;
+      fs.rmSync(file + ".tmp", { force: true });
+    }
+    await carts.clearCart(owner);
+  });
   const addresses = new AddressService(repositories.userRepository);
   await addresses.save(
     account.id,

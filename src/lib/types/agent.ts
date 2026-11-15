@@ -52,6 +52,7 @@ export interface ConversationTurn {
 
 // AgentRequest schema
 export interface AgentRequest {
+  selectedProduct?: { itemId: string; quantity: number };
   platform: string;
   userId: string;
   sessionId: string;
