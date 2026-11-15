@@ -8,6 +8,7 @@ COPY . .
 RUN npm run build
 
 FROM node:24-bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends python3 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=127.0.0.1 LOCAL_DATA_DIR=/data
 COPY --from=build --chown=node:node /app/.next/standalone ./

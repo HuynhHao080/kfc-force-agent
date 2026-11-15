@@ -46,18 +46,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ bundle });
     }
 
-    // Handle category-specific items
-    if (query.categoryId) {
-      const items = (
-        await services.menuService.getItemsByCategory(query.categoryId)
-      ).filter((item) => item.isActive && item.isAvailable);
-      return NextResponse.json({ items });
-    }
-
-    // Handle search query
-    if (query.q) {
+    // Apply all discovery filters together, using the same rules as the assistant.
+    if (query.q || query.categoryId || query.minPrice !== undefined || query.maxPrice !== undefined || query.sort || query.limit) {
       const items = await services.menuService.searchMenuItemsForCustomer(
-        query.q,
+        query.q ?? "",
+        {
+          categoryId: query.categoryId || undefined,
+          minPrice: query.minPrice,
+          maxPrice: query.maxPrice,
+          sort: query.sort,
+          limit: query.limit,
+        },
       );
       return NextResponse.json({
         items,

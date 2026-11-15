@@ -12,6 +12,7 @@ export interface Message {
   sessionId: string;
   role: "user" | "assistant" | "system";
   content: string;
+  productIds?: string[];
   createdAt: string;
 }
 

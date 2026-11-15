@@ -1,11 +1,12 @@
 import { ActionType, PolicyDecision, ProposedAction } from "@/lib/types/agent";
 import { CartService } from "@/lib/services/cart-service";
-import { MenuService, normalizeVietnamese } from "@/lib/services/menu-service";
+import { MenuService, normalizeVietnamese, matchesMenuQuery } from "@/lib/services/menu-service";
 import {
   CartToolInputSchema,
   CartToolInput,
 } from "@/lib/agent/tools/cart-tool";
 import { z } from "zod";
+import { menuSearchOptionsSchema } from "@/lib/validation/menu";
 
 export type { PolicyDecision };
 
@@ -35,6 +36,7 @@ interface ToolMapping {
 }
 
 const menuActionSchema = z.object({
+  ...menuSearchOptionsSchema.shape,
   query: z.string().optional(),
   itemId: z.string().min(1).optional(),
   categoryId: z.string().min(1).optional(),
@@ -347,20 +349,13 @@ export class PolicyEngine {
     const normalizedQuery = normalizeVietnamese(query);
     if (!normalizedQuery) return [];
 
-    const tokens = normalizedQuery
-      .split(" ")
-      .filter((token) => token.length > 0);
     const items = await this.menuService.getAvailableMenuItems();
+    const exactNames = items.filter(item => normalizeVietnamese(item.name) === normalizedQuery);
 
-    return items
-      .filter((item) => {
-        const haystack = normalizeVietnamese(
-          [item.name, item.description ?? "", (item.tags ?? []).join(" ")].join(
-            " ",
-          ),
-        );
-        return tokens.every((token) => haystack.includes(token));
-      })
+    const matches = exactNames.length
+      ? exactNames
+      : items.filter(item => matchesMenuQuery(item, normalizedQuery));
+    return matches
       .sort((a, b) => a.id.localeCompare(b.id))
       .map((item) => ({ id: item.id, name: item.name, price: item.price }));
   }

@@ -1,6 +1,7 @@
 import { SessionService } from "@/lib/services/session-service";
 import { Message, Session } from "@/lib/types/session";
-import { agentCore, persistConversation } from "@/lib/agent/agent-core";
+import { agentCore, persistConversation, services } from "@/lib/agent/agent-core";
+import { chatProducts, resultProductIds } from "@/lib/agent/chat-products";
 import { ChatRequest, ChatResponse } from "@/lib/types/domain";
 
 export class ChatService {
@@ -42,14 +43,17 @@ export class ChatService {
       message: request.message,
       confirm: request.confirm === true,
       confirmationId: request.confirmationId,
+      selectedProduct: request.selectedProduct,
     });
 
     // 4. Persist the assistant message
+    const products = chatProducts(resultProductIds(agentResult.execution), await services.menuService.getAvailableMenuItems());
     const assistantMessage: Message = {
       id: `msg_${crypto.randomUUID()}_assistant`,
       sessionId: session.id,
       role: "assistant",
       content: agentResult.reply,
+      productIds: products.map(product => product.id),
       createdAt: new Date().toISOString(),
     };
     await this.sessionService.appendMessage(assistantMessage);
@@ -62,6 +66,7 @@ export class ChatService {
 
     // 6. Return the structured response
     return {
+      products,
       reply: agentResult.reply,
       sessionId: agentResult.sessionId,
       actions: agentResult.actions,

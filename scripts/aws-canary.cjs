@@ -6,18 +6,20 @@ const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const ROOT = path.resolve(__dirname, '..');
-const MODEL = 'us.anthropic.claude-haiku-4-5-20251001-v1:0';
+const MODEL = 'global.anthropic.claude-haiku-5-5';
+const SUPPORTED_MODEL_PROFILES = [MODEL, 'us.anthropic.claude-haiku-4-5-20251001-v1:0'];
 function parseArgs(values) {
-  const result = { profile: 'default', region: 'us-west-2', model: MODEL, invoke: false };
+  const result = { profile: 'default', region: 'ap-southeast-1', model: MODEL, invoke: false };
   for (let index = 0; index < values.length; index++) {
     const flag = values[index];
     if (flag === '--invoke') { result.invoke = true; continue; }
-    const names = { '--profile': 'profile', '--region': 'region', '--expected-account': 'account', '--request-id': 'requestId' };
+    const names = { '--profile': 'profile', '--region': 'region', '--model': 'model', '--expected-account': 'account', '--request-id': 'requestId' };
     if (!names[flag] || !values[index + 1] || values[index + 1].startsWith('--')) throw new Error('Unknown or incomplete canary argument.');
     result[names[flag]] = values[++index];
   }
   if (!/^[a-zA-Z0-9_-]+$/.test(result.profile)) throw new Error('Invalid AWS profile name.');
-  if (!['us-west-2', 'us-east-1', 'us-east-2'].includes(result.region)) throw new Error('Select an approved US region for this inference profile.');
+  if (!SUPPORTED_MODEL_PROFILES.includes(result.model)) throw new Error('Select a supported Haiku inference profile and obtain approval before invoking it.');
+  if (result.region !== 'ap-southeast-1') throw new Error('Canary source region must match the reviewed ap-southeast-1 target.');
   if (result.invoke && (!/^\d{12}$/.test(result.account ?? '') || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(result.requestId ?? '')))
     throw new Error('--invoke requires --expected-account and a new UUID --request-id.');
   return result;
@@ -30,21 +32,24 @@ function aws(args, operation) {
 }
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  const baseModelId = args.model.replace(/^(global|us)\./, '');
   const identity = aws(args, ['sts', 'get-caller-identity']);
   if (args.account && identity.Account !== args.account) throw new Error('AWS account mismatch.');
   const profile = aws(args, ['bedrock', 'get-inference-profile', '--inference-profile-identifier', args.model]);
-  const availability = aws(args, ['bedrock', 'get-foundation-model-availability', '--model-id', args.model.replace(/^us\./, '')]);
+  const availability = aws(args, ['bedrock', 'get-foundation-model-availability', '--model-id', baseModelId]);
   assert.equal(profile.status, 'ACTIVE');
   assert.equal(availability.authorizationStatus, 'AUTHORIZED');
   assert.equal(availability.agreementAvailability?.status, 'AVAILABLE');
   assert.equal(availability.entitlementAvailability, 'AVAILABLE');
   assert.equal(availability.regionAvailability, 'AVAILABLE');
   const summary = { checkedAt: new Date().toISOString(), accountLast4: identity.Account.slice(-4), region: args.region,
-    profile: args.profile, model: args.model, modelDestinations: profile.models.map(model => model.modelArn.split(':')[3]),
+    profile: args.profile, model: args.model, baseModelId,
+    modelArns: profile.models.map(model => model.modelArn),
     readOnlyPreflightPassed: true, inferenceCalls: 0, inferenceVerified: false, applicationDeployed: false };
   if (!args.invoke) {
     fs.mkdirSync(path.join(ROOT, 'output/verification'), { recursive: true });
-    fs.writeFileSync(path.join(ROOT, 'output/verification/aws-preflight.json'), JSON.stringify(summary, null, 2) + '\n');
+    const filename = 'aws-preflight-' + summary.checkedAt.replace(/[:.]/g, '-') + '.json';
+    fs.writeFileSync(path.join(ROOT, 'output/verification', filename), JSON.stringify(summary, null, 2) + '\n', { flag: 'wx' });
     console.log(JSON.stringify(summary, null, 2));
     return;
   }
@@ -61,11 +66,12 @@ async function main() {
   require('./register-typescript.cjs');
   const { services } = require('../src/lib/agent/agent-core.ts');
   const original = services.bedrockService.generateResponse.bind(services.bedrockService);
-  let usage, calls = 0;
+  let usage, providerError, calls = 0;
   services.bedrockService.generateResponse = async (...input) => {
     if (++calls > 1) throw new Error('Canary inference limit exceeded.');
     const result = await original(...input);
     if (result.success) usage = result.response.usage;
+    else providerError = result.error;
     return result;
   };
   const owner = 'synthetic_canary_' + args.requestId;
@@ -84,11 +90,13 @@ async function main() {
     assert.equal(basket.items[0].menuItemId, 'item_pepsi_004');
     assert.equal(calls, 1);
     passed = true;
-  } catch (error) { failure = error instanceof Error ? error.message : 'Canary failed'; }
-  const report = { ...summary, requestId: args.requestId, inferenceCalls: calls, inferenceVerified: passed, passed,
+  } catch (error) { failure = providerError?.message ?? (error instanceof Error ? error.message : 'Canary failed'); }
+  const budgetFile = path.join(process.env.LOCAL_DATA_DIR, 'bedrock-usage.json');
+  const reservedCalls = fs.existsSync(budgetFile) ? JSON.parse(fs.readFileSync(budgetFile, 'utf8')).used : 0;
+  const report = { ...summary, requestId: args.requestId, providerCalls: calls, inferenceCalls: reservedCalls, inferenceVerified: passed, passed,
     usage, maxOutputTokens: 512, confirmationExecutedInSyntheticMemory: passed,
     sourceSha256: crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, 'src/lib/aws/bedrock.ts'))).digest('hex'),
-    ...(failure ? { failure } : {}) };
+    ...(providerError ? { providerError } : {}), ...(failure ? { failure } : {}) };
   fs.mkdirSync(path.join(ROOT, 'output/verification'), { recursive: true });
   fs.writeFileSync(path.join(ROOT, 'output/verification/aws-canary-' + args.requestId + '.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report, null, 2));

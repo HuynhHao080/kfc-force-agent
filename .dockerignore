@@ -4,6 +4,11 @@ node_modules
 .local
 output
 .playwright-cli
+.playwright-mcp
+.serena
+*.doc
+*.docx
+~*.tmp
 **/__pycache__
 **/*.kfcbackup
 **/.kfc-restore-*

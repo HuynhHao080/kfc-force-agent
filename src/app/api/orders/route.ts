@@ -5,6 +5,7 @@ import { services } from "@/lib/agent/agent-core";
 import { ApiError, customerApi, readJson } from "@/lib/server/api";
 import { invalidateProposal } from "@/lib/server/invalidate-proposal";
 import { readCustomer } from "@/lib/server/customer-identity";
+import { kfcPurchaseAssistantEnabled } from "@/lib/purchase-mode";
 export async function GET(request: Request) {
   return customerApi(request, async (userId) => {
     const orderId = new URL(request.url).searchParams.get("orderId");
@@ -21,6 +22,8 @@ export async function GET(request: Request) {
 }
 export async function POST(request: Request) {
   return customerApi(request, async (userId) => {
+    if (kfcPurchaseAssistantEnabled())
+      throw new ApiError(409, "Hoàn tất đặt hàng trên website KFC Việt Nam.");
     const input = createOrderSchema.safeParse(await readJson(request));
     if (!input.success) throw new ApiError(400, input.error.issues[0].message);
     const order = await services.checkoutService.checkout(userId, input.data, async () => {

@@ -1,16 +1,26 @@
-# KFC Force Agent — hệ thống đặt món và vận hành demo
+# KFC Force Agent — trợ lý hỗ trợ mua hàng KFC
 
-Project khóa luận có tài khoản khách, thực đơn động, giỏ hàng, trợ lý hội thoại có kiểm soát, checkout, quản trị đơn/món và báo cáo. Next.js 16.4.5, React 19, TypeScript, Tailwind CSS 4; provider và repository có adapter riêng.
+Website hỗ trợ người dùng xem thực đơn KFC, tìm món, lọc giá, so sánh và chuẩn bị danh sách mua bằng giao diện hoặc AI. Bản ngày 15/11/2026 dùng 101 món thuộc chín nhóm được TinyFish thu thập từ KFC Việt Nam, có ảnh, giá và nguồn. Ngôn ngữ và công nghệ gồm Next.js 16.4.5, React 19, TypeScript, Tailwind CSS 4 và Bedrock Haiku 5.5.
 
-**Đây là project học tập, không phải kênh đặt hàng chính thức của KFC. Đơn demo không được gửi đến nhà hàng và không thu tiền.**
+**Trợ lý lựa chọn món độc lập. Người dùng hoàn tất đặt hàng và thanh toán trên website KFC Việt Nam.**
+
+## Bản trợ lý mua hàng ngày 15/11/2026
+
+Cấu hình `KFC_PURCHASE_ASSISTANT=1`, `AI_PROVIDER=bedrock` và `PERSISTENCE_DRIVER=local`. Thư mục dữ liệu mới dùng snapshot thực đơn thật đã được kiểm tra trong source, hoặc catalog do `KFC_CATALOG_FILE` chỉ định. UI có tìm kiếm không dấu, sắp xếp giá/tên, giá tối đa, so sánh ba món, chi tiết nguồn và số lượng. Giỏ được giữ qua restart. Nút mua hỗ trợ sao chép danh sách và mở KFC để người dùng chọn lại món, nhà hàng và thanh toán.
+
+Hướng dẫn TinyFish, cấu hình và kiểm tra tại [trợ lý mua hàng](docs/kfc-purchase-assistant.md). Các phân hệ vận hành nội bộ của bản trước có chế độ cấu hình riêng. Phần trạng thái AWS bên dưới ghi bằng chứng của lần phát hành trước khi chuyển luồng mua hàng.
+
+AI đã bổ sung ngữ cảnh catalog, tìm theo khoảng giá và bộ 38 câu phát triển. Cập nhật catalog đang dùng có bản sao và publish nguyên tử. Xem [phương pháp, kiểm tra và giới hạn](docs/graduation/ai-learning-and-data.md).
 
 ## Làm việc nhóm
 
 Ba thành viên dùng branch và clone/worktree riêng, đọc [CONTRIBUTING.md](CONTRIBUTING.md) và [AGENTS.md](AGENTS.md) trước khi giao việc cho agent. Skill dùng chung được lưu trong `.agents/skills/kfc-team-development`. Trước commit chạy `npm run team:check`; chỉ merge qua PR có review và CI. Chủ repo cần bật branch protection trên GitHub theo hướng dẫn; file trong repo không tự bật các quyền đó.
 
-## Mục tiêu bàn giao 01/01/2027
+## Tiến độ bàn giao 30/01/2027
 
-Theo yêu cầu giảng viên cập nhật 09/11, bản cuối phải có **AI thật và triển khai AWS**. Xem [kế hoạch nước rút](docs/graduation/sprint-plan-2026-11-09.md) và [cấu hình, chi phí, trình tự AWS](docs/graduation/aws-readiness.md). Đã chuẩn bị Bedrock canary, Dockerfile, CloudFormation và release theo SHA256/S3 VersionId; preflight chỉ đọc đã qua. Chưa gọi AI thật, chưa build image Linux hoặc triển khai AWS.
+Theo lịch người dùng cung cấp, thời gian thực hiện từ 01/10/2026 đến 30/01/2027. Bản cuối yêu cầu **AI thật và triển khai AWS**. Ngày 15/11/2026 đã phát hành pilot tại [website HTTPS](https://d2qcew89gdrdgt.cloudfront.net), dùng Bedrock Haiku 5.5 tại Singapore. Đã thử AI trên trình duyệt, xác nhận giỏ, đơn pickup/delivery, phân quyền, báo cáo CSV và giữ dữ liệu qua restart. Web AWS có hạn mức 25 lượt AI/ngày UTC.
+
+Đợt đánh giá riêng 24 câu tổng hợp đã hoàn tất, đúng nhóm ý định 24/24, số lượng đúng 6/6 câu có nhãn. Nhóm cần review nhãn và bổ sung dùng thử với người tham gia. Xem [kết quả và giới hạn](docs/graduation/llm-evaluation-results.md), [hồ sơ AWS](docs/graduation/aws-readiness.md) và [kế hoạch bàn giao](docs/graduation/sprint-plan-2026-11-09.md). Pilot một tiến trình, chi phí cơ sở ước tính 48,386 USD/tháng cộng sử dụng thực tế.
 
 ## Bắt đầu trên Windows / PowerShell
 
@@ -19,7 +29,6 @@ Yêu cầu Node.js 22.13+ và npm. Đã kiểm tra bằng Node.js 26.3.0 trên W
 ```powershell
 npm ci
 if (-not (Test-Path .env.local)) { Copy-Item .env.example .env.local }
-npm run admin:setup
 npm run dev
 ```
 
@@ -32,7 +41,7 @@ npm run build
 npm start
 ```
 
-Mặc định `AI_PROVIDER=mock`, `PERSISTENCE_DRIVER=local`: không gọi Bedrock hay DynamoDB. Không cần AWS credentials. Các minh hoạ món ăn là SVG local, không phụ thuộc máy chủ hình ảnh ngoài.
+Mẫu cấu hình hiện dùng `AI_PROVIDER=bedrock`, `KFC_PURCHASE_ASSISTANT=1` và `PERSISTENCE_DRIVER=local`. Cần AWS profile có quyền gọi model đã cấu hình. Catalog công khai đi kèm source có ảnh gốc từ KFC. Test/CI thiết lập provider mock và dữ liệu riêng để chạy offline. Nếu cần quản lý catalog bằng trang admin, thiết lập credential riêng bằng `npm run admin:setup`.
 
 ## Chức năng
 
@@ -92,6 +101,7 @@ Bộ hiểu câu offline hỗ trợ các mẫu trên và cách nói “Cho mình
 | `LOCAL_DATA_DIR`      | `.local`         | Thư mục ghi dữ liệu local và secret phiên                         |
 | `SESSION_SECRET`      | Tạo và lưu local | Chuỗi riêng tư tối thiểu 32 ký tự; cần giữ ổn định khi triển khai |
 | `AWS_REGION`          | `ap-southeast-1` | Chỉ dùng khi tích hợp AWS                                         |
+| `BEDROCK_MODEL_ID`    | Cần cấu hình khi dùng Bedrock | `global.anthropic.claude-haiku-5-5`, vùng gọi `ap-southeast-1` |
 | `DYNAMODB_TABLE_NAME` | `KfcForceAgent`  | Bảng DynamoDB đã được chuẩn bị                                    |
 | `BEDROCK_DAILY_REQUEST_LIMIT` | `25` | Trần lượt gọi thật/ngày UTC cho một tiến trình; 0 tắt inference, không phải trần USD |
 | `BEDROCK_MODEL_ID`    | `mock-model`     | Phải đặt ID model thực khi chọn Bedrock                           |

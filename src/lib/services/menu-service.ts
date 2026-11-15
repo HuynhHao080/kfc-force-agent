@@ -1,4 +1,8 @@
 import { IMenuRepository } from "@/lib/db/repositories/interfaces/menu-repository.interface";
+import { menuSearchOptionsSchema, type MenuSearchOptions } from "@/lib/validation/menu";
+import { DomainError } from "@/lib/domain-error";
+import { normalizeVietnamese, matchesMenuQuery } from "@/lib/menu-search";
+export { normalizeVietnamese, matchesMenuQuery } from "@/lib/menu-search";
 import {
   MenuCategory,
   MenuItem,
@@ -110,27 +114,23 @@ export class MenuService {
    * Accent-insensitive Vietnamese search.
    *
    * "ga ran" matches "Gà Rán"; "combo ga cay" matches "Combo Gà Cay".
-   * Falls back to the repository's plain search when the accent-insensitive
-   * pass returns nothing, so no result is ever lost.
+   * Prefix matching applies to product names. Descriptions match whole words.
    */
-  async searchMenuItemsForCustomer(query: string): Promise<MenuItem[]> {
+  async searchMenuItemsForCustomer(query: string, filters: MenuSearchOptions = {}): Promise<MenuItem[]> {
+    const options = menuSearchOptionsSchema.parse(filters);
+    if (options.minPrice !== undefined && options.maxPrice !== undefined && options.minPrice > options.maxPrice)
+      throw new DomainError("INVALID_PRICE_RANGE", "Giá tối thiểu phải nhỏ hơn hoặc bằng giá tối đa.");
     const normalizedQuery = normalizeVietnamese(query);
     const available = await this.menuRepository.getAvailableMenuItems();
-    if (!normalizedQuery) {
-      return available;
-    }
-
-    const matched = available.filter((item) => {
-      const haystack = [item.name, item.description ?? "", (item.tags ?? []).join(" ")]
-        .map(normalizeVietnamese)
-        .join(" ");
-      return haystack.includes(normalizedQuery);
-    });
-
-    if (matched.length > 0) {
-      return matched;
-    }
-    return this.searchMenuWithDetails(query);
+    const matched = available.filter(item => matchesMenuQuery(item, normalizedQuery, { allowNamePrefix: true }));
+    const result = matched.filter(item =>
+      (!options.categoryId || item.categoryId === options.categoryId) &&
+      (options.minPrice === undefined || item.price >= options.minPrice) &&
+      (options.maxPrice === undefined || item.price <= options.maxPrice));
+    if (options.sort === "price_asc") result.sort((a, b) => a.price - b.price || a.id.localeCompare(b.id));
+    if (options.sort === "price_desc") result.sort((a, b) => b.price - a.price || a.id.localeCompare(b.id));
+    if (options.sort === "name") result.sort((a, b) => a.name.localeCompare(b.name, "vi") || a.id.localeCompare(b.id));
+    return options.limit ? result.slice(0, options.limit) : result;
   }
 
   // Vietnamese customer-facing methods
@@ -151,16 +151,3 @@ export class MenuService {
     }));
   }
 }
-
-/** Lower-cases and strips Vietnamese diacritics for accent-insensitive matching. */
-export function normalizeVietnamese(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-

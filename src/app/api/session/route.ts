@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { ensureCustomer } from "@/lib/server/customer-identity";
 import { services } from "@/lib/agent/agent-core";
 import { withUserLock } from "@/lib/server/user-lock";
+import { hydrateChatMessages } from "@/lib/agent/chat-products";
 export async function GET(request: Request) {
   const { userId, profile } = await ensureCustomer(request);
   return withUserLock(userId, async () => {
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
       {
         profile,
         messages: session
-          ? (await services.sessionService.getMessages(session.id)).slice(-50)
+          ? hydrateChatMessages((await services.sessionService.getMessages(session.id)).slice(-50), await services.menuService.getAvailableMenuItems())
           : [],
         requiresConfirmation: !!activeConfirmation(saved?.context),
         pendingConfirmation: activeConfirmation(saved?.context),

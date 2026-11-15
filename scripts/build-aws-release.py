@@ -9,10 +9,12 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / 'output/aws'
 FILES = ['Dockerfile', '.dockerignore', 'package.json', 'package-lock.json', 'next.config.ts',
          'tsconfig.json', 'postcss.config.mjs', 'eslint.config.mjs',
-         'infra/aws/release.sh', 'infra/aws/runtime-config.py']
+         'infra/aws/release.sh', 'infra/aws/runtime-config.py', 'scripts/parse-kfc-menu.py']
 ROOTS = ['src', 'public']
 
-def source_entries(root=ROOT):
+def source_entries(root=None):
+    if root is None:
+        root = ROOT
     result = {}
     for name in FILES:
         path = root / name
@@ -28,6 +30,9 @@ def source_entries(root=ROOT):
             if path.name.startswith('.env') or path.suffix in {'.kfcbackup', '.pyc'} or path.name in {'store.json', 'session-secret', 'admin-credentials.json', 'admin-bootstrap.txt'}:
                 continue
             result[path.relative_to(root).as_posix()] = path.read_bytes()
+    for name, data in result.items():
+        if name.endswith('.sh'):
+            result[name] = data.replace(b'\r\n', b'\n')
     return result
 
 def build():

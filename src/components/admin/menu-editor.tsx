@@ -2,6 +2,7 @@
 import { useEffect, useRef } from "react";
 import type { MenuCategory } from "@/lib/types/menu";
 import type { CatalogMenuItem } from "@/lib/admin-types";
+import { isKfcImage, menuImage } from "@/lib/menu-images";
 export function MenuEditor({
   item,
   categories,
@@ -126,10 +127,10 @@ export function MenuEditor({
             <select
               name="imageUrl"
               defaultValue={
-                item?.imageUrl?.replace(/\.png$/, ".svg") ??
-                "/images/fried-chicken.svg"
+                menuImage(item?.imageUrl)
               }
             >
+              {item?.imageUrl && isKfcImage(item.imageUrl) && <option value={item.imageUrl}>Ảnh thực tế từ KFC</option>}
               {[
                 ["burger", "Burger"],
                 ["combo", "Combo"],

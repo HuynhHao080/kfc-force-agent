@@ -1,6 +1,12 @@
 # Bảng nghiệm thu phạm vi bản khóa luận
 
-Phạm vi được chốt cho bản demo local một tiến trình, không có rubric riêng của trường. Các mục dưới là chức năng đã triển khai, không phải cam kết sẵn sàng phục vụ khách thật. Chi tiết bằng chứng từng đợt tại [verification](../verification.md), API và [review](code-review.md).
+## Luồng trợ lý mua hàng được chốt ngày 15/11/2026
+
+Người dùng xác nhận mục tiêu là hỗ trợ người mua KFC. UI mới có catalog TinyFish gồm 99 món thuộc chín nhóm, lọc/sắp xếp/so sánh, chi tiết nguồn, giỏ riêng và chuyển người dùng sang website KFC để hoàn tất mua. Chế độ này chặn tạo đơn và quote nội bộ, dữ liệu chạy local ở thư mục riêng. Hướng dẫn và bằng chứng tại [trợ lý mua hàng](../kfc-purchase-assistant.md).
+
+Các bảng bên dưới giữ bằng chứng các phân hệ đã xây dựng trong giai đoạn trước. Hồ sơ nghiệm thu cuối cần đối chiếu phạm vi trợ lý mua hàng mới khi chọn chức năng để trình bày.
+
+Phạm vi gồm bản local một tiến trình và pilot AWS nghiệm thu ngày 15/11/2026. Các mục dưới ghi chức năng và bằng chứng từng đợt. Chi tiết tại [verification](../verification.md), [AWS readiness](aws-readiness.md), API và [review](code-review.md).
 
 | Phân hệ | Hành vi nghiệm thu | Bằng chứng |
 | --- | --- | --- |
@@ -29,11 +35,14 @@ Phạm vi được chốt cho bản demo local một tiến trình, không có r
 
 ## Điều kiện demo
 
+Ngày 15/11/2026 đã bổ sung nghiệm thu container Linux local với mock AI, gồm checkout, gửi lại checkout, quyền truy cập và lưu dữ liệu qua restart container. Web cũng đã thử phục hồi đề xuất và giỏ khi mất phản hồi chat hoặc nhận 503 sau xử lý. Chi tiết và bằng chứng tại [AWS readiness](aws-readiness.md).
+
 Node + production build đã chuẩn bị, AI_PROVIDER=mock, PERSISTENCE_DRIVER=local, một Node process và ổ đĩa ghi được. Tạo credential admin riêng; dùng dữ liệu giả; không mở file bootstrap hoặc trường mật khẩu trước hội đồng. Gói mã nguồn loại dữ liệu runtime và secret.
 
 ## Các giới hạn phải trình bày
 
-- Không có nghiệm thu AWS/Bedrock thật, nhiều instance hoặc tải production; adapter cloud mới là mã nguồn.
+- Canary backend, web local và pilot AWS với Bedrock Haiku 5.5 tại `ap-southeast-1` đã đạt ngày 15/11/2026. AWS đã thử HTTPS, AI thật và xác nhận giỏ, pickup/delivery, ownership, catalog CAS, phản hồi, CSV, restart và phục hồi bản sao vào thư mục riêng trên EBS mã hóa. Phiên staff cần đăng nhập lại sau restart. Bằng chứng và giới hạn tại [AWS readiness](aws-readiness.md). Cần tiếp tục kiểm tra tải, nhiều instance và bản sao độc lập với volume.
+- Đợt đánh giá LLM riêng đã chạy đủ 24 câu tổng hợp, đúng nhóm ý định 24/24 và số lượng 6/6 câu có nhãn. Nhãn cần nhóm review, cần bổ sung dùng thử thực tế. Phương pháp và giới hạn tại [báo cáo đánh giá](llm-evaluation-results.md).
 - Chat parser có dataset phát triển cố định 50 câu: baseline 42/50 intent, 40/50 joint; parser v2 đúng 49/50 ở cả hai. Ca đã được xem trong phát triển, không phải holdout hay chất lượng LLM. Bộ 61 câu mới là hồi quy tổng hợp intent/policy.
 - Thanh toán COD chỉ là trường demo; không thu tiền, gửi nhà hàng/POS hay gọi giao vận thật.
 - Báo cáo chỉ trong 200 đơn gần nhất; chưa có truy vấn toàn lịch sử/pagination cho vận hành quy mô lớn.
@@ -56,7 +65,8 @@ Các tích hợp ngoài cần cấu hình, tài khoản dịch vụ và một đ
 - [x] FR31: số lượng viết bằng chữ, volume giữ trong SKU, phạm vi xoá dòng/toàn giỏ tách rõ, multi-action/ước lượng/phủ định yêu cầu làm rõ.
 
 - [x] FR32: top món/snapshot, đối soát và exclusion, window revision/filter/CSV, reauth staff queued.
-- [ ] Báo cáo toàn lịch sử, giá vốn/lợi nhuận, kế toán thanh toán/refund và nghiệm thu cloud.
+- [x] CSV top món và đối soát báo cáo trên pilot AWS với hai đơn giả lập hoàn tất.
+- [ ] Báo cáo toàn lịch sử, giá vốn/lợi nhuận, kế toán thanh toán/refund.
 
 ## Chốt bản local 07/11/2026
 

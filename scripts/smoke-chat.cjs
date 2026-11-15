@@ -24,6 +24,9 @@ async function start() {
       env: {
         ...process.env,
         AI_PROVIDER: "mock",
+        KFC_PURCHASE_ASSISTANT: "0",
+        KFC_CATALOG_AUTO_REFRESH: "0",
+        KFC_CATALOG_FILE: "",
         PERSISTENCE_DRIVER: "local",
         LOCAL_DATA_DIR: dataDirectory,
         ADMIN_PASSWORD: adminPassword,
@@ -90,6 +93,120 @@ async function main() {
     await start();
     const alice = await guest();
     const bob = await guest();
+    let richCookie;
+    let richProducts;
+    await check("chat returns server-owned product cards and keeps the cart unchanged before choosing", async () => {
+      richCookie = await guest();
+      const found = await request(richCookie, "/api/chat", "POST", { message: "Cho mình xem thực đơn" });
+      assert.equal(found.status, 200);
+      assert.ok(found.data.products.length > 0 && found.data.products.length <= 6);
+      richProducts = found.data.products;
+      const available = (await request(richCookie, "/api/menu")).data.items;
+      for (const product of richProducts) {
+        const official = available.find(item => item.id === product.id);
+        assert.ok(official);
+        assert.equal(product.price, official.price);
+        assert.equal(product.imageUrl, official.imageUrl);
+      }
+      assert.equal((await request(richCookie, "/api/storefront")).data.basket, null);
+    });
+    await check("chat card references survive restart and remain private to their session", async () => {
+      await stop(); await start();
+      const snapshot = (await request(richCookie, "/api/storefront")).data;
+      assert.deepEqual(snapshot.session.messages.at(-1).products, richProducts);
+      const history = (await request(richCookie, "/api/session")).data;
+      assert.deepEqual(history.messages.at(-1).products, richProducts);
+      const other = (await request(bob, "/api/storefront")).data;
+      assert.equal(other.session.messages.some(message => message.products?.length), false);
+    });
+    await check("explicit product selection validates fields and waits for confirmation at current server price", async () => {
+      const choice = { itemId: richProducts[0].id, quantity: 2 };
+      const body = { message: "Thêm 2 món đã chọn", selectedProduct: choice };
+      assert.equal((await request(richCookie, "/api/chat", "POST", { ...body, selectedProduct: { ...choice, price: 1 } })).status, 400);
+      assert.equal((await request(richCookie, "/api/chat", "POST", { ...body, selectedProduct: { ...choice, quantity: 0 } })).status, 400);
+      const proposed = await request(richCookie, "/api/chat", "POST", body);
+      assert.equal(proposed.status, 200);
+      assert.equal(proposed.data.requiresConfirmation, true);
+      assert.equal((await request(richCookie, "/api/storefront")).data.basket, null);
+      const confirmed = await request(richCookie, "/api/chat", "POST", { message: "Xác nhận", confirm: true, confirmationId: proposed.data.pendingConfirmation.id });
+      assert.equal(confirmed.status, 200);
+      const basket = (await request(richCookie, "/api/storefront")).data.basket;
+      assert.equal(basket.items[0].menuItemId, choice.itemId);
+      assert.equal(basket.items[0].quantity, 2);
+      assert.equal(basket.items[0].unitPrice, richProducts[0].price);
+      await request(richCookie, "/api/chat", "POST", { message: "Xác nhận", confirm: true, confirmationId: proposed.data.pendingConfirmation.id });
+      assert.equal((await request(richCookie, "/api/storefront")).data.basket.items[0].quantity, 2);
+    });
+    await check("shopping review validates identity, origin and cart signature while returning private current data", async () => {
+      const before = (await request(richCookie, "/api/cart")).data;
+      const headers = { "X-KFC-Cart-Signature": before.signature };
+      assert.equal((await request("", "/api/cart/review", "POST")).status, 401);
+      assert.equal((await request(bob, "/api/cart/review", "POST")).status, 400);
+      assert.equal((await request(richCookie, "/api/cart/review", "POST", undefined, { ...headers, Origin: "https://other.invalid" })).status, 403);
+      assert.equal((await request(richCookie, "/api/cart/review", "POST", undefined, { ...headers, "X-KFC-Owner": "forged-owner" })).status, 409);
+      assert.equal((await request(richCookie, "/api/cart/review", "POST", undefined, { "X-KFC-Cart-Signature": "0".repeat(64) })).status, 409);
+      const response = await fetch(base + "/api/cart/review", { method: "POST", headers: { ...headers, Cookie: richCookie, Origin: base } });
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("cache-control"), "private, no-store");
+      const review = await response.json();
+      assert.equal(review.basket.signature, before.signature);
+      assert.equal(review.items[0].cartItemId, before.items[0].id);
+      assert.equal(review.items[0].available, true);
+      assert.ok(Number.isFinite(Date.parse(review.checkedAt)));
+      assert.equal((await request(richCookie, "/api/cart")).data.signature, before.signature);
+    });
+    await check("menu discovery combines category, query, price, sort and limit", async () => {
+      const all = (await request(alice, "/api/menu")).data.items;
+      const sample = all[0];
+      const query = new URLSearchParams({ categoryId: sample.categoryId, q: sample.name, minPrice: String(sample.price), maxPrice: String(sample.price), sort: "price_asc", limit: "1" });
+      const result = await request(alice, "/api/menu?" + query);
+      assert.equal(result.status, 200);
+      assert.equal(result.data.count, 1);
+      assert.equal(result.data.items[0].id, sample.id);
+      const mismatch = await request(alice, "/api/menu?" + new URLSearchParams({ categoryId: sample.categoryId, q: "unfindable-synthetic-item" }));
+      assert.deepEqual(mismatch.data.items, []);
+      for (const value of ["maxPrice=-1", "maxPrice=abc", "minPrice=2&maxPrice=1", "limit=0", "limit=101", "sort=unknown", "minPrice=", "maxPrice=1.5"])
+        assert.equal((await request(alice, "/api/menu?" + value)).status, 400, value);
+    });
+    const favoriteGuest = await guest();
+    const favoriteOwner = (await request(favoriteGuest, "/api/storefront")).data.ownerId;
+    const favoriteItems = (await request(favoriteGuest, "/api/menu")).data.items.slice(0, 2);
+    let savedFavorites;
+    await check("favorites enforce cookie identity, origin, strict inputs and private responses", async () => {
+      assert.equal((await request("", "/api/favorites")).status, 401);
+      const read = await fetch(base + "/api/favorites", { headers: { Cookie: favoriteGuest } });
+      assert.equal(read.headers.get("cache-control"), "private, no-store");
+      const current = await read.json();
+      const body = { itemId: favoriteItems[0].id, saved: true, revision: current.revision };
+      assert.equal((await request(favoriteGuest, "/api/favorites", "PUT", body, { Origin: "https://different.invalid" })).status, 403);
+      assert.equal((await request(favoriteGuest, "/api/favorites", "PUT", body, { "X-KFC-Owner": "forged" })).status, 409);
+      for (const invalid of [{ ...body, userId: favoriteOwner }, { ...body, saved: "true" }, { ...body, revision: "" }])
+        assert.equal((await request(favoriteGuest, "/api/favorites", "PUT", invalid)).status, 400);
+      assert.equal((await request(favoriteGuest, "/api/favorites", "PUT", { ...body, itemId: "unlisted-synthetic" })).status, 404);
+      assert.deepEqual((await request(favoriteGuest, "/api/favorites")).data, current);
+    });
+    await check("concurrent favorites edits reject a stale revision without losing the winning edit", async () => {
+      const before = (await request(favoriteGuest, "/api/favorites")).data;
+      const outcomes = await Promise.all(favoriteItems.map(item => request(favoriteGuest, "/api/favorites", "PUT", { itemId: item.id, saved: true, revision: before.revision })));
+      assert.deepEqual(outcomes.map(result => result.status).sort(), [200, 409]);
+      savedFavorites = outcomes.find(result => result.status === 200).data;
+      assert.equal(savedFavorites.itemIds.length, 1);
+      assert.deepEqual((await request(favoriteGuest, "/api/favorites")).data, savedFavorites);
+      assert.deepEqual((await request(bob, "/api/favorites")).data.itemIds, []);
+      assert.equal((await request(bob, "/api/favorites", "PUT", { itemId: favoriteItems[0].id, saved: true, revision: savedFavorites.revision })).status, 409);
+      const repeated = await request(favoriteGuest, "/api/favorites", "PUT", { itemId: savedFavorites.itemIds[0], saved: true, revision: savedFavorites.revision });
+      assert.deepEqual(repeated.data, savedFavorites);
+    });
+    await check("favorites survive server restart and return through the storefront snapshot", async () => {
+      await stop();
+      await start();
+      assert.deepEqual((await request(favoriteGuest, "/api/favorites")).data, savedFavorites);
+      assert.deepEqual((await request(favoriteGuest, "/api/storefront")).data.favorites, savedFavorites);
+      const removed = await request(favoriteGuest, "/api/favorites", "PUT", { itemId: savedFavorites.itemIds[0], saved: false, revision: savedFavorites.revision });
+      assert.equal(removed.status, 200);
+      assert.deepEqual(removed.data.itemIds, []);
+      assert.notEqual(removed.data.revision, savedFavorites.revision);
+    });
     let seen;
     const send = async (message, confirm = false) => {
       const result = await request(alice, "/api/chat", "POST", {

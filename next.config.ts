@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: process.env.KFC_BUILD_STANDALONE === "1" ? "standalone" : undefined,
+  outputFileTracingIncludes: { "/*": ["./scripts/parse-kfc-menu.py"] },
   outputFileTracingExcludes: {
     "/*": [
       "./.local/**/*",

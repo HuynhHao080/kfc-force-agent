@@ -22,6 +22,8 @@ export interface UserPreferences {
   userId: string;
   language: "vi" | "en";
   defaultAddressId?: string;
+  favoriteMenuItemIds?: string[];
+  favoritesRevision?: string;
   createdAt: string;
   updatedAt: string;
 }

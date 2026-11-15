@@ -8,8 +8,9 @@ import {
   BundleItem,
 } from "@/lib/types/menu";
 import { z } from "zod";
+import { menuSearchOptionsSchema, type MenuSearchOptions } from "@/lib/validation/menu";
 
-export interface MenuToolInput {
+export interface MenuToolInput extends MenuSearchOptions {
   operation:
     | "list_categories"
     | "list_items"
@@ -49,6 +50,7 @@ export class MenuTool extends AgentTool<MenuToolInput, MenuToolOutput> {
   }
 
   readonly inputSchema = z.object({
+    ...menuSearchOptionsSchema.shape,
     operation: z.enum([
       "list_categories",
       "list_items",
@@ -88,17 +90,11 @@ export class MenuTool extends AgentTool<MenuToolInput, MenuToolOutput> {
         return { categories };
 
       case "list_items":
-        const allItems: MenuItem[] = input.categoryId
-          ? await this.menuService.getItemsByCategory(input.categoryId)
-          : await this.menuService.getMenuItems();
-        // Never surface inactive/unavailable products to the customer.
-        return {
-          items: allItems.filter((item) => item.isActive && item.isAvailable),
-        };
+        return { items: await this.menuService.searchMenuItemsForCustomer("", input) };
 
       case "search":
         const searchResults = await this.menuService.searchMenuItemsForCustomer(
-          input.query || "",
+          input.query || "", input,
         );
         return {
           items: searchResults,
