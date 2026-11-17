@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import { useState } from "react";
-import { menuImage } from "@/lib/menu-images";
+import { menuImageForItem } from "@/lib/menu-images";
 
 export function MenuImage({
   imageUrl,
@@ -17,7 +17,7 @@ export function MenuImage({
   priority?: boolean;
 }) {
   const [failedSource, setFailedSource] = useState<string | null>(null);
-  const original = menuImage(imageUrl);
+  const original = menuImageForItem(imageUrl, alt);
   const source =
     failedSource === original ? "/images/fried-chicken.svg" : original;
   return (
