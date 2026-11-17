@@ -2663,6 +2663,23 @@ dialog::backdrop {
   box-shadow: 0 9px 22px #53121b35;
 }
 
+.storefront .hero-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.storefront .hero-actions .hero-stamp {
+  position: relative;
+  inset: auto;
+  flex: 0 0 72px;
+  width: 72px;
+  height: 72px;
+  margin: 0;
+  font-size: 12px;
+}
+
 .storefront .hero-art {
   perspective: 900px;
 }
@@ -2988,15 +3005,20 @@ dialog::backdrop {
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .storefront .hero:hover {
+    transform: perspective(1100px) rotateX(var(--tilt-y, 0deg)) rotateY(var(--tilt-x, 0deg));
+    transition: transform 220ms ease-out;
+  }
+
   .storefront .menu-card:hover {
     border-color: #e6c6b7;
     box-shadow: 0 22px 40px #43261b18;
-    transform: perspective(1000px) translateY(-7px) rotateX(1.5deg) rotateY(-1.5deg);
+    transform: perspective(1000px) translateY(-7px) rotateX(var(--tilt-y, 1.5deg)) rotateY(var(--tilt-x, -1.5deg));
   }
 
   .storefront .menu-card:hover .food-art img {
-    filter: drop-shadow(0 22px 13px #4b2d1c2b);
-    transform: translate3d(0, -5px, 32px) scale(1.04) rotate(-2deg);
+    filter: drop-shadow(0 12px 9px #4b2d1c24);
+    transform: translate3d(0, -3px, 12px) scale(1.035) rotate(-0.5deg);
   }
 }
 
@@ -3086,6 +3108,423 @@ dialog::backdrop {
   .storefront .menu-card,
   .storefront .assistant-avatar,
   .storefront .cart-dropdown {
+    animation: none;
+  }
+}
+
+/* Editorial, ingredient-led storefront inspired by the reference site, using KFC reds and warm paper tones. */
+.storefront {
+  --cream: #fbf5e9;
+  --ink: #28231f;
+  --muted: #766b61;
+  --line: #e9ddcc;
+  background:
+    radial-gradient(ellipse at 5% 18%, #edddbd88, transparent 28rem),
+    radial-gradient(ellipse at 96% 60%, #f2e5d488, transparent 30rem),
+    var(--cream);
+}
+
+.storefront .main-shell {
+  max-width: 1440px;
+  padding-inline: clamp(18px, 4vw, 64px);
+}
+
+.storefront .site-header {
+  background: #fbf5e9eF;
+  border-color: #e6dac8;
+}
+
+.storefront .hero {
+  min-height: clamp(390px, 42vw, 560px);
+  border: 1px solid #eadbc6;
+  border-radius: 30px;
+  background:
+    radial-gradient(ellipse at 82% 76%, #e7bd6c45, transparent 24rem),
+    linear-gradient(115deg, #fffaf0 0%, #f7eddc 100%);
+  box-shadow: 0 28px 70px #60402016;
+  color: var(--ink);
+}
+
+.storefront .hero::before {
+  opacity: .32;
+  background-image: radial-gradient(#ad7b4830 .8px, transparent .8px);
+  background-size: 13px 13px;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 55%, transparent 100%);
+}
+
+.storefront .hero::after {
+  right: -130px;
+  top: -190px;
+  width: 610px;
+  height: 610px;
+  border-color: #c8102e24;
+  box-shadow: 0 0 0 38px #c8102e08, 0 0 0 78px #c8102e06;
+}
+
+.storefront .hero-copy {
+  align-self: center;
+  padding: clamp(28px, 5vw, 68px);
+}
+
+.storefront .hero .eyebrow {
+  color: var(--red);
+  letter-spacing: .16em;
+}
+
+.storefront .hero h1 {
+  max-width: 9ch;
+  color: var(--ink);
+  font-size: clamp(42px, 6.7vw, 84px);
+  line-height: .98;
+  letter-spacing: -.065em;
+}
+
+.storefront .hero h1 em {
+  color: var(--red);
+  font-size: 1.04em;
+}
+
+.storefront .hero p {
+  max-width: 36ch;
+  color: #65594e;
+  font-size: clamp(14px, 1.35vw, 17px);
+}
+
+.storefront .hero .button {
+  min-height: 50px;
+  padding-inline: 24px;
+  border-radius: 999px;
+  background: var(--red);
+  color: white;
+  box-shadow: 0 12px 25px #a5162d2a;
+}
+
+.storefront .hero .button:hover {
+  background: var(--red-dark);
+  transform: translateY(-2px);
+}
+
+.storefront .hero-art {
+  min-height: 340px;
+  transform-style: preserve-3d;
+}
+
+.storefront .hero-art::before {
+  content: none;
+}
+
+.storefront .hero-art > img {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 590px);
+  max-height: 400px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  filter: drop-shadow(0 27px 20px #5a341e2a);
+  mix-blend-mode: multiply;
+}
+
+.storefront .hero-food-collage {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+.storefront .hero-food-piece {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 22px 17px #5a341e30);
+  transform-style: preserve-3d;
+  transform: perspective(1000px)
+    rotateX(calc(var(--base-rotate-x, 0deg) + var(--scroll-rotate-x, 0deg)))
+    rotateY(calc(var(--base-rotate-y, 0deg) + var(--scroll-rotate-y, 0deg)))
+    rotateZ(var(--base-rotate-z, 0deg));
+  translate: var(--scroll-x, 0px) var(--scroll-y, 0px) var(--depth-z, 0px);
+  will-change: transform, translate;
+}
+
+.storefront .hero-food-piece img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+
+.storefront .hero-food-piece-1 {
+  z-index: 3;
+  top: 10%;
+  bottom: 3%;
+  left: -4%;
+  width: 64%;
+  --base-rotate-x: -3deg;
+  --base-rotate-y: 8deg;
+  --base-rotate-z: -2deg;
+  --depth-z: 28px;
+}
+
+.storefront .hero-food-piece-2 {
+  z-index: 2;
+  top: 1%;
+  right: -3%;
+  bottom: 4%;
+  width: 60%;
+  --base-rotate-x: 2deg;
+  --base-rotate-y: -8deg;
+  --base-rotate-z: 1deg;
+  --depth-z: -10px;
+}
+
+.storefront .hero-food-piece-3 {
+  z-index: 4;
+  right: 0;
+  bottom: 0;
+  width: 39%;
+  height: 53%;
+  --base-rotate-x: -2deg;
+  --base-rotate-y: -7deg;
+  --depth-z: 40px;
+}
+
+.storefront .hero.hero-purchase {
+  border-color: #eadbc6;
+  background:
+    radial-gradient(ellipse at 82% 76%, #e7bd6c45, transparent 24rem),
+    linear-gradient(115deg, #fffaf0 0%, #f7eddc 100%);
+}
+
+.storefront.purchase-storefront .hero.hero-purchase h1,
+.storefront.purchase-storefront .hero.hero-purchase .eyebrow {
+  color: var(--red);
+}
+
+.storefront.purchase-storefront .hero.hero-purchase p {
+  color: #65594e;
+}
+
+.storefront.purchase-storefront .hero.hero-purchase .button {
+  background: var(--red);
+  color: #fff;
+  box-shadow: 0 12px 25px #a5162d2a;
+}
+
+.storefront.purchase-storefront .hero.hero-purchase .hero-art > img {
+  width: min(100%, 590px);
+  height: auto;
+  max-height: 400px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+
+.storefront .service-strip {
+  border: 1px solid #e9ddcc;
+  border-radius: 18px;
+  background: #fffaf1;
+  box-shadow: 0 12px 30px #6040200b;
+}
+
+.storefront .category-navigation {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.storefront .category-list {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin: 0;
+  padding-block: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.storefront .category-scroll {
+  display: grid;
+  place-items: center;
+  align-self: center;
+  width: 36px;
+  min-width: 36px;
+  height: 42px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #fffaf1;
+  color: var(--ink);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.storefront .category-scroll:hover {
+  background: #f1e5d2;
+  color: var(--red);
+}
+
+.storefront .menu-card {
+  border: 1px solid #e9ddcc;
+  border-radius: 24px;
+  background: #fffdf8;
+  box-shadow: 0 14px 34px #6040200c;
+}
+
+.storefront .food-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: clamp(225px, 21vw, 270px);
+  min-height: 225px;
+  padding: 30px 12px 16px;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 50% 80%, #d9bd8a75 0%, transparent 57%),
+    radial-gradient(ellipse at 50% 35%, #fff8e9 0%, transparent 56%),
+    linear-gradient(145deg, #f4ead6, #eadbc3);
+  perspective: 850px;
+}
+
+.storefront .food-art-label,
+.storefront .food-art-index {
+  position: absolute;
+  z-index: 3;
+  top: 16px;
+  color: #715735;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .13em;
+  line-height: 1;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.storefront .food-art-label {
+  left: 18px;
+}
+
+.storefront .food-art-index {
+  right: 62px;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.storefront .food-art img {
+  position: relative;
+  z-index: 1;
+  width: min(86%, 360px);
+  height: 84%;
+  object-fit: contain;
+}
+
+.storefront .shop-public,
+.storefront .assistant-panel,
+.storefront .panel {
+  border-color: #e9ddcc;
+  box-shadow: 0 14px 34px #6040200c;
+}
+
+.storefront .site-footer {
+  border-color: #e2d4c1;
+}
+
+@media (max-width: 800px) {
+  .storefront .hero {
+    min-height: 480px;
+    border-radius: 24px;
+  }
+
+  .storefront .hero-copy {
+    padding: 28px 25px 0;
+  }
+
+  .storefront .hero h1 {
+    max-width: 11ch;
+    font-size: clamp(42px, 11vw, 62px);
+  }
+
+  .storefront .hero-art {
+    height: clamp(230px, 68vw, 310px);
+    min-height: 0;
+    margin-top: -4px;
+  }
+
+  .storefront .hero-art > img,
+  .storefront.purchase-storefront .hero.hero-purchase .hero-art > img {
+    width: min(88%, 430px);
+    max-height: 240px;
+    margin: 0 auto;
+  }
+
+  .storefront .hero-food-piece-1 {
+    top: 12%;
+    bottom: 0;
+    left: -7%;
+    width: 64%;
+  }
+
+  .storefront .hero-food-piece-2 {
+    top: 2%;
+    right: -6%;
+    bottom: 2%;
+    width: 61%;
+  }
+
+  .storefront .hero-food-piece-3 {
+    right: 0;
+    bottom: -2%;
+    width: 39%;
+    height: 53%;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .storefront .hero .button:hover {
+    transform: none;
+  }
+
+}
+
+@supports (animation-timeline: view()) {
+  .storefront .scroll-reveal {
+    animation: scroll-content-enter linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 48%;
+  }
+}
+
+@keyframes scroll-content-enter {
+  from {
+    opacity: 0;
+    transform: perspective(1000px) translate3d(0, 34px, -22px) rotateX(6deg);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(1000px) translate3d(0, 0, 0) rotateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .storefront .scroll-reveal {
     animation: none;
   }
 }
