@@ -646,11 +646,17 @@ export function Storefront() {
   if (menuSort === "price-asc") filtered.sort((a, b) => a.price - b.price || a.name.localeCompare(b.name, "vi"));
   if (menuSort === "price-desc") filtered.sort((a, b) => b.price - a.price || a.name.localeCompare(b.name, "vi"));
   if (menuSort === "name") filtered.sort((a, b) => a.name.localeCompare(b.name, "vi"));
+  const revealKey = filtered.map(item => item.id).join("|");
   const count = basket.items.reduce((sum, item) => sum + item.quantity, 0);
   const disabled = busy || !ready;
   const purchaseAssistant = purchaseMode === "kfc-assistant";
   const compared = items.filter(item => compareIds.includes(item.id));
   const favoriteCount = items.filter(item => favorites?.itemIds.includes(item.id)).length;
+  const heroArtwork = [
+    { name: "kfc-burger", src: "/images/burger-1.svg", depth: 0.48 },
+    { name: "kfc-combo", src: "/images/combo-1.svg", depth: 0.72 },
+    { name: "kfc-pepsi", src: "/images/pepsi-1.svg", depth: 1 },
+  ];
   const toggleFavorite = (item: MenuItem) => run(async () => {
     if (!favorites) return;
     const saved = !favorites.itemIds.includes(item.id);
@@ -675,6 +681,123 @@ export function Storefront() {
       document.getElementById("desktop-assistant-message")?.focus({ preventScroll: true });
     }
   };
+  useEffect(() => {
+    if (!ready || tab !== "menu") return;
+
+    const elements = document.querySelectorAll<HTMLElement>(".storefront .scroll-reveal");
+    if (!("IntersectionObserver" in window)) {
+      elements.forEach(element => element.classList.add("is-visible"));
+      return;
+    }
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      });
+    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.12 });
+
+    elements.forEach(element => {
+      if (element.classList.contains("is-visible")) return;
+      observer.observe(element);
+    });
+
+    return () => observer.disconnect();
+  }, [error, filtersOpen, notice, ready, revealKey, tab]);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+        !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+
+    const reset = (element: HTMLElement) => {
+      element.style.removeProperty("--tilt-x");
+      element.style.removeProperty("--tilt-y");
+    };
+    const cards = document.querySelectorAll<HTMLElement>(".storefront .menu-card");
+    const hero = document.querySelector<HTMLElement>(".storefront .hero");
+    const tracked = [...cards, ...(hero ? [hero] : [])];
+    const cleanups = tracked.map(element => {
+      const onMove = (event: PointerEvent) => {
+        const bounds = element.getBoundingClientRect();
+        const x = (event.clientX - bounds.left) / bounds.width - 0.5;
+        const y = (event.clientY - bounds.top) / bounds.height - 0.5;
+        element.style.setProperty("--tilt-x", `${(x * 8).toFixed(2)}deg`);
+        element.style.setProperty("--tilt-y", `${(-y * 7).toFixed(2)}deg`);
+      };
+      const onLeave = () => reset(element);
+      element.addEventListener("pointermove", onMove);
+      element.addEventListener("pointerleave", onLeave);
+      return () => {
+        element.removeEventListener("pointermove", onMove);
+        element.removeEventListener("pointerleave", onLeave);
+        reset(element);
+      };
+    });
+
+    return () => cleanups.forEach(cleanup => cleanup());
+  }, [ready, revealKey, tab]);
+  useEffect(() => {
+    if (!ready || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const artwork = document.querySelector<HTMLElement>(".storefront .hero-art");
+    const pieces = [...document.querySelectorAll<HTMLElement>(".storefront .hero-food-piece")];
+    if (!artwork || !pieces.length) return;
+
+    let frame = 0;
+    const positions = new Map<HTMLElement, { x: number; y: number; rotateX: number; rotateY: number }>();
+    const updateParallax = () => {
+      frame = 0;
+      const bounds = artwork.getBoundingClientRect();
+      const viewport = Math.max(window.innerHeight, 1);
+      const progress = Math.max(-1, Math.min(1, ((viewport * 0.58) - (bounds.top + bounds.height / 2)) / (viewport * 0.72)));
+      let stillEasing = false;
+
+      pieces.forEach(piece => {
+        const depth = Number(piece.dataset.scrollDepth) || 0.5;
+        const target = {
+          x: progress * depth * 14,
+          y: progress * depth * -34,
+          rotateX: progress * depth * -9,
+          rotateY: progress * depth * 14,
+        };
+        const current = positions.get(piece) ?? { x: 0, y: 0, rotateX: 0, rotateY: 0 };
+        const next = {
+          x: current.x + (target.x - current.x) * 0.16,
+          y: current.y + (target.y - current.y) * 0.16,
+          rotateX: current.rotateX + (target.rotateX - current.rotateX) * 0.16,
+          rotateY: current.rotateY + (target.rotateY - current.rotateY) * 0.16,
+        };
+        const settled = Math.abs(target.y - next.y) < 0.15 && Math.abs(target.rotateY - next.rotateY) < 0.08;
+        positions.set(piece, settled ? target : next);
+        piece.style.setProperty("--scroll-x", `${(settled ? target.x : next.x).toFixed(2)}px`);
+        piece.style.setProperty("--scroll-y", `${(settled ? target.y : next.y).toFixed(2)}px`);
+        piece.style.setProperty("--scroll-rotate-x", `${(settled ? target.rotateX : next.rotateX).toFixed(2)}deg`);
+        piece.style.setProperty("--scroll-rotate-y", `${(settled ? target.rotateY : next.rotateY).toFixed(2)}deg`);
+        if (!settled) stillEasing = true;
+      });
+
+      if (stillEasing) frame = window.requestAnimationFrame(updateParallax);
+    };
+    const requestParallax = () => {
+      if (!frame) frame = window.requestAnimationFrame(updateParallax);
+    };
+
+    window.addEventListener("scroll", requestParallax, { passive: true });
+    window.addEventListener("resize", requestParallax);
+    requestParallax();
+
+    return () => {
+      window.removeEventListener("scroll", requestParallax);
+      window.removeEventListener("resize", requestParallax);
+      if (frame) window.cancelAnimationFrame(frame);
+      pieces.forEach(piece => {
+        piece.style.removeProperty("--scroll-x");
+        piece.style.removeProperty("--scroll-y");
+        piece.style.removeProperty("--scroll-rotate-x");
+        piece.style.removeProperty("--scroll-rotate-y");
+      });
+    };
+  }, [ready]);
   const dismissPending = () => run(async () => {
     if (!pending) return;
     await customerRequest(`/api/chat?confirmationId=${encodeURIComponent(pending.id)}`, { method: "DELETE" });
@@ -795,7 +918,7 @@ export function Storefront() {
         </div>
       </header>
       <main id="main-content" className="main-shell">
-        <div className="customer-toolbar">
+        <div className="customer-toolbar scroll-reveal">
           <span>
             {profile
               ? `Xin chào, ${profile.fullName}`
@@ -858,26 +981,30 @@ export function Storefront() {
             <p>
               {purchaseAssistant ? "Tìm món bạn thích. Chuẩn bị giỏ cùng trợ lý." : <>Chọn món bạn mê, thêm chút giòn vui.<br />Bữa ngon chỉ cách vài lần chạm.</>}
             </p>
-            <a
-              className="button cream"
-              href="#menu-title"
-              onClick={() => setTab("menu")}
-            >
-              Chọn món ngay <span aria-hidden="true">↗</span>
-            </a>
+            <div className="hero-actions">
+              <a
+                className="button cream"
+                href="#menu-title"
+                onClick={() => setTab("menu")}
+              >
+                Chọn món ngay <span aria-hidden="true">↗</span>
+              </a>
+              {!purchaseAssistant && <span className="hero-stamp">GIÒN<br /><b>HẾT Ý!</b></span>}
+            </div>
           </div>
           <div className="hero-art" aria-hidden="true">
-            {!purchaseAssistant && <span className="hero-stamp">
-              GIÒN
-              <br />
-              <b>HẾT Ý!</b>
-            </span>}
-            {purchaseAssistant && items[0] ? <MenuImage imageUrl={items[0].imageUrl} alt="" width={560} height={380} priority /> :
-              <Image src="/images/feast.svg" alt="" width={560} height={380} priority />}
+            {purchaseAssistant && items[0] ? <MenuImage imageUrl={items[0].imageUrl} alt={items[0].name} width={560} height={380} priority /> :
+              <div className="hero-food-collage">
+                {heroArtwork.map((item, index) => (
+                  <div className={`hero-food-piece hero-food-piece-${index + 1}`} data-scroll-depth={item.depth} key={item.name}>
+                    <Image src={item.src} alt="" width={560} height={560} priority={index === 0} />
+                  </div>
+                ))}
+              </div>}
             {!purchaseAssistant && <span className="hero-caption">GOOD FOOD. GOOD MOOD.</span>}
           </div>
         </section>
-        {!purchaseAssistant && <section className="shop-public panel" aria-label="Thông tin cửa hàng">
+        {!purchaseAssistant && <section className="shop-public panel scroll-reveal" aria-label="Thông tin cửa hàng">
           {!shop ? <p role="status">Chưa kiểm tra được điều kiện nhận đơn. Hãy làm mới trước khi đặt món.</p> : <>
             <div className="section-heading"><strong>{shop.settings.name}</strong><span className="status-badge">{shop.availability.canPickup || shop.availability.canDelivery ? "Đang nhận đơn" : "Tạm ngừng"}</span></div>
             <p role="status">{shop.availability.message}</p>
@@ -890,7 +1017,7 @@ export function Storefront() {
             </details>
           </>}
         </section>}
-        <div className="service-strip">
+        <div className="service-strip scroll-reveal">
           {purchaseAssistant ? <>
             <span><i className="green-dot" aria-hidden="true"/> Thực đơn từ KFC Việt Nam</span>
             <a href="https://kfcvietnam.com.vn/menu" target="_blank" rel="noopener noreferrer">Đặt món tại KFC ↗</a>
@@ -903,7 +1030,7 @@ export function Storefront() {
           </>}
         </div>
         {error && (
-          <div role="alert" className="error-box page-alert">
+          <div role="alert" className="error-box page-alert scroll-reveal">
             <span>{error}</span>
             {!ready ? (
               <button
@@ -929,7 +1056,7 @@ export function Storefront() {
           </div>
         )}
         {notice && (
-          <div className="notice-box storefront-notice">
+          <div className="notice-box storefront-notice scroll-reveal">
             <span role="status">{notice}</span>
             <button type="button" aria-label="Ẩn thông báo" onClick={() => setNotice("")}>×</button>
           </div>
@@ -938,7 +1065,7 @@ export function Storefront() {
           <div className="catalog-column">
             {tab === "menu" ? (
               <section aria-labelledby="menu-title">
-                <div className="section-heading catalog-heading">
+                <div className="section-heading catalog-heading scroll-reveal">
                   <div>
                     <h2 id="menu-title" className="icon-heading">
                       {category === "all" ? "Thực đơn" : categories.find(entry => entry.id === category)?.name ?? "Thực đơn"}
@@ -948,11 +1075,11 @@ export function Storefront() {
                     {ready ? `${filtered.length} / ${items.length} món` : "Đang lên món…"}
                   </span>
                 </div>
-                {purchaseAssistant && <CatalogFreshness version={catalogVersion}
+                {purchaseAssistant && <div className="scroll-reveal"><CatalogFreshness version={catalogVersion}
                   capturedAt={(items[0]?.metadata?.source as { fetchedAt?: string } | undefined)?.fetchedAt}
                   paused={disabled || checkoutOpen || accountOpen || settingsOpen || addressesOpen || handoffOpen || !!product}
-                  onUpdate={refresh} />}
-                <div className="menu-tools">
+                  onUpdate={refresh} /></div>}
+                <div className="menu-tools scroll-reveal">
                 <label className="search-box">
                   <span aria-hidden="true">⌕</span>
                   <span className="sr-only">Tìm món ăn</span>
@@ -964,7 +1091,7 @@ export function Storefront() {
                   />
                 </label>
                 </div>
-                <div className="menu-preferences">
+                <div className="menu-preferences scroll-reveal">
                 <button type="button" className="catalog-filter-toggle" aria-label="Bộ lọc và sắp xếp"
                   aria-expanded={filtersOpen} aria-controls="catalog-filter-fields" onClick={() => setFiltersOpen(open => !open)}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="white"/><circle cx="15" cy="17" r="3" fill="white"/></svg>
@@ -976,7 +1103,7 @@ export function Storefront() {
                   <span aria-hidden="true">♥</span> Món yêu thích <strong>{favoriteCount}</strong>
                 </button>
                 </div>
-                {filtersOpen && <div className="catalog-filter-fields" id="catalog-filter-fields">
+                {filtersOpen && <div className="catalog-filter-fields scroll-reveal" id="catalog-filter-fields">
                 <label className="menu-sort">Sắp xếp
                   <select value={menuSort} onChange={event => setMenuSort(event.target.value)}>
                     <option value="default">Theo thực đơn</option>
@@ -994,7 +1121,7 @@ export function Storefront() {
                   </span>
                 </label>
                 </div>}
-                <div className="category-navigation">
+                <div className="category-navigation scroll-reveal">
                 <button type="button" className="category-scroll" aria-label="Cuộn danh mục sang trái" onClick={() => categoryList.current?.scrollBy({ left: -240, behavior: "smooth" })}>‹</button>
                 <div
                   ref={categoryList}
@@ -1020,7 +1147,7 @@ export function Storefront() {
                 </div>
                 <button type="button" className="category-scroll" aria-label="Cuộn danh mục sang phải" onClick={() => categoryList.current?.scrollBy({ left: 240, behavior: "smooth" })}>›</button>
                 </div>
-                {(query || maximumPrice || category !== "all" || favoritesOnly || menuSort !== "default") && <div className="active-filters">
+                {(query || maximumPrice || category !== "all" || favoritesOnly || menuSort !== "default") && <div className="active-filters scroll-reveal">
                   <span role="status">{filtered.length} món phù hợp{query ? ` với “${query}”` : ""}</span>
                   <button className="text-button" onClick={() => { setQuery(""); setCategory("all"); setMaximumPrice(""); setFavoritesOnly(false); setMenuSort("default"); }}>Xoá bộ lọc</button>
                 </div>}
@@ -1071,9 +1198,9 @@ export function Storefront() {
                 <div className="menu-grid">
                   {filtered.map((item, index) => (
                     <article
-                      className="menu-card"
+                      className="menu-card scroll-reveal"
                       key={item.id}
-                      style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+                      style={{ transitionDelay: `${Math.min(index, 8) * 45}ms` }}
                     >
                       <button type="button" className="favorite-button"
                         aria-label={`${favorites?.itemIds.includes(item.id) ? "Bỏ lưu" : "Lưu yêu thích"} ${item.name}`}
@@ -1082,6 +1209,10 @@ export function Storefront() {
                         <span aria-hidden="true">{favorites?.itemIds.includes(item.id) ? "♥" : "♡"}</span>
                       </button>
                       <button type="button" className={`food-art product-photo-trigger food-${index % 3}`} aria-label={`Ảnh và thông tin ${item.name}`} onClick={() => { setError(""); setProduct(item); }}>
+                        <span className="food-art-label" aria-hidden="true">
+                          {categories.find(entry => entry.id === item.categoryId)?.name ?? "KFC"}
+                        </span>
+                        <span className="food-art-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
                         <MenuImage
                           imageUrl={item.imageUrl}
                           alt={item.name}
@@ -1146,7 +1277,7 @@ export function Storefront() {
               />
             )}
           </div>
-          <aside className="sidebar desktop-assistant">
+          <aside className="sidebar desktop-assistant scroll-reveal">
             <AssistantPanel key={conversationOwner ?? "loading"} id="desktop-assistant" messages={messages} pending={pending} busy={chatBusy} readOnlyLlm={readOnlyLlm}
               onChooseProduct={id => { const item = items.find(item => item.id === id); if (item) sendMessage(`Thêm 1 ${item.name}`, undefined, { itemId: id, quantity: 1 }); }}
               onViewProduct={id => { const item = items.find(item => item.id === id); if (item) setProduct(item); }}
@@ -1154,7 +1285,7 @@ export function Storefront() {
               onDismiss={dismissPending} />
           </aside>
         </div>
-        <footer className="site-footer">
+        <footer className="site-footer scroll-reveal">
           <strong>IT’S FINGER LICKIN’ GOOD.</strong>
           <p>{purchaseAssistant ? "KFC Force Agent · Trợ lý lựa chọn món độc lập · Đặt hàng tại KFC Việt Nam" : "Project học tập KFC Force Agent · Giá và thực đơn minh hoạ"}</p>
           <span className="brand-stripes" aria-hidden="true">
