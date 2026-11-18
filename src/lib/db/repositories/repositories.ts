@@ -19,8 +19,10 @@ export interface RepositorySet {
 export type PersistenceDriver = "mock" | "local" | "dynamodb";
 
 /** Local durable storage is the default. Cloud persistence is always explicit. */
-export function resolvePersistenceDriver(): PersistenceDriver {
-  const configured = process.env.PERSISTENCE_DRIVER?.toLowerCase();
+export function resolvePersistenceDriver(
+  env: Record<string, string | undefined> = process.env,
+): PersistenceDriver {
+  const configured = env.PERSISTENCE_DRIVER?.toLowerCase();
   if (configured === "local") return "local";
   if (configured === "mock") return "mock";
   if (configured === "dynamodb") return "dynamodb";
