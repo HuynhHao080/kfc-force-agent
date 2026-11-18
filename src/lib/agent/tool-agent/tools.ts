@@ -109,5 +109,5 @@ export interface ToolAgentDeps {
   proposeChanges(changes: CartChange[]): Promise<ProposalResult>;
   officialInfo(topic: OfficialTopic): { topic: OfficialTopic; url: string; note: string };
   /** Every catalog item with its current price and availability, for the fact check. */
-  catalog(): Promise<{ id: string; name: string; price: number; available: boolean; category?: string }[]>;
+  catalog(): Promise<{ id: string; name: string; price: number; available: boolean; retired?: boolean; category?: string }[]>;
 }

@@ -19,7 +19,8 @@ import { normalizeVietnamese } from "@/lib/menu-search";
  *      in a bullet that is not a total or budget line;
  *   7. open with "Xong" before the customer has confirmed anything.
  */
-export interface CatalogFact { id: string; name: string; price: number; available: boolean; category?: string }
+/** `retired`: no longer on the KFC menu at all (not just sold out right now). */
+export interface CatalogFact { id: string; name: string; price: number; available: boolean; retired?: boolean; category?: string }
 export interface Evidence { catalog: CatalogFact[] }
 
 export interface GuardResult {
@@ -135,7 +136,9 @@ export function checkReply(reply: string, evidence: Evidence): GuardResult {
       if (price && !(price.value % hit.item.price === 0 && price.value / hit.item.price <= 20))
         problems.push(`Giá của "${hit.item.name}" là ${hit.item.price.toLocaleString("vi-VN")} ₫, không phải ${price.value.toLocaleString("vi-VN")} ₫.`);
       if (!hit.item.available && !UNAVAILABLE_WORDS.test(original))
-        problems.push(`"${hit.item.name}" đang tạm hết; nói rõ với khách thay vì gợi ý món này.`);
+        problems.push(hit.item.retired
+          ? `"${hit.item.name}" đã ngừng bán (KFC không còn món này); nói rõ với khách và gợi ý món đang bán.`
+          : `"${hit.item.name}" đang tạm hết; nói rõ với khách thay vì gợi ý món này.`);
       if (hit.item.available) referencedIds.push(hit.item.id);
     });
   }

@@ -712,7 +712,7 @@ async function runToolAgent(
       return { topic, url, note };
     },
     async catalog() {
-      return catalogItems.map((item) => ({ id: item.id, name: item.name, price: item.price, available: item.isActive && item.isAvailable, category: categoryName.get(item.categoryId) }));
+      return catalogItems.map((item) => ({ id: item.id, name: item.name, price: item.price, available: item.isActive && item.isAvailable, retired: !item.isActive, category: categoryName.get(item.categoryId) }));
     },
   };
   try {

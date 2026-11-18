@@ -308,3 +308,84 @@ test("19 live v8 failures are caught; live replies that were nearly blocked by m
   assert.equal(check("Bạn thích gà rán, combo hay burger?").ok, true);
   assert.equal(check("Mình đã đề xuất 2 Khoai Tây Chiên (Vừa), xong bạn bấm nút Xác nhận nhé.").ok, true, "only an opening 'Xong' is a claim");
 });
+
+test("20 real-time availability: admin marks an item sold out → agent, guard and cart all follow; re-enabled → offered again", async () => {
+  const item = (await services.menuService.getMenuItems()).find((i) => i.name.normalize("NFC") === "Pepsi (Lon)");
+  assert.ok(item?.isAvailable, "fixture item starts available");
+  // The admin screen path (same service as PATCH /api/admin/menu).
+  const setAvailable = (isAvailable) => services.adminService.saveMenu({
+    name: item.name, description: item.description ?? "", categoryId: item.categoryId, price: item.price,
+    isActive: item.isActive, isAvailable, imageUrl: item.imageUrl ?? "/images/burger.svg",
+  }, item.id);
+  const userId = user();
+  try {
+    // 1. Available: found, and a proposal is prepared (not confirmed yet).
+    const before = await turn(scripted([
+      tool("search_menu", { query: "pepsi lon" }),
+      (messages) => {
+        assert.ok(lastToolResult(messages).items.some((i) => i.id === item.id));
+        return tool("propose_cart_change", { changes: [{ action: "add", item_id: item.id, quantity: 1 }] });
+      },
+      text(`Mình đề xuất thêm 1 ${item.name}, bạn bấm “Xác nhận thao tác” nhé.`),
+    ]), userId, "cho mình 1 pepsi lon");
+    assert.equal(before.requiresConfirmation, true);
+
+    // 2. The admin marks it sold out while the proposal is still waiting.
+    await setAvailable(false);
+
+    // 3. The old proposal can no longer add the item.
+    const stale = await services.chatService.processChat({ platform: "web", userId, sessionId: "s", message: "Xác nhận", confirm: true, confirmationId: before.pendingConfirmation.id });
+    assert.match(stale.reply.normalize("NFC"), /đã thay đổi/, "the menu signature in the proposal no longer matches");
+    assert.equal((await services.cartService.getCartView(userId))?.items.length ?? 0, 0, "a sold-out item never reaches the cart");
+
+    // 4. A new turn sees the change immediately: not in results, reported as sold out,
+    //    a new proposal is blocked, and offering it is rejected by the guard.
+    const after = await turn(scripted([
+      tool("search_menu", { query: "pepsi lon" }),
+      (messages) => {
+        const result = lastToolResult(messages);
+        assert.ok(!result.items.some((i) => i.id === item.id), "sold-out item is not offered by search");
+        assert.ok(result.soldOut.some((name) => name.normalize("NFC") === "Pepsi (Lon)"), "search reports it as sold out");
+        return tool("propose_cart_change", { changes: [{ action: "add", item_id: item.id, quantity: 1 }] });
+      },
+      (messages) => {
+        assert.equal(lastToolResult(messages).status, "blocked", "policy blocks a sold-out item");
+        return text(`Bạn lấy ${item.name} nhé, 20.000 ₫.`);
+      },
+      (messages) => {
+        assert.match(messages.at(-1).content, /tạm hết/, "the guard tells the model the item is sold out");
+        return text(`${item.name} đang tạm hết, bạn thử Pepsi (Đại) cùng giá 20.000 ₫ nhé?`);
+      },
+    ]), userId, "cho mình 1 pepsi lon");
+    assert.match(after.reply.normalize("NFC"), /tạm hết/);
+    assert.equal(after.requiresConfirmation, false);
+    assert.ok(!after.products.some((p) => p.id === item.id), "no product card for a sold-out item");
+
+    // 5. Re-enabled: offered and proposable again on the next turn.
+    await setAvailable(true);
+    const again = await turn(scripted([
+      tool("search_menu", { query: "pepsi lon" }),
+      (messages) => {
+        assert.ok(lastToolResult(messages).items.some((i) => i.id === item.id));
+        return tool("propose_cart_change", { changes: [{ action: "add", item_id: item.id, quantity: 1 }] });
+      },
+      text(`${item.name} đã có lại, mình đề xuất thêm 1 phần, bạn bấm “Xác nhận thao tác” nhé.`),
+    ]), userId, "pepsi lon có lại chưa, lấy 1");
+    assert.equal(again.requiresConfirmation, true);
+  } finally {
+    await setAvailable(true);
+  }
+});
+
+test("21 a retired item (removed from the KFC menu) is reported as discontinued, not as temporarily sold out", () => {
+  const catalog = [
+    { id: "old", name: "Xô Zòn Zã 159K", price: 159000, available: false, retired: true, category: "Ưu Đãi" },
+    { id: "new", name: "Xô Zòn Zã 179K", price: 179000, available: true, retired: false, category: "Ưu Đãi" },
+  ];
+  const offered = checkReply("Bạn thử Xô Zòn Zã 159K nhé, 159.000 ₫.", { catalog });
+  assert.equal(offered.ok, false);
+  assert.match(offered.problems.join(" "), /ngừng bán/);
+  const honest = checkReply("Xô Zòn Zã 159K đã ngừng bán, hiện có Xô Zòn Zã 179K (179.000 ₫) bạn nhé.", { catalog });
+  assert.equal(honest.ok, true, honest.problems.join(" "));
+  assert.deepEqual(honest.referencedIds, ["new"], "no product card for the retired item");
+});
