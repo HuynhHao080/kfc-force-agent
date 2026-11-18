@@ -108,7 +108,8 @@ export interface SearchResult {
   categories?: string[]; note?: string;
 }
 export interface CartResult { lines: { item_id: string; name: string; quantity: number; unit_price: number; subtotal: number }[]; total: number }
-export interface ProposalResult { status: "awaiting_customer_confirmation" | "blocked"; summary: string[]; blocked: string[] }
+/** `items`: product names the pending proposal touches. */
+export interface ProposalResult { status: "awaiting_customer_confirmation" | "blocked"; summary: string[]; items: string[]; blocked: string[] }
 
 /** Capabilities bound to one customer and session by agent-core. */
 export interface ToolAgentDeps {

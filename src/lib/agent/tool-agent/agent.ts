@@ -68,7 +68,11 @@ export class ToolAgent {
     const finish = (reply: string, outcome: ToolAgentTrace["outcome"], referencedIds: string[] = []): ToolAgentResult =>
       ({ reply, proposal, referencedIds, trace: { ...trace, outcome, latencyMs: Date.now() - started } });
 
-    const evidence: Evidence = { catalog: await deps.catalog(), proposalPending: await deps.hasPendingProposal() };
+    const evidence: Evidence = {
+      catalog: await deps.catalog(),
+      proposalPending: await deps.hasPendingProposal(),
+      cartItems: (await deps.viewCart()).lines.map((line) => line.name),
+    };
     // When the model cannot finish its reply but a proposal exists, tell the customer what the
     // server prepared (its own summary) instead of a vague apology next to a confirm button.
     const fallback = (outcome: ToolAgentTrace["outcome"]): ToolAgentResult => {
@@ -104,7 +108,7 @@ export class ToolAgent {
         const results: Record<string, unknown>[] = [];
         for (const use of toolUses) {
           trace.toolCalls.push(use.name);
-          const output = await this.runTool(use.name, use.input, deps, (value) => { proposal = value; evidence.proposalPending = true; });
+          const output = await this.runTool(use.name, use.input, deps, (value) => { proposal = value; evidence.proposalPending = true; evidence.proposalItems = value.items; });
           results.push({ type: "tool_result", tool_use_id: use.id, content: json(output.data), ...(output.error ? { is_error: true } : {}) });
         }
         messages.push({ role: "user", content: results });
@@ -113,7 +117,10 @@ export class ToolAgent {
 
       const raw = content.filter((block) => block.type === "text").map((block) => String((block as { text?: unknown }).text ?? "")).join("\n").trim();
       // The chat bubble shows plain text: drop markdown emphasis and headings, keep bullets.
-      const reply = raw.replace(/\*\*|__/g, "").replace(/^#{1,6}\s+/gm, "").replace(/\n{3,}/g, "\n\n");
+      // A leading "Xong!" only misleads (nothing is done before the button); drop it like markdown
+      // instead of spending a model call on a rewrite. A real completion claim is still checked.
+      const reply = raw.replace(/\*\*|__/g, "").replace(/^#{1,6}\s+/gm, "").replace(/\n{3,}/g, "\n\n")
+        .replace(/^\s*xong(?:\s+rồi)?\s*[!.,:]+\s*/i, "");
       const check = checkReply(reply, evidence);
       // Local diagnosis only (TOOL_AGENT_DEBUG=1): which fact check failed.
       // Problems name catalog items and prices, never the customer's message.
@@ -150,6 +157,9 @@ export class ToolAgent {
         if (!parsed.success) return { data: { error: "Tham số propose_cart_change không hợp lệ: " + parsed.error.issues.map((i) => i.message).join("; ") }, error: true };
         const result = await deps.proposeChanges(parsed.data.changes);
         if (result.status === "awaiting_customer_confirmation") setProposal(result);
+        // Local diagnosis (TOOL_AGENT_DEBUG=1): outcome and server reasons only, no customer text.
+        if (process.env.TOOL_AGENT_DEBUG === "1")
+          console.info("tool_agent_proposal", JSON.stringify({ actions: parsed.data.changes.map((c) => c.action), status: result.status, blocked: result.blocked }));
         return { data: result };
       }
       return { data: { error: `Không có công cụ ${name}.` }, error: true };

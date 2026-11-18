@@ -128,6 +128,10 @@ test("06 confirmations, cart contents, totals and price ceilings are checked aga
     text("Mình đề xuất đổi Pepsi (Vừa) thành 2 ly, bạn bấm “Xác nhận thao tác” nhé.")], userId, cv9.turns[2].user);
   const su = scoreTurn({ ...ctx, turn: cv9.turns[2], response: update, ...(await cartOf(userId)) });
   assert.equal(su.pass, true, JSON.stringify(su.checks.filter((c) => !c.ok)));
+  // A suggestion holding two products satisfies CV-01#3 (at least one cart line).
+  const cv1c = dataset.conversations.find((c) => c.id === "CV-01").turns[2];
+  assert.equal(scoreTurn({ ...ctx, turn: cv1c, response: { reply: "ok" }, cart: [{ name: "A", quantity: 1 }, { name: "B", quantity: 1 }], cartTotal: 1 }).pass, true);
+  assert.equal(scoreTurn({ ...ctx, turn: cv1c, response: { reply: "ok" }, cart: [], cartTotal: 0 }).pass, false);
   // The cart total must appear in the reply for CV-01#4.
   const cv1 = dataset.conversations.find((c) => c.id === "CV-01");
   const { cart, cartTotal } = await cartOf(userId);

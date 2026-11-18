@@ -18,7 +18,9 @@ import { normalizeVietnamese } from "@/lib/menu-search";
  *   6. put a price on something that is not a product ("Gà rán – từ 25–50 nghìn")
  *      in a bullet that is not a total or budget line;
  *   7. open with "Xong" before the customer has confirmed anything;
- *   8. tell the customer to press “Xác nhận thao tác” when no proposal is waiting.
+ *   8. tell the customer to press “Xác nhận thao tác” when no proposal is waiting;
+ *   9. after proposing, name a product that is neither in the proposal nor in the cart
+ *      (the text would describe a different change from the one the button confirms).
  */
 /** `retired`: no longer on the KFC menu at all (not just sold out right now). */
 export interface CatalogFact { id: string; name: string; price: number; available: boolean; retired?: boolean; category?: string }
@@ -26,6 +28,10 @@ export interface Evidence {
   catalog: CatalogFact[];
   /** A cart proposal is waiting for the customer's button (this turn or an earlier one). Unknown when omitted. */
   proposalPending?: boolean;
+  /** Products in the proposal made in this turn; when set, the reply may only name these or cart items. */
+  proposalItems?: string[];
+  /** Products already in the customer's cart (a reply may describe the cart after the change). */
+  cartItems?: string[];
 }
 
 export interface GuardResult {
@@ -36,7 +42,7 @@ export interface GuardResult {
 }
 
 const COMPLETION_CLAIMS =
-  /\b(?:da (?:them|dat|xoa|bo|cap nhat|thanh toan|doi|sua|giam|tang|huy)|dat hang thanh cong|thanh toan thanh cong|da duoc (?:them|dat|xoa|cap nhat)|don hang cua ban da)\b/;
+  /\b(?:(?:da|vua) (?:them|dat|xoa|bo|cap nhat|thanh toan|doi|sua|giam|tang|huy)|dat hang thanh cong|thanh toan thanh cong|da duoc (?:them|dat|xoa|cap nhat)|don hang cua ban da)\b/;
 const UNAVAILABLE_WORDS = /\b(?:het|tam het|ngung|khong con|khong ban)\b/;
 const MAX_REPLY_CHARS = 1500;
 /** Grammar and quantity words that may appear in a bullet head without being part of a product name. */
@@ -178,6 +184,13 @@ export function checkReply(reply: string, evidence: Evidence): GuardResult {
           : `"${hit.item.name}" đang tạm hết; nói rõ với khách thay vì gợi ý món này.`);
       if (hit.item.available) referencedIds.push(hit.item.id);
     });
+  }
+  if (evidence.proposalItems?.length) {
+    const allowed = new Set([...evidence.proposalItems, ...(evidence.cartItems ?? [])].map((name) => normalizeVietnamese(name)));
+    const byId = new Map(evidence.catalog.map((item) => [item.id, item.name]));
+    const outside = [...new Set(referencedIds)].map((id) => byId.get(id) ?? "").filter((name) => name && !allowed.has(normalizeVietnamese(name)));
+    if (outside.length)
+      problems.push(`Câu trả lời nhắc ${outside.map((name) => `"${name}"`).join(", ")} nhưng đề xuất vừa tạo chỉ gồm ${evidence.proposalItems.map((name) => `"${name}"`).join(", ")}. Sửa đề xuất (gọi lại propose_cart_change với đúng item_id) hoặc sửa câu trả lời cho khớp đề xuất.`);
   }
   return { ok: problems.length === 0, problems: [...new Set(problems)], referencedIds: [...new Set(referencedIds)] };
 }

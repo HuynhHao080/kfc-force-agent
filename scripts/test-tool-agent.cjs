@@ -487,3 +487,46 @@ test("26 the button rule blocks an instruction to press it, not an explanation o
   const refusal = checkReply("Mình không thể tự xác nhận thay bạn. Giỏ chỉ thay đổi khi bạn bấm “Xác nhận thao tác” sau khi xem đề xuất.", none);
   assert.equal(refusal.ok, true, refusal.problems.join(" "));
 });
+
+test("27 after proposing, the reply must describe that proposal (or the cart), never a different change", () => {
+  const catalog = [
+    { id: "my", name: "Mì Ý Gà Viên", price: 43000, available: true },
+    { id: "bt", name: "Burger Tôm", price: 45000, available: true },
+    { id: "by", name: "Burger Gà Yo", price: 30000, available: true },
+    { id: "pv", name: "Pepsi (Vừa)", price: 17000, available: true },
+  ];
+  // Run 3, CV-02#3: text says Mì Ý Gà Viên, the button adds Burger Gà Yo.
+  const wrong = checkReply("Mình vừa thêm:\n- 1 × Mì Ý Gà Viên: 43.000 ₫\n- 1 × Burger Tôm: 45.000 ₫\n\nBạn bấm nút \"Xác nhận thao tác\" để hoàn tất nhé!",
+    { catalog, proposalPending: true, proposalItems: ["Burger Gà Yo", "Burger Tôm"], cartItems: [] });
+  assert.equal(wrong.ok, false);
+  const said = wrong.problems.join(" ");
+  assert.match(said, /Mì Ý Gà Viên/, "the mismatch is named");
+  assert.match(said, /vừa thêm|đã thêm\/đặt/i, "'vừa thêm' is a completion claim");
+  // Run 2 and 3, CV-09#3: describing the cart after the change is right.
+  for (const reply of [
+    "Bạn bấm nút \"Xác nhận thao tác\" để cập nhật nhé. Giỏ sẽ có:\n- 1 Burger Tôm: 45.000 ₫\n- 2 Pepsi (Vừa): 34.000 ₫\n- Tổng: 79.000 ₫",
+    "Bạn bấm nút \"Xác nhận thao tác\" để đổi thành 2 ly Pepsi Vừa nhé. Sẽ là 1 Burger Tôm + 2 Pepsi Vừa, tổng 79.000 ₫.",
+  ]) {
+    const ok = checkReply(reply, { catalog, proposalPending: true, proposalItems: ["Pepsi (Vừa)"], cartItems: ["Burger Tôm", "Pepsi (Vừa)"] });
+    assert.equal(ok.ok, true, ok.problems.join(" "));
+  }
+});
+
+test("28 a mismatched proposal is corrected through the guard; a leading 'Xong!' is dropped without a rewrite", async () => {
+  const items = await services.menuService.getMenuItems();
+  const byName = (n) => items.find((i) => i.name.normalize("NFC") === n);
+  const [pasta, shrimp, yo] = [byName("Mì Ý Gà Viên"), byName("Burger Tôm"), byName("Burger Gà Yo")];
+  const userId = user();
+  const r = await turn(scripted([
+    tool("propose_cart_change", { changes: [{ action: "add", item_id: yo.id, quantity: 1 }, { action: "add", item_id: shrimp.id, quantity: 1 }] }),
+    text("Mình đề xuất 1 Mì Ý Gà Viên và 1 Burger Tôm, bạn bấm “Xác nhận thao tác” nhé."),
+    (messages) => {
+      assert.match(messages.at(-1).content, /Mì Ý Gà Viên.*Burger Gà Yo|Burger Gà Yo.*Mì Ý Gà Viên/s, "the model is told what the proposal really holds");
+      return tool("propose_cart_change", { changes: [{ action: "add", item_id: pasta.id, quantity: 1 }, { action: "add", item_id: shrimp.id, quantity: 1 }] });
+    },
+    text("Xong rồi! Mình đề xuất 1 Mì Ý Gà Viên và 1 Burger Tôm, bạn bấm “Xác nhận thao tác” nhé."),
+  ]), userId, "lấy mì ý gà viên với burger tôm, mỗi thứ 1 phần");
+  assert.deepEqual(r.pendingConfirmation.summary.map((s) => s.normalize("NFC").replace(/\s/g, " ")),
+    ["Thêm 1 × Mì Ý Gà Viên: 43.000 ₫", "Thêm 1 × Burger Tôm: 45.000 ₫"], "the latest proposal replaces the wrong one");
+  assert.match(r.reply.normalize("NFC"), /^Mình đề xuất 1 Mì Ý Gà Viên/, "'Xong rồi!' was dropped, not sent and not rewritten");
+});

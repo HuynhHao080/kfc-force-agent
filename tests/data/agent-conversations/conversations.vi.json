@@ -15,7 +15,7 @@
           "expect": { "proposal": null, "minProducts": 1, "maxProductPrice": 200000 } },
         { "user": "lấy cái đầu tiên bạn gợi ý đi",
           "expect": { "proposal": { "action": "add", "anyItem": true, "maxTotal": 200000 } } },
-        { "confirm": true, "expect": { "cartLines": 1 } },
+        { "confirm": true, "expect": { "minCartLines": 1 } },
         { "user": "giỏ mình giờ hết bao nhiêu tiền vậy",
           "expect": { "proposal": null, "mentionCartTotal": true } }
       ]

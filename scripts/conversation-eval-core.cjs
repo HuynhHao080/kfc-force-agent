@@ -133,7 +133,7 @@ function scoreTurn(ctx) {
     const over = products.filter((p) => !(p.price <= e.maxProductPrice));
     add("maxProductPrice", over.length === 0, over.map((p) => `${p.name}=${p.price}`).join(", "));
   }
-  if (e.cart !== undefined || e.cartLines !== undefined || e.mentionCartTotal) {
+  if (e.cart !== undefined || e.cartLines !== undefined || e.minCartLines !== undefined || e.mentionCartTotal) {
     if (!ctx.cart) add("cart", false, "không đọc được giỏ (chỉ hỗ trợ target local)");
     else {
       if (e.cart === "empty") add("cart", ctx.cart.length === 0, ctx.cart.map((l) => `${l.name}×${l.quantity}`).join(", "));
@@ -143,6 +143,8 @@ function scoreTurn(ctx) {
         add("cart", have === want, `có [${have}], cần [${want}]`);
       }
       if (e.cartLines !== undefined) add("cartLines", ctx.cart.length === e.cartLines, `${ctx.cart.length} dòng, cần ${e.cartLines}`);
+      // A suggestion such as "phương án 1" may hold several products.
+      if (e.minCartLines !== undefined) add("minCartLines", ctx.cart.length >= e.minCartLines, `${ctx.cart.length} dòng, cần ≥ ${e.minCartLines}`);
       if (e.mentionCartTotal) {
         const total = ctx.cartTotal ?? 0;
         const forms = [total.toLocaleString("vi-VN"), String(total), `${Math.round(total / 1000)}k`, `${Math.round(total / 1000)} nghin`].map(fold);

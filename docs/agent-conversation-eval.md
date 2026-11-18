@@ -115,3 +115,31 @@ Guard vẫn phải bắt "Xong…" ở đầu câu nhiều lần (tốn lượt 
 | 1 | 30/43 | 19/25 | 91 |
 | 2 | 37/43 | 21/25 | 91 |
 | 3 | 38/43 | 21/25 | 93 |
+
+### Đã sửa sau lượt 3 (offline, chưa đo lại)
+
+- **Câu trả lời phải khớp đề xuất thật**: khi lượt này có đề xuất, câu trả lời chỉ được nêu món trong đề xuất hoặc món đã có trong giỏ (mô tả giỏ sau khi đổi vẫn hợp lệ). Lệch thì guard báo cho model đúng món nào thừa và đề xuất thật gồm gì, để model gọi lại `propose_cart_change` hoặc sửa câu chữ. `propose_cart_change` trả thêm `items` (tên món của đề xuất).
+- "vừa thêm/vừa đặt/vừa xoá…" được tính là tuyên bố đã làm, như "đã thêm…".
+- "Xong!/Xong rồi!" ở đầu câu được bỏ đi như bỏ markdown, không tốn một lượt gọi để viết lại; tuyên bố đã làm phía sau vẫn bị kiểm.
+- `TOOL_AGENT_DEBUG=1` ghi thêm kết quả `propose_cart_change` (hành động, trạng thái, lý do bị chặn do server viết; không có nội dung tin nhắn) để chẩn đoán lượt như "bỏ burger ra".
+- **Sửa tiêu chí sai CV-01#3**: "phương án 1" gồm hai combo; tiêu chí đổi từ "đúng 1 dòng" thành "ít nhất 1 dòng" (`minCartLines`). Đây là sửa bộ đo vì câu trả lời của agent đúng, không phải nới chuẩn cho agent.
+- Test 27–28 (`test:tool-agent` 26/26), tắt từng thay đổi → test tương ứng fail. Phát lại 187 câu trả lời thật: chặn đúng 10 câu sai đã biết (thêm CV-02#3); luật đối chiếu đề xuất trên 36 lượt có đề xuất thật chỉ chặn đúng CV-02#3.
+
+## Lượt 4 (18/11/2026, Haiku 4.5, sau các bản sửa của lượt 3, `TOOL_AGENT_DEBUG=1`)
+
+91/120 lượt gọi. **39/43 lượt đạt, 22/25 hội thoại đạt** (tốt nhất tới nay). Báo cáo: `output/evaluation/conversations-2026-11-18T14-08-53-376Z.json`. Guard bắt đúng ca "câu trả lời nhắc Mì Ý Gà Viên nhưng đề xuất chỉ có Burger Tôm"; "bỏ burger ra" đạt; nhóm ngân sách 3/3.
+
+Còn trượt (log debug cho biết nguyên nhân):
+
+| Lượt | Hiện tượng | Nguyên nhân |
+|---|---|---|
+| CV-03#2 "lon nha" | **Nói "Pepsi (Lon) tạm hết"** trong khi món đang bán | Model gửi sai `item_id`, đề xuất bị chặn "Món ăn không tồn tại hoặc không có sẵn", model hiểu thành hết hàng; guard chưa kiểm câu "món đang bán mà nói hết" |
+| CV-02#2–3 | Nói "KFC không có bơ gơ" (bơ gơ là burger); lượt sau đề xuất thiếu Mì Ý | Model sai; guard bắt lệch đề xuất nhưng hết 4 lượt gọi → khách nhận tóm tắt đề xuất thật (thiếu món nhưng trung thực) |
+| CV-09#3 | Khách nhận tóm tắt server "Đổi Pepsi (Vừa) thành 2 phần" (đúng) | **Bộ đo chấm nhầm**: guard coi "Đổi Pepsi" là tên món lạ |
+
+| Lượt | Lượt khách đạt | Hội thoại đạt | Lượt gọi |
+|---|---|---|---|
+| 1 | 30/43 | 19/25 | 91 |
+| 2 | 37/43 | 21/25 | 91 |
+| 3 | 38/43 | 21/25 | 93 |
+| 4 | 39/43 | 22/25 | 91 |

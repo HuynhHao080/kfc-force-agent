@@ -721,9 +721,18 @@ async function runToolAgent(
       pendingConfirmation = await storePendingProposal(sessionId, userId, pending);
       proposedActions = pending;
       proposalExecution = execution;
+      // Product names in the proposal (catalog id for additions, cart line for edits), for the reply check.
+      const lines = pending.length ? (await services.cartService.getCartView(userId))?.items ?? [] : [];
+      const items = pending.flatMap((action) => {
+        const id = String(action.parameters.itemId ?? "");
+        const name = catalogItems.find((item) => item.id === id)?.name
+          ?? lines.find((line) => line.id === id || line.menuItemId === id)?.nameSnapshot;
+        return name ? [name] : [];
+      });
       return {
         status: pending.length ? "awaiting_customer_confirmation" : "blocked",
         summary: pendingConfirmation?.summary ?? [],
+        items,
         blocked,
       };
     },
