@@ -1,0 +1,2215 @@
+{
+  "version": 1,
+  "purpose": "Natural-language understanding and grounding benchmark: Vietnamese chat styles (no accents, teencode, typos, aliases, sizes, budgets, sold-out, off-menu). Labels are agent-drafted and REQUIRE team review before academic use. Messages are written to imitate customers, not collected from real customers.",
+  "reviewStatus": "draft_agent",
+  "catalogRawSha256": "7f6348a7524c19d3ad3a7d1e5990575e84e3636b0505c9b470a2a5e5e20626ac",
+  "labelGuide": {
+    "expectedAction": "Customer intent, even when the correct system reply is a clarification.",
+    "expectedItem": "resolved = exactly this SKU; ambiguous = the agent must ask, and the listed SKUs must be among the options; not_found = KFC VN does not sell it; unavailable = exists but sold out (soldOut simulates this).",
+    "expectedPrice": "Present only for budget questions. VND per item unless perPerson."
+  },
+  "cases": [
+    {
+      "id": "NL-001",
+      "message": "Cho mình 2 Pepsi lon",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "mention": "Pepsi lon",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_faf1b99a8d33991cced7"
+        ],
+        "names": [
+          "Pepsi (Lon)"
+        ]
+      }
+    },
+    {
+      "id": "NL-002",
+      "message": "cho minh 2 pepsi lon",
+      "tags": [
+        "khong_dau"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "mention": "pepsi lon",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_faf1b99a8d33991cced7"
+        ],
+        "names": [
+          "Pepsi (Lon)"
+        ]
+      }
+    },
+    {
+      "id": "NL-003",
+      "message": "Thêm 1 pepsi lớn nha",
+      "tags": [
+        "kich_co"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "pepsi lớn",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_5c9c9dc1ae7ecf3b8312"
+        ],
+        "names": [
+          "Pepsi (Đại)"
+        ]
+      }
+    },
+    {
+      "id": "NL-004",
+      "message": "lấy 3 ly pesi vừa",
+      "tags": [
+        "sai_chinh_ta",
+        "kich_co"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 3,
+      "mention": "pesi vừa",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_7df70d828600e0477bfe"
+        ],
+        "names": [
+          "Pepsi (Vừa)"
+        ]
+      }
+    },
+    {
+      "id": "NL-005",
+      "message": "Cho mik 1 bơ gơ tôm",
+      "tags": [
+        "teencode",
+        "ten_goi_khac"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "bơ gơ tôm",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_3317d940ef5af561adf1"
+        ],
+        "names": [
+          "Burger Tôm"
+        ]
+      }
+    },
+    {
+      "id": "NL-006",
+      "message": "thêm 1 hamburger zinger",
+      "tags": [
+        "tieng_anh",
+        "ten_goi_khac"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "hamburger zinger",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_e1f9ab057159219b0309"
+        ],
+        "names": [
+          "Burger Gà Zinger"
+        ]
+      }
+    },
+    {
+      "id": "NL-007",
+      "message": "Mình muốn 2 phần khoai chiên vừa",
+      "tags": [
+        "ten_goi_khac"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "mention": "khoai chiên vừa",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_2a976de0306a26120156"
+        ],
+        "names": [
+          "Khoai Tây Chiên (Vừa)"
+        ]
+      }
+    },
+    {
+      "id": "NL-008",
+      "message": "add 1 fries size L",
+      "tags": [
+        "tieng_anh",
+        "kich_co"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "fries size L",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_ce4b1b58c1a25d368e7c"
+        ],
+        "names": [
+          "Khoai Tây Chiên (Lớn)"
+        ]
+      }
+    },
+    {
+      "id": "NL-009",
+      "message": "Cho em hai cái burger tôm",
+      "tags": [
+        "so_bang_chu"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "mention": "burger tôm",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_3317d940ef5af561adf1"
+        ],
+        "names": [
+          "Burger Tôm"
+        ]
+      }
+    },
+    {
+      "id": "NL-010",
+      "message": "Thêm 1 combo burger tôm",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "combo burger tôm",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_f37b989c01d8f64e485d"
+        ],
+        "names": [
+          "Combo Burger Tôm"
+        ]
+      }
+    },
+    {
+      "id": "NL-011",
+      "message": "cho 1 xô zòn zã 159k",
+      "tags": [
+        "so_trong_ten"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "xô zòn zã 159k",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_1a022bd1c0fda767bbf4"
+        ],
+        "names": [
+          "Xô Zòn Zã 159K"
+        ]
+      }
+    },
+    {
+      "id": "NL-012",
+      "message": "lay 1 xo zui ze 139k",
+      "tags": [
+        "khong_dau",
+        "so_trong_ten"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "xo zui ze 139k",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_47e810a6dc086e41150e"
+        ],
+        "names": [
+          "Xô Zui Zẻ 139K"
+        ]
+      }
+    },
+    {
+      "id": "NL-013",
+      "message": "Cho mình 1 súp rong biển",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "súp rong biển",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_b663a7e1612f3c0cc7dc"
+        ],
+        "names": [
+          "Súp Rong Biển"
+        ]
+      }
+    },
+    {
+      "id": "NL-014",
+      "message": "thêm 1 soup",
+      "tags": [
+        "tieng_anh"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "soup",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_b663a7e1612f3c0cc7dc"
+        ],
+        "names": [
+          "Súp Rong Biển"
+        ]
+      }
+    },
+    {
+      "id": "NL-015",
+      "message": "cho 1 cơm gà rán",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "cơm gà rán",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_89d779a9711ea36e5061"
+        ],
+        "names": [
+          "1 Cơm Gà Rán"
+        ]
+      }
+    },
+    {
+      "id": "NL-016",
+      "message": "Thêm 1 com ga nanban",
+      "tags": [
+        "khong_dau",
+        "ten_rut_gon"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "com ga nanban",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_33d21e812f0c05498159"
+        ],
+        "names": [
+          "1 Cơm Gà Viên Nanban"
+        ]
+      }
+    },
+    {
+      "id": "NL-017",
+      "message": "cho mình 1 mỳ ý xúc xích",
+      "tags": [
+        "ten_goi_khac",
+        "ten_rut_gon"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "mỳ ý xúc xích",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_dde3d2815c0b58920571"
+        ],
+        "names": [
+          "Mì Ý Xúc Xích Gà"
+        ]
+      }
+    },
+    {
+      "id": "NL-018",
+      "message": "thêm 1 spaghetti gà viên",
+      "tags": [
+        "tieng_anh"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "spaghetti gà viên",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_2ca52aa39048ec78789e"
+        ],
+        "names": [
+          "Mì Ý Gà Viên"
+        ]
+      }
+    },
+    {
+      "id": "NL-019",
+      "message": "lấy 2 7up lon",
+      "tags": [
+        "kich_co"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "mention": "7up lon",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_a3b31305b937a07e2ecb"
+        ],
+        "names": [
+          "7Up (Lon)"
+        ]
+      }
+    },
+    {
+      "id": "NL-020",
+      "message": "cho 1 seven up vừa",
+      "tags": [
+        "tieng_anh"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "seven up vừa",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_155260b1ebdc0ee7c1a2"
+        ],
+        "names": [
+          "7Up (Vừa)"
+        ]
+      }
+    },
+    {
+      "id": "NL-021",
+      "message": "1 pepsi zero lon nhé",
+      "tags": [
+        "ten_goi_khac",
+        "cau_cut"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "pepsi zero lon",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_6a9be61a6ec870c12d8a"
+        ],
+        "names": [
+          "Pepsi Không Đường (Lon)"
+        ]
+      }
+    },
+    {
+      "id": "NL-022",
+      "message": "thêm 1 pepsi ko đường đại",
+      "tags": [
+        "teencode",
+        "kich_co"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "pepsi ko đường đại",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_f4299eb7b1c6b870bb7e"
+        ],
+        "names": [
+          "Pepsi Không Đường (Đại)"
+        ]
+      }
+    },
+    {
+      "id": "NL-023",
+      "message": "cho mình 1 lipton lớn",
+      "tags": [
+        "kich_co"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "lipton lớn",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_629d4f2429740901be29"
+        ],
+        "names": [
+          "Lipton (Đại)"
+        ]
+      }
+    },
+    {
+      "id": "NL-024",
+      "message": "thêm 1 lipon vừa",
+      "tags": [
+        "sai_chinh_ta"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "lipon vừa",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_fdec4d9552c642a1f7b1"
+        ],
+        "names": [
+          "Lipton (Vừa)"
+        ]
+      }
+    },
+    {
+      "id": "NL-025",
+      "message": "cho 1 gà popcorn vừa",
+      "tags": [
+        "ten_rut_gon"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "gà popcorn vừa",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_5065abd88f4a027498b8"
+        ],
+        "names": [
+          "Gà Viên Popcorn (Vừa)"
+        ]
+      }
+    },
+    {
+      "id": "NL-026",
+      "message": "thêm 1 popcorn lớn",
+      "tags": [
+        "kich_co",
+        "ten_rut_gon"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "popcorn lớn",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_cff2686133722fc63b38"
+        ],
+        "names": [
+          "Gà Viên Popcorn (Lớn)"
+        ]
+      }
+    },
+    {
+      "id": "NL-027",
+      "message": "lấy 1 khoai lắc phô mai",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "khoai lắc phô mai",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_a9599e3e9170a402077d"
+        ],
+        "names": [
+          "Khoai Lắc Phô Mai (L)"
+        ]
+      }
+    },
+    {
+      "id": "NL-028",
+      "message": "cho 1 khoai lac bo toi",
+      "tags": [
+        "khong_dau"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "khoai lac bo toi",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_5482df7fb7e807129318"
+        ],
+        "names": [
+          "Khoai Lắc Bơ Tỏi (L)"
+        ]
+      }
+    },
+    {
+      "id": "NL-029",
+      "message": "cho mình 1 cơm gà xốt mắm tỏi",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "cơm gà xốt mắm tỏi",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_7f25b4472d1f674f5f34"
+        ],
+        "names": [
+          "1 Phần Cơm Gà Xốt Mắm Tỏi"
+        ]
+      }
+    },
+    {
+      "id": "NL-030",
+      "message": "thêm 1 burger gà quay",
+      "tags": [
+        "ten_rut_gon"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "burger gà quay",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_8cb9b07eacb78465bc1b"
+        ],
+        "names": [
+          "Burger Phi-lê Gà Quay"
+        ]
+      }
+    },
+    {
+      "id": "NL-031",
+      "message": "1 salad gà viên",
+      "tags": [
+        "ten_rut_gon",
+        "cau_cut"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "salad gà viên",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_4ccf0ff1489bda235227"
+        ],
+        "names": [
+          "Salad Hạt Gà Viên"
+        ]
+      }
+    },
+    {
+      "id": "NL-032",
+      "message": "cho em 1 xa lat mè rang",
+      "tags": [
+        "ten_goi_khac"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "xa lat mè rang",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_85d1db8ad989a11d2584"
+        ],
+        "names": [
+          "Salad Xốt Mè Rang"
+        ]
+      }
+    },
+    {
+      "id": "NL-033",
+      "message": "thêm 1 bắp cải trộn vừa",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "bắp cải trộn vừa",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_cfaf3eaf5570bba1a11f"
+        ],
+        "names": [
+          "1 Bắp Cải Trộn (Vừa)"
+        ]
+      }
+    },
+    {
+      "id": "NL-034",
+      "message": "lấy 1 coleslaw lớn",
+      "tags": [
+        "tieng_anh",
+        "kich_co"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "coleslaw lớn",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_5952ef970f33d356b465"
+        ],
+        "names": [
+          "1 Bắp Cải Trộn (Lớn)"
+        ]
+      }
+    },
+    {
+      "id": "NL-035",
+      "message": "thêm 1 khoai nghiền đại",
+      "tags": [
+        "ten_rut_gon",
+        "kich_co"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "khoai nghiền đại",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_49f5c14002bef10bec2f"
+        ],
+        "names": [
+          "Khoai Tây Nghiền (Đại)"
+        ]
+      }
+    },
+    {
+      "id": "NL-036",
+      "message": "cho 2 cơm trắng",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "mention": "cơm trắng",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_fb3e616b0811118bbe04"
+        ],
+        "names": [
+          "Cơm trắng"
+        ]
+      }
+    },
+    {
+      "id": "NL-037",
+      "message": "thêm 1 deal 99k yolo",
+      "tags": [
+        "so_trong_ten"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "deal 99k yolo",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_2bfd16187cd0d1ba7fb3"
+        ],
+        "names": [
+          "Deal 99K Yolo"
+        ]
+      }
+    },
+    {
+      "id": "NL-038",
+      "message": "cho mình 1 combo cùng vui",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "combo cùng vui",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_fd7df497d3a48a8a7cd2"
+        ],
+        "names": [
+          "Combo Cùng Vui"
+        ]
+      }
+    },
+    {
+      "id": "NL-039",
+      "message": "cho 1 combo 2 miếng gà",
+      "tags": [
+        "so_trong_ten"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "combo 2 miếng gà",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_ec9b3d61e184bf636f5d"
+        ],
+        "names": [
+          "Combo 2 Miếng Gà"
+        ]
+      }
+    },
+    {
+      "id": "NL-040",
+      "message": "thêm 1 combo nhóm 3 tụ tập",
+      "tags": [
+        "so_trong_ten"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "combo nhóm 3 tụ tập",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_20150b711f1600e0d9d5"
+        ],
+        "names": [
+          "Combo Nhóm 3 Tụ Tập"
+        ]
+      }
+    },
+    {
+      "id": "NL-041",
+      "message": "cho mình 1 combo một mình chill",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "combo một mình chill",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_61b28a508afd4d3d092b"
+        ],
+        "names": [
+          "Combo Một Mình Chill"
+        ]
+      }
+    },
+    {
+      "id": "NL-042",
+      "message": "Bạn ơi cho mình hỏi là mình muốn đặt thêm 2 phần khoai tây chiên cỡ vừa được không ạ",
+      "tags": [
+        "dai_dong"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "mention": "khoai tây chiên cỡ vừa",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_2a976de0306a26120156"
+        ],
+        "names": [
+          "Khoai Tây Chiên (Vừa)"
+        ]
+      }
+    },
+    {
+      "id": "NL-043",
+      "message": "anh ơi lấy giùm em 3 lon pepsi",
+      "tags": [
+        "dai_dong",
+        "dao_tu"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 3,
+      "mention": "lon pepsi",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_faf1b99a8d33991cced7"
+        ],
+        "names": [
+          "Pepsi (Lon)"
+        ]
+      }
+    },
+    {
+      "id": "NL-044",
+      "message": "thêm 1 bugger tôm",
+      "tags": [
+        "sai_chinh_ta"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "bugger tôm",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_3317d940ef5af561adf1"
+        ],
+        "names": [
+          "Burger Tôm"
+        ]
+      }
+    },
+    {
+      "id": "NL-045",
+      "message": "cho 2 khoai tay chen vua",
+      "tags": [
+        "sai_chinh_ta",
+        "khong_dau"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "mention": "khoai tay chen vua",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_2a976de0306a26120156"
+        ],
+        "names": [
+          "Khoai Tây Chiên (Vừa)"
+        ]
+      }
+    },
+    {
+      "id": "NL-046",
+      "message": "1 pepssi lon nha",
+      "tags": [
+        "sai_chinh_ta",
+        "cau_cut"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "pepssi lon",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_faf1b99a8d33991cced7"
+        ],
+        "names": [
+          "Pepsi (Lon)"
+        ]
+      }
+    },
+    {
+      "id": "NL-047",
+      "message": "thêm 1 zingger",
+      "tags": [
+        "sai_chinh_ta",
+        "ten_rut_gon"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "zingger",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_e1f9ab057159219b0309"
+        ],
+        "names": [
+          "Burger Gà Zinger"
+        ]
+      }
+    },
+    {
+      "id": "NL-048",
+      "message": "zinger 1 cái",
+      "tags": [
+        "cau_cut",
+        "dao_tu"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "zinger",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_e1f9ab057159219b0309"
+        ],
+        "names": [
+          "Burger Gà Zinger"
+        ]
+      }
+    },
+    {
+      "id": "NL-049",
+      "message": "Cho mình 1 pepsi",
+      "tags": [
+        "mo_ho"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "pepsi",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_3302d694fb1115a2ef82",
+          "kfc_item_7df70d828600e0477bfe",
+          "kfc_item_5c9c9dc1ae7ecf3b8312",
+          "kfc_item_faf1b99a8d33991cced7"
+        ],
+        "names": [
+          "Pepsi (Tiêu Chuẩn)",
+          "Pepsi (Vừa)",
+          "Pepsi (Đại)",
+          "Pepsi (Lon)"
+        ]
+      }
+    },
+    {
+      "id": "NL-050",
+      "message": "thêm 2 burger",
+      "tags": [
+        "mo_ho"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "mention": "burger",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_98ac9ad8c37a04617a5d",
+          "kfc_item_3317d940ef5af561adf1",
+          "kfc_item_e1f9ab057159219b0309"
+        ],
+        "names": [
+          "Burger Gà Yo",
+          "Burger Tôm",
+          "Burger Gà Zinger"
+        ]
+      }
+    },
+    {
+      "id": "NL-051",
+      "message": "cho 1 gà rán",
+      "tags": [
+        "mo_ho"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "gà rán",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_db09669dac591e4ac479",
+          "kfc_item_b65597088c889ab9a107"
+        ],
+        "names": [
+          "1 Miếng Gà Rán",
+          "2 Miếng Gà Rán"
+        ]
+      }
+    },
+    {
+      "id": "NL-052",
+      "message": "lấy 2 khoai tây chiên",
+      "tags": [
+        "mo_ho"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "mention": "khoai tây chiên",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_2a976de0306a26120156",
+          "kfc_item_ce4b1b58c1a25d368e7c",
+          "kfc_item_327aa67df17b8197b447"
+        ],
+        "names": [
+          "Khoai Tây Chiên (Vừa)",
+          "Khoai Tây Chiên (Lớn)",
+          "Khoai Tây Chiên (Đại)"
+        ]
+      }
+    },
+    {
+      "id": "NL-053",
+      "message": "thêm 1 mì ý",
+      "tags": [
+        "mo_ho"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "mì ý",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_dde3d2815c0b58920571",
+          "kfc_item_2ca52aa39048ec78789e",
+          "kfc_item_151a8c49bbf35d48c781"
+        ],
+        "names": [
+          "Mì Ý Xúc Xích Gà",
+          "Mì Ý Gà Viên",
+          "Mì Ý Gà Rán"
+        ]
+      }
+    },
+    {
+      "id": "NL-054",
+      "message": "cho 1 xô zòn zã",
+      "tags": [
+        "mo_ho"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "xô zòn zã",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_1a022bd1c0fda767bbf4",
+          "kfc_item_a9d7d1a4d58d88a64a9f"
+        ],
+        "names": [
+          "Xô Zòn Zã 159K",
+          "Xô Zòn Zã 179K"
+        ]
+      }
+    },
+    {
+      "id": "NL-055",
+      "message": "cho mình 1 nước ngọt",
+      "tags": [
+        "mo_ho",
+        "ten_goi_khac"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "nước ngọt",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_3302d694fb1115a2ef82",
+          "kfc_item_e6a97f9372e5d2236b06"
+        ],
+        "names": [
+          "Pepsi (Tiêu Chuẩn)",
+          "7Up (Tiêu Chuẩn)"
+        ]
+      }
+    },
+    {
+      "id": "NL-056",
+      "message": "thêm 1 tender",
+      "tags": [
+        "mo_ho"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "tender",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_b7168ce4e0dc83ec22ce",
+          "kfc_item_79c4bdcd038f674e05a4"
+        ],
+        "names": [
+          "3 Miếng Gà Rán Tender",
+          "5 Miếng Gà Rán Tender"
+        ]
+      }
+    },
+    {
+      "id": "NL-057",
+      "message": "cho 1 pepsi lạnh",
+      "tags": [
+        "mo_ho"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "pepsi lạnh",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_7df70d828600e0477bfe",
+          "kfc_item_faf1b99a8d33991cced7"
+        ],
+        "names": [
+          "Pepsi (Vừa)",
+          "Pepsi (Lon)"
+        ]
+      }
+    },
+    {
+      "id": "NL-058",
+      "message": "cho 1 bánh trứng",
+      "tags": [
+        "mo_ho",
+        "so_trong_ten"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "bánh trứng",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_d4232475f17f6409eb3e",
+          "kfc_item_17688a14363d174fe959"
+        ],
+        "names": [
+          "1 Bánh Trứng",
+          "4 Bánh Trứng"
+        ]
+      }
+    },
+    {
+      "id": "NL-059",
+      "message": "thêm 4 bánh trứng",
+      "tags": [
+        "mo_ho",
+        "so_trong_ten"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 4,
+      "mention": "bánh trứng",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_d4232475f17f6409eb3e",
+          "kfc_item_17688a14363d174fe959"
+        ],
+        "names": [
+          "1 Bánh Trứng",
+          "4 Bánh Trứng"
+        ]
+      }
+    },
+    {
+      "id": "NL-060",
+      "message": "cho mình 1 egg tart",
+      "tags": [
+        "mo_ho",
+        "tieng_anh"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "egg tart",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_d4232475f17f6409eb3e",
+          "kfc_item_17688a14363d174fe959"
+        ],
+        "names": [
+          "1 Bánh Trứng",
+          "4 Bánh Trứng"
+        ]
+      }
+    },
+    {
+      "id": "NL-061",
+      "message": "thêm 6 phô mai viên",
+      "tags": [
+        "mo_ho",
+        "so_trong_ten"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 6,
+      "mention": "phô mai viên",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_7790f739993dcb3fd66c",
+          "kfc_item_8a4842a6fbf2cbd9baa3"
+        ],
+        "names": [
+          "4 Phô Mai Viên",
+          "6 Phô Mai Viên"
+        ]
+      }
+    },
+    {
+      "id": "NL-062",
+      "message": "Thêm 2 miếng gà xốt mắm tỏi",
+      "tags": [
+        "mo_ho",
+        "so_trong_ten"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "mention": "miếng gà xốt mắm tỏi",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_44b30d1307321296c041",
+          "kfc_item_4d7c2f9ae3685d10ab1b"
+        ],
+        "names": [
+          "1 Miếng Gà Xốt Mắm Tỏi",
+          "2 Miếng Gà Xốt Mắm Tỏi"
+        ]
+      }
+    },
+    {
+      "id": "NL-063",
+      "message": "1 phi lê gà quay",
+      "tags": [
+        "mo_ho",
+        "cau_cut"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "phi lê gà quay",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_09760b09d0746ff80a9a",
+          "kfc_item_8cb9b07eacb78465bc1b"
+        ],
+        "names": [
+          "1 Miếng Phi-lê Gà Quay",
+          "Burger Phi-lê Gà Quay"
+        ]
+      }
+    },
+    {
+      "id": "NL-064",
+      "message": "Cho mình 2 coca",
+      "tags": [
+        "ngoai_menu"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "mention": "coca",
+      "expectedItem": {
+        "status": "not_found",
+        "ids": [],
+        "names": []
+      }
+    },
+    {
+      "id": "NL-065",
+      "message": "thêm 1 trà sữa trân châu",
+      "tags": [
+        "ngoai_menu"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "trà sữa trân châu",
+      "expectedItem": {
+        "status": "not_found",
+        "ids": [],
+        "names": []
+      }
+    },
+    {
+      "id": "NL-066",
+      "message": "cho 1 phần cánh gà",
+      "tags": [
+        "ngoai_menu"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "cánh gà",
+      "expectedItem": {
+        "status": "not_found",
+        "ids": [],
+        "names": []
+      }
+    },
+    {
+      "id": "NL-067",
+      "message": "lấy 1 pizza hải sản",
+      "tags": [
+        "ngoai_menu"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "pizza hải sản",
+      "expectedItem": {
+        "status": "not_found",
+        "ids": [],
+        "names": []
+      }
+    },
+    {
+      "id": "NL-068",
+      "message": "cho mình 1 cà phê sữa đá",
+      "tags": [
+        "ngoai_menu"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "cà phê sữa đá",
+      "expectedItem": {
+        "status": "not_found",
+        "ids": [],
+        "names": []
+      }
+    },
+    {
+      "id": "NL-069",
+      "message": "thêm 1 kem ốc quế",
+      "tags": [
+        "ngoai_menu"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "kem ốc quế",
+      "expectedItem": {
+        "status": "not_found",
+        "ids": [],
+        "names": []
+      }
+    },
+    {
+      "id": "NL-070",
+      "message": "cho 2 sting",
+      "tags": [
+        "ngoai_menu"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "mention": "sting",
+      "expectedItem": {
+        "status": "not_found",
+        "ids": [],
+        "names": []
+      }
+    },
+    {
+      "id": "NL-071",
+      "message": "cho mình 1 burger tôm",
+      "tags": [
+        "het_hang"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "burger tôm",
+      "expectedItem": {
+        "status": "unavailable",
+        "ids": [
+          "kfc_item_3317d940ef5af561adf1"
+        ],
+        "names": [
+          "Burger Tôm"
+        ]
+      },
+      "soldOut": {
+        "ids": [
+          "kfc_item_3317d940ef5af561adf1"
+        ],
+        "names": [
+          "Burger Tôm"
+        ]
+      }
+    },
+    {
+      "id": "NL-072",
+      "message": "thêm 2 pepsi lon",
+      "tags": [
+        "het_hang"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 2,
+      "mention": "pepsi lon",
+      "expectedItem": {
+        "status": "unavailable",
+        "ids": [
+          "kfc_item_faf1b99a8d33991cced7"
+        ],
+        "names": [
+          "Pepsi (Lon)"
+        ]
+      },
+      "soldOut": {
+        "ids": [
+          "kfc_item_faf1b99a8d33991cced7"
+        ],
+        "names": [
+          "Pepsi (Lon)"
+        ]
+      }
+    },
+    {
+      "id": "NL-073",
+      "message": "đặt 1 xô zòn zã 159k nha",
+      "tags": [
+        "het_hang",
+        "so_trong_ten"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "xô zòn zã 159k",
+      "expectedItem": {
+        "status": "unavailable",
+        "ids": [
+          "kfc_item_1a022bd1c0fda767bbf4"
+        ],
+        "names": [
+          "Xô Zòn Zã 159K"
+        ]
+      },
+      "soldOut": {
+        "ids": [
+          "kfc_item_1a022bd1c0fda767bbf4"
+        ],
+        "names": [
+          "Xô Zòn Zã 159K"
+        ]
+      }
+    },
+    {
+      "id": "NL-074",
+      "message": "lấy 1 súp rong biển",
+      "tags": [
+        "het_hang"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "súp rong biển",
+      "expectedItem": {
+        "status": "unavailable",
+        "ids": [
+          "kfc_item_b663a7e1612f3c0cc7dc"
+        ],
+        "names": [
+          "Súp Rong Biển"
+        ]
+      },
+      "soldOut": {
+        "ids": [
+          "kfc_item_b663a7e1612f3c0cc7dc"
+        ],
+        "names": [
+          "Súp Rong Biển"
+        ]
+      }
+    },
+    {
+      "id": "NL-075",
+      "message": "lấy mình một pepsi",
+      "tags": [
+        "het_hang",
+        "mo_ho",
+        "so_bang_chu"
+      ],
+      "expectedAction": "ADD_TO_CART",
+      "expectedQuantity": 1,
+      "mention": "pepsi",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_7df70d828600e0477bfe",
+          "kfc_item_5c9c9dc1ae7ecf3b8312"
+        ],
+        "names": [
+          "Pepsi (Vừa)",
+          "Pepsi (Đại)"
+        ],
+        "excludeIds": [
+          "kfc_item_faf1b99a8d33991cced7"
+        ],
+        "excludeNames": [
+          "Pepsi (Lon)"
+        ]
+      },
+      "soldOut": {
+        "ids": [
+          "kfc_item_faf1b99a8d33991cced7"
+        ],
+        "names": [
+          "Pepsi (Lon)"
+        ]
+      }
+    },
+    {
+      "id": "NL-076",
+      "message": "Đổi pepsi lon thành 3",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "UPDATE_CART",
+      "expectedQuantity": 3,
+      "mention": "pepsi lon",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_faf1b99a8d33991cced7"
+        ],
+        "names": [
+          "Pepsi (Lon)"
+        ]
+      }
+    },
+    {
+      "id": "NL-077",
+      "message": "doi khoai chien vua thanh 2",
+      "tags": [
+        "khong_dau"
+      ],
+      "expectedAction": "UPDATE_CART",
+      "expectedQuantity": 2,
+      "mention": "khoai chien vua",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_2a976de0306a26120156"
+        ],
+        "names": [
+          "Khoai Tây Chiên (Vừa)"
+        ]
+      }
+    },
+    {
+      "id": "NL-078",
+      "message": "sửa burger tôm còn 1 cái",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "UPDATE_CART",
+      "expectedQuantity": 1,
+      "mention": "burger tôm",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_3317d940ef5af561adf1"
+        ],
+        "names": [
+          "Burger Tôm"
+        ]
+      }
+    },
+    {
+      "id": "NL-079",
+      "message": "tăng mì ý xúc xích lên 3",
+      "tags": [
+        "ten_rut_gon"
+      ],
+      "expectedAction": "UPDATE_CART",
+      "expectedQuantity": 3,
+      "mention": "mì ý xúc xích",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_dde3d2815c0b58920571"
+        ],
+        "names": [
+          "Mì Ý Xúc Xích Gà"
+        ]
+      }
+    },
+    {
+      "id": "NL-080",
+      "message": "giảm bánh trứng xuống 2",
+      "tags": [
+        "mo_ho"
+      ],
+      "expectedAction": "UPDATE_CART",
+      "expectedQuantity": 2,
+      "mention": "bánh trứng",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_d4232475f17f6409eb3e",
+          "kfc_item_17688a14363d174fe959"
+        ],
+        "names": [
+          "1 Bánh Trứng",
+          "4 Bánh Trứng"
+        ]
+      }
+    },
+    {
+      "id": "NL-081",
+      "message": "cho pepsi lớn lên 4 ly",
+      "tags": [
+        "kich_co",
+        "dao_tu"
+      ],
+      "expectedAction": "UPDATE_CART",
+      "expectedQuantity": 4,
+      "mention": "pepsi lớn",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_5c9c9dc1ae7ecf3b8312"
+        ],
+        "names": [
+          "Pepsi (Đại)"
+        ]
+      }
+    },
+    {
+      "id": "NL-082",
+      "message": "đổi sl coca thành 2",
+      "tags": [
+        "teencode",
+        "ngoai_menu"
+      ],
+      "expectedAction": "UPDATE_CART",
+      "expectedQuantity": 2,
+      "mention": "coca",
+      "expectedItem": {
+        "status": "not_found",
+        "ids": [],
+        "names": []
+      }
+    },
+    {
+      "id": "NL-083",
+      "message": "Bỏ pepsi lon ra khỏi giỏ",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "REMOVE_FROM_CART",
+      "mention": "pepsi lon",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_faf1b99a8d33991cced7"
+        ],
+        "names": [
+          "Pepsi (Lon)"
+        ]
+      }
+    },
+    {
+      "id": "NL-084",
+      "message": "xoá burger tôm",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "REMOVE_FROM_CART",
+      "mention": "burger tôm",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_3317d940ef5af561adf1"
+        ],
+        "names": [
+          "Burger Tôm"
+        ]
+      }
+    },
+    {
+      "id": "NL-085",
+      "message": "hủy món khoai chiên lớn",
+      "tags": [
+        "ten_goi_khac",
+        "kich_co"
+      ],
+      "expectedAction": "REMOVE_FROM_CART",
+      "mention": "khoai chiên lớn",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_ce4b1b58c1a25d368e7c"
+        ],
+        "names": [
+          "Khoai Tây Chiên (Lớn)"
+        ]
+      }
+    },
+    {
+      "id": "NL-086",
+      "message": "bo com trang di",
+      "tags": [
+        "khong_dau"
+      ],
+      "expectedAction": "REMOVE_FROM_CART",
+      "mention": "com trang",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_fb3e616b0811118bbe04"
+        ],
+        "names": [
+          "Cơm trắng"
+        ]
+      }
+    },
+    {
+      "id": "NL-087",
+      "message": "k lấy pepsi nữa",
+      "tags": [
+        "teencode",
+        "can_ngu_canh"
+      ],
+      "expectedAction": "REMOVE_FROM_CART",
+      "mention": "pepsi",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_7df70d828600e0477bfe",
+          "kfc_item_faf1b99a8d33991cced7"
+        ],
+        "names": [
+          "Pepsi (Vừa)",
+          "Pepsi (Lon)"
+        ]
+      }
+    },
+    {
+      "id": "NL-088",
+      "message": "xoá hết giỏ hàng",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "CLEAR_CART"
+    },
+    {
+      "id": "NL-089",
+      "message": "xoa toan bo gio hang giup minh",
+      "tags": [
+        "khong_dau"
+      ],
+      "expectedAction": "CLEAR_CART"
+    },
+    {
+      "id": "NL-090",
+      "message": "làm trống giỏ đi",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "CLEAR_CART"
+    },
+    {
+      "id": "NL-091",
+      "message": "bỏ hết mấy món trong giỏ",
+      "tags": [
+        "dai_dong"
+      ],
+      "expectedAction": "CLEAR_CART"
+    },
+    {
+      "id": "NL-092",
+      "message": "giỏ hàng của mình có gì",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "VIEW_CART"
+    },
+    {
+      "id": "NL-093",
+      "message": "xem gio hang",
+      "tags": [
+        "khong_dau"
+      ],
+      "expectedAction": "VIEW_CART"
+    },
+    {
+      "id": "NL-094",
+      "message": "tổng tiền bao nhiêu rồi",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "VIEW_CART"
+    },
+    {
+      "id": "NL-095",
+      "message": "bn tiền r bạn",
+      "tags": [
+        "teencode"
+      ],
+      "expectedAction": "VIEW_CART"
+    },
+    {
+      "id": "NL-096",
+      "message": "đọc lại đơn giúp mình",
+      "tags": [
+        "ten_goi_khac"
+      ],
+      "expectedAction": "VIEW_CART"
+    },
+    {
+      "id": "NL-097",
+      "message": "Có món gà nào dưới 50k không",
+      "tags": [
+        "gia"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "expectedPrice": {
+        "maxPrice": 50000
+      }
+    },
+    {
+      "id": "NL-098",
+      "message": "combo nào tầm 100 cành",
+      "tags": [
+        "gia",
+        "teencode"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "expectedPrice": {
+        "approximate": 100000
+      }
+    },
+    {
+      "id": "NL-099",
+      "message": "mình có 60 nghìn, ăn gì được",
+      "tags": [
+        "gia"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "expectedPrice": {
+        "maxPrice": 60000
+      }
+    },
+    {
+      "id": "NL-100",
+      "message": "tìm burger từ 40k đến 60k",
+      "tags": [
+        "gia"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "expectedPrice": {
+        "minPrice": 40000,
+        "maxPrice": 60000
+      }
+    },
+    {
+      "id": "NL-101",
+      "message": "món nào trên 200k",
+      "tags": [
+        "gia"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "expectedPrice": {
+        "minPrice": 200000
+      }
+    },
+    {
+      "id": "NL-102",
+      "message": "nhóm 4 người mỗi người 50k thì nên gọi gì",
+      "tags": [
+        "gia",
+        "dai_dong"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "expectedPrice": {
+        "maxPrice": 50000,
+        "perPerson": true
+      }
+    },
+    {
+      "id": "NL-103",
+      "message": "ngân sách 300 nghìn cho cả nhà",
+      "tags": [
+        "gia"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "expectedPrice": {
+        "maxPrice": 300000
+      }
+    },
+    {
+      "id": "NL-104",
+      "message": "có gì ăn vặt dưới 30.000đ không",
+      "tags": [
+        "gia"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "expectedPrice": {
+        "maxPrice": 30000
+      }
+    },
+    {
+      "id": "NL-105",
+      "message": "50k đổ lại có combo nào ko",
+      "tags": [
+        "gia",
+        "teencode"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "expectedPrice": {
+        "maxPrice": 50000
+      }
+    },
+    {
+      "id": "NL-106",
+      "message": "deal nào 99k",
+      "tags": [
+        "gia",
+        "cau_cut"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "expectedPrice": {
+        "minPrice": 99000,
+        "maxPrice": 99000
+      }
+    },
+    {
+      "id": "NL-107",
+      "message": "dưới 50 có gì",
+      "tags": [
+        "gia",
+        "cau_cut"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "expectedPrice": {
+        "maxPrice": 50000
+      }
+    },
+    {
+      "id": "NL-108",
+      "message": "năm chục nghìn đổ lại ăn được gì",
+      "tags": [
+        "gia",
+        "so_bang_chu"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "expectedPrice": {
+        "maxPrice": 50000
+      }
+    },
+    {
+      "id": "NL-109",
+      "message": "nước uống nào rẻ nhất",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "expectedPrice": {}
+    },
+    {
+      "id": "NL-110",
+      "message": "có pepsi không đường không",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "mention": "pepsi không đường",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_6a9be61a6ec870c12d8a",
+          "kfc_item_a934e48c617a6fcefba6"
+        ],
+        "names": [
+          "Pepsi Không Đường (Lon)",
+          "Pepsi Không Đường (Vừa)"
+        ]
+      }
+    },
+    {
+      "id": "NL-111",
+      "message": "menu có gà quay không",
+      "tags": [
+        "ten_rut_gon"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "mention": "gà quay",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_09760b09d0746ff80a9a"
+        ],
+        "names": [
+          "1 Miếng Phi-lê Gà Quay"
+        ]
+      }
+    },
+    {
+      "id": "NL-112",
+      "message": "kfc có bán coca ko",
+      "tags": [
+        "ngoai_menu",
+        "teencode"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "mention": "coca",
+      "expectedItem": {
+        "status": "not_found",
+        "ids": [],
+        "names": []
+      }
+    },
+    {
+      "id": "NL-113",
+      "message": "có trà sữa không bạn",
+      "tags": [
+        "ngoai_menu"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "mention": "trà sữa",
+      "expectedItem": {
+        "status": "not_found",
+        "ids": [],
+        "names": []
+      }
+    },
+    {
+      "id": "NL-114",
+      "message": "có cánh gà không",
+      "tags": [
+        "ngoai_menu"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "mention": "cánh gà",
+      "expectedItem": {
+        "status": "not_found",
+        "ids": [],
+        "names": []
+      }
+    },
+    {
+      "id": "NL-115",
+      "message": "cho mình coi menu với",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "SEARCH_MENU"
+    },
+    {
+      "id": "NL-116",
+      "message": "đồ uống có những gì",
+      "tags": [
+        "ten_goi_khac"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "mention": "đồ uống",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_7df70d828600e0477bfe",
+          "kfc_item_fdec4d9552c642a1f7b1"
+        ],
+        "names": [
+          "Pepsi (Vừa)",
+          "Lipton (Vừa)"
+        ]
+      }
+    },
+    {
+      "id": "NL-117",
+      "message": "có món tráng miệng nào",
+      "tags": [
+        "ten_goi_khac"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "mention": "tráng miệng",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_d4232475f17f6409eb3e"
+        ],
+        "names": [
+          "1 Bánh Trứng"
+        ]
+      }
+    },
+    {
+      "id": "NL-118",
+      "message": "có salad ko",
+      "tags": [
+        "teencode"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "mention": "salad",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_85d1db8ad989a11d2584",
+          "kfc_item_4ccf0ff1489bda235227"
+        ],
+        "names": [
+          "Salad Xốt Mè Rang",
+          "Salad Hạt Gà Viên"
+        ]
+      }
+    },
+    {
+      "id": "NL-119",
+      "message": "zinger còn không",
+      "tags": [
+        "ten_rut_gon",
+        "het_hang_hoi"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "mention": "zinger",
+      "expectedItem": {
+        "status": "resolved",
+        "ids": [
+          "kfc_item_e1f9ab057159219b0309"
+        ],
+        "names": [
+          "Burger Gà Zinger"
+        ]
+      }
+    },
+    {
+      "id": "NL-120",
+      "message": "có gà cay không",
+      "tags": [
+        "thuoc_tinh"
+      ],
+      "expectedAction": "SEARCH_MENU",
+      "mention": "gà cay",
+      "expectedItem": {
+        "status": "ambiguous",
+        "ids": [
+          "kfc_item_44b30d1307321296c041"
+        ],
+        "names": [
+          "1 Miếng Gà Xốt Mắm Tỏi"
+        ]
+      }
+    },
+    {
+      "id": "NL-121",
+      "message": "chào shop",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "NONE"
+    },
+    {
+      "id": "NL-122",
+      "message": "cảm ơn bạn nhiều",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "NONE"
+    },
+    {
+      "id": "NL-123",
+      "message": "kfc mở cửa mấy giờ",
+      "tags": [
+        "ngoai_pham_vi"
+      ],
+      "expectedAction": "NONE"
+    },
+    {
+      "id": "NL-124",
+      "message": "ok",
+      "tags": [
+        "cau_cut"
+      ],
+      "expectedAction": "NONE"
+    },
+    {
+      "id": "NL-125",
+      "message": "bạn là ai vậy",
+      "tags": [
+        "chuan"
+      ],
+      "expectedAction": "NONE"
+    },
+    {
+      "id": "NL-126",
+      "message": "đừng thêm pepsi nha",
+      "tags": [
+        "phu_dinh"
+      ],
+      "expectedAction": "NONE"
+    },
+    {
+      "id": "NL-127",
+      "message": "thêm 1 burger tôm và 2 pepsi lon",
+      "tags": [
+        "nhieu_y"
+      ],
+      "expectedAction": "ADD_TO_CART"
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import { IMenuRepository } from "@/lib/db/repositories/interfaces/menu-repositor
 import { menuSearchOptionsSchema, type MenuSearchOptions } from "@/lib/validation/menu";
 import { DomainError } from "@/lib/domain-error";
 import { normalizeVietnamese, matchesMenuQuery } from "@/lib/menu-search";
+import { matchMenuItems } from "@/lib/agent/understanding/menu-resolver";
 export { normalizeVietnamese, matchesMenuQuery } from "@/lib/menu-search";
 import {
   MenuCategory,
@@ -122,7 +123,16 @@ export class MenuService {
       throw new DomainError("INVALID_PRICE_RANGE", "Giá tối thiểu phải nhỏ hơn hoặc bằng giá tối đa.");
     const normalizedQuery = normalizeVietnamese(query);
     const available = await this.menuRepository.getAvailableMenuItems();
-    const matched = available.filter(item => matchesMenuQuery(item, normalizedQuery, { allowNamePrefix: true }));
+    // Understanding-aware match first (no accents, aliases, typos, "lớn" vs "lon");
+    // prefix matching remains the fallback for partially typed words ("bur").
+    let matched = normalizedQuery ? null : available;
+    if (!matched) {
+      const categories = new Map((await this.menuRepository.getCategories()).map(c => [c.id, c.name]));
+      const smart = matchMenuItems(query, available.map(item => ({ ...item, categoryName: categories.get(item.categoryId) })));
+      matched = smart?.length
+        ? available.filter(item => smart.some(hit => hit.id === item.id))
+        : available.filter(item => matchesMenuQuery(item, normalizedQuery, { allowNamePrefix: true }));
+    }
     const result = matched.filter(item =>
       (!options.categoryId || item.categoryId === options.categoryId) &&
       (options.minPrice === undefined || item.price >= options.minPrice) &&

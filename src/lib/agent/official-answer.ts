@@ -10,5 +10,7 @@ export function officialAnswer(message: string): string | null {
     /\b(tim|o dau|gan nhat|dia chi|he thong)\b/.test(text)
   )
     return `Bạn có thể tìm nhà hàng KFC và chọn địa điểm nhận phù hợp tại ${officialKfcSources.restaurants}. Nhà hàng và khả năng phục vụ địa chỉ được xác nhận trên KFC khi đặt hàng.`;
+  if (/\b(mo cua|dong cua|gio mo|gio dong)\b/.test(text) || (/\bmay gio\b/.test(text) && /\b(kfc|nha hang|cua hang|quan)\b/.test(text)))
+    return `Giờ mở cửa khác nhau theo từng nhà hàng KFC. Bạn có thể xem giờ và địa chỉ tại ${officialKfcSources.restaurants}.`;
   return null;
 }

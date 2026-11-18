@@ -1,6 +1,7 @@
 import { ActionType, PolicyDecision, ProposedAction } from "@/lib/types/agent";
 import { CartService } from "@/lib/services/cart-service";
-import { MenuService, normalizeVietnamese, matchesMenuQuery } from "@/lib/services/menu-service";
+import { MenuService } from "@/lib/services/menu-service";
+import { resolveMenuMention, type MenuResolution } from "@/lib/agent/understanding/menu-resolver";
 import {
   CartToolInputSchema,
   CartToolInput,
@@ -321,15 +322,25 @@ export class PolicyEngine {
       };
     }
 
-    const matches = await this.findMenuMatches(query);
-    if (matches.length === 0) {
+    const resolution = await this.resolveMenuQuery(query);
+    if (resolution.status === "unavailable") {
+      const names = resolution.unavailable.map((item) => item.name).join(", ");
       return {
         decision: "BLOCK",
-        reason: `Không tìm thấy món phù hợp với "${query}"`,
+        reason: `${names} hiện đang tạm hết. Bạn có thể chọn món khác.`,
       };
     }
-    if (matches.length > 1) {
-      const names = matches.map((item) => item.name).join(", ");
+    if (resolution.status === "not_found") {
+      const missing = resolution.unknownTokens.length
+        ? ` (thực đơn không có: ${resolution.unknownTokens.join(", ")})`
+        : "";
+      return {
+        decision: "BLOCK",
+        reason: `Không tìm thấy món phù hợp với "${query}"${missing}`,
+      };
+    }
+    if (resolution.status === "ambiguous") {
+      const names = resolution.items.map((item) => item.name).join(", ");
       return {
         decision: "BLOCK",
         reason: `Có nhiều món phù hợp với "${query}": ${names}`,
@@ -339,25 +350,35 @@ export class PolicyEngine {
   }
 
   /**
-   * Resolves a free-text product phrase against the authoritative menu.
-   * A match requires every query token to appear in the item text, so
-   * "combo ga cay" matches "Combo Gà Cay" but not "Combo Gà Rán".
+   * Resolves a customer's product phrase against the authoritative catalog,
+   * including sold-out items so they can be reported rather than substituted.
+   * Handles missing accents, aliases, typos and the "lớn"/"lon" distinction.
+   */
+  async resolveMenuQuery(query: string): Promise<MenuResolution> {
+    const [items, categories] = await Promise.all([
+      this.menuService.getMenuItems(),
+      this.menuService.getCategories(),
+    ]);
+    const categoryName = new Map(categories.map((category) => [category.id, category.name]));
+    return resolveMenuMention(
+      query,
+      items.map((item) => ({ ...item, categoryName: categoryName.get(item.categoryId) })),
+    );
+  }
+
+  /**
+   * Orderable items matching a free-text product phrase: one item when the
+   * phrase is specific, several when the customer must choose, none when the
+   * product is unknown or sold out (see resolveMenuQuery for the reason).
    */
   async findMenuMatches(
     query: string,
   ): Promise<{ id: string; name: string; price: number }[]> {
-    const normalizedQuery = normalizeVietnamese(query);
-    if (!normalizedQuery) return [];
-
-    const items = await this.menuService.getAvailableMenuItems();
-    const exactNames = items.filter(item => normalizeVietnamese(item.name) === normalizedQuery);
-
-    const matches = exactNames.length
-      ? exactNames
-      : items.filter(item => matchesMenuQuery(item, normalizedQuery));
-    return matches
-      .sort((a, b) => a.id.localeCompare(b.id))
-      .map((item) => ({ id: item.id, name: item.name, price: item.price }));
+    if (!query.trim()) return [];
+    const resolution = await this.resolveMenuQuery(query);
+    return resolution.status === "resolved" || resolution.status === "ambiguous"
+      ? resolution.items
+      : [];
   }
 }
 
