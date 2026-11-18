@@ -106,7 +106,15 @@ verification metadata are created only in tests.
 
 Run `npm run test:menu`. Tests use the existing in-memory TypeScript loader,
 read local fixtures and emit results to stdout; no network, persistence writes
-or source promotion. `npm run check` includes this suite.
+or source promotion.
+
+**Known issue (18/11/2026):** `npm run check` does not include this suite yet.
+The seed file `mock-repository.ts` was changed after the fixture was made
+(commits 4c8693f and 06e93aa, storefront refresh #11), so the test
+"fixture hash matches the actual legacy seed" fails. The fact test (names,
+prices, availability) still passes. The fixture owner should re-transcribe it
+from the current seed and record the new `rawSha256`; editing the hash alone
+would misstate provenance. Until then run `npm run test:menu` separately.
 
 Test-first evidence: the initial fixture/tests failed because the contract module
 did not exist. A subsequent malformed-URL regression failed with `Invalid URL`
