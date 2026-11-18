@@ -17,11 +17,16 @@ import { normalizeVietnamese } from "@/lib/menu-search";
  *      as a bullet or in an enumeration ("có nước ngọt, cà phê, trà");
  *   6. put a price on something that is not a product ("Gà rán – từ 25–50 nghìn")
  *      in a bullet that is not a total or budget line;
- *   7. open with "Xong" before the customer has confirmed anything.
+ *   7. open with "Xong" before the customer has confirmed anything;
+ *   8. tell the customer to press “Xác nhận thao tác” when no proposal is waiting.
  */
 /** `retired`: no longer on the KFC menu at all (not just sold out right now). */
 export interface CatalogFact { id: string; name: string; price: number; available: boolean; retired?: boolean; category?: string }
-export interface Evidence { catalog: CatalogFact[] }
+export interface Evidence {
+  catalog: CatalogFact[];
+  /** A cart proposal is waiting for the customer's button (this turn or an earlier one). Unknown when omitted. */
+  proposalPending?: boolean;
+}
 
 export interface GuardResult {
   ok: boolean;
@@ -55,6 +60,14 @@ function amounts(folded: string): { value: number; at: number }[] {
   return found;
 }
 
+/** "46.000 ₫) = 184.000 ₫" must read as two amounts, not one: separate digits joined only by symbols. */
+const separateNumbers = (value: string) => value.replace(/(\d)([^\p{L}\d]*[^\p{L}\d\s.,][^\p{L}\d]*)(?=\d)/gu, "$1 x ");
+
+/** Words of a bullet's product part: after a leading quantity, before a price, dash, colon or bracket. */
+function bulletHead(body: string): string {
+  return body.replace(/^\d+\s*[x×]\s*|^\d+\s+/i, "").split(/\s[-–—]\s|:|\(|\s\d/)[0];
+}
+
 export function checkReply(reply: string, evidence: Evidence): GuardResult {
   const problems: string[] = [];
   const text = reply.normalize("NFC").trim();
@@ -64,6 +77,12 @@ export function checkReply(reply: string, evidence: Evidence): GuardResult {
     problems.push("Đừng mở đầu bằng \"Xong\": giỏ chưa đổi cho tới khi khách bấm nút Xác nhận.");
   if (COMPLETION_CLAIMS.test(normalizeVietnamese(text)))
     problems.push("Không được nói đã thêm/đặt/xoá/cập nhật/thanh toán: bạn chỉ đề xuất, khách phải bấm nút Xác nhận.");
+  // Only an instruction to press the button now is wrong without a proposal; explaining how
+  // confirmation works ("mình không thể tự xác nhận, chỉ khi bạn bấm…") is fine.
+  const pressNow = text.split(/[.!?\n]/).map((sentence) => ` ${normalizeVietnamese(sentence)} `)
+    .some((sentence) => sentence.includes("xac nhan thao tac") && !/ (?:khong|chua|chi|sau khi|neu|khi nao) /.test(sentence));
+  if (evidence.proposalPending === false && pressNow)
+    problems.push("Chưa có đề xuất nào chờ khách xác nhận: muốn thêm/đổi/xoá thì gọi propose_cart_change trước, nếu không thì đừng nhắc nút “Xác nhận thao tác”.");
   for (const url of text.match(/https?:\/\/\S+/gi) ?? [])
     if (!/^https:\/\/kfcvietnam\.com\.vn(?:\/|$)/i.test(url)) problems.push("Chỉ được dẫn link kfcvietnam.com.vn.");
 
@@ -79,12 +98,18 @@ export function checkReply(reply: string, evidence: Evidence): GuardResult {
     for (const line of text.split("\n")) {
       const bullet = BULLET.exec(line);
       if (!bullet) continue;
-      // The head is the product part: after a leading quantity ("2 ×", "3 "), before a price,
-      // a dash, a colon or a bracketed note. "7Up" keeps its digit (no space after it).
-      const head = bullet[1].replace(/^\d+\s*[x×]\s*|^\d+\s+/i, "").split(/\s[-–—]\s|:|\(|\s\d/)[0];
+      // "7Up" keeps its digit (no space after it).
+      const head = bulletHead(bullet[1]);
       // "- Tổng: 57.000 ₫", "- Còn dư 3.000 ₫" are arithmetic lines, not products.
       if (new RegExp(`^(?:${TOTAL_WORDS.source})`).test(normalizeVietnamese(head))) continue;
-      const unknown = normalizeVietnamese(head).split(" ").filter((word) => word && !vocabulary.has(word) && !LIST_WORDS.has(word));
+      // Only bullets shaped like a product are checked: with an amount or a "+" composition, or
+      // short and not a question. "- Hay bạn muốn mình tìm các combo sẵn có?" or
+      // "- Xem bảng thành phần trên trang KFC" are sentences, not products.
+      const headWords = normalizeVietnamese(head).split(" ").filter(Boolean);
+      const productShaped = amounts(` ${normalizeVietnamese(separateNumbers(line))} `).length > 0 || line.includes("+")
+        || (headWords.length <= 5 && !/\?\s*$/.test(line));
+      if (!productShaped) continue;
+      const unknown = headWords.filter((word) => !vocabulary.has(word) && !LIST_WORDS.has(word));
       if (unknown.length) problems.push(`"${head.trim()}" không có trong thực đơn; chỉ nhắc món có trong kết quả search_menu.`);
     }
     // An enumeration in prose ("có nước ngọt, cà phê, trà hay…") lists products too. It is
@@ -108,7 +133,7 @@ export function checkReply(reply: string, evidence: Evidence): GuardResult {
 
   // Check each clause separately: a price belongs to the product named just before it.
   for (const clause of text.split(/\n|;|\s\/\s/)) {
-    const original = ` ${normalizeVietnamese(clause)} `;
+    const original = ` ${normalizeVietnamese(separateNumbers(clause))} `;
     let folded = original;
     const hits: { item: (typeof names)[number]; at: number; end: number }[] = [];
     for (const item of names) {
@@ -121,7 +146,19 @@ export function checkReply(reply: string, evidence: Evidence): GuardResult {
       }
     }
     hits.sort((a, b) => a.at - b.at);
-    if (BULLET.test(clause) && hits.length === 0 && amounts(original).length > 0 && !TOTAL_WORDS.test(original))
+    // A size or variant line under a product ("- Vừa: 17.000 ₫" after "Pepsi") is fine when a real
+    // item whose name holds those words costs exactly that; "- Gà rán – từ 25–50 nghìn" is not.
+    const bulletBody = BULLET.exec(clause)?.[1];
+    const variantPrice = () => {
+      const alternatives = bulletHead(bulletBody ?? "").split("/").map((part) =>
+        normalizeVietnamese(part).split(" ").filter((word) => word && !LIST_WORDS.has(word))).filter((words) => words.length);
+      const candidates = evidence.catalog.filter((item) => {
+        const nameWords = new Set(normalizeVietnamese(item.name).split(" "));
+        return alternatives.some((words) => words.every((word) => nameWords.has(word)));
+      });
+      return amounts(original).every((m) => candidates.some((item) => m.value % item.price === 0 && m.value / item.price <= 20));
+    };
+    if (bulletBody && hits.length === 0 && amounts(original).length > 0 && !TOTAL_WORDS.test(original) && !variantPrice())
       problems.push(`"${clause.trim()}": số tiền phải gắn với một món cụ thể có trong kết quả search_menu (tên và giá đúng), không ước lượng theo nhóm.`);
     // Amounts are read from the unblanked clause: positions are identical, and names
     // that contain numbers ("Xô Zòn Zã 159K") are skipped because they lie inside a hit.

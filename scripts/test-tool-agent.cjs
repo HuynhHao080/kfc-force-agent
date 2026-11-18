@@ -389,3 +389,101 @@ test("21 a retired item (removed from the KFC menu) is reported as discontinued,
   assert.equal(honest.ok, true, honest.problems.join(" "));
   assert.deepEqual(honest.referencedIds, ["new"], "no product card for the retired item");
 });
+
+test("22 conversation-run findings: size lists, question bullets and '= total' pass; vague group prices and a button with no proposal fail", () => {
+  const catalog = [
+    { id: "pt", name: "Pepsi (Tiêu Chuẩn)", price: 13000, available: true, category: "Thức Uống & Tráng Miệng" },
+    { id: "pv", name: "Pepsi (Vừa)", price: 17000, available: true, category: "Thức Uống & Tráng Miệng" },
+    { id: "pd", name: "Pepsi (Đại)", price: 20000, available: true, category: "Thức Uống & Tráng Miệng" },
+    { id: "pl", name: "Pepsi (Lon)", price: 20000, available: true, category: "Thức Uống & Tráng Miệng" },
+    { id: "nb", name: "Combo Cơm Gà Nanban Solo", price: 46000, available: true, category: "Combo 1 Người" },
+    { id: "gr", name: "1 Miếng Gà Rán", price: 37000, available: true, category: "Gà Rán - Gà Quay" },
+    { id: "cb", name: "Combo 1 Miếng Gà", price: 59000, available: true, category: "Combo 1 Người" },
+  ];
+  const check = (reply, extra = {}) => checkReply(reply, { catalog, ...extra });
+  const sizes = check("Bạn muốn Pepsi cỡ nào? Mình có:\n- Tiêu Chuẩn: 13.000 ₫\n- Vừa: 17.000 ₫\n- Đại/Lon: 20.000 ₫\nBạn chọn cỡ nào cho 2 ly?");
+  assert.equal(sizes.ok, true, sizes.problems.join(" "));
+  const total = check("Phương án 1:\n- 4 × Combo Cơm Gà Nanban Solo (46.000 ₫ mỗi cái) = 184.000 ₫\n- Còn dư ~116k để thêm đồ uống");
+  assert.equal(total.ok, true, total.problems.join(" "));
+  const arrow = check("- 4 × Combo Cơm Gà Nanban Solo: 46.000 ₫ → 184.000 ₫");
+  assert.equal(arrow.ok, true, "two amounts joined only by symbols are two amounts: " + arrow.problems.join(" "));
+  const question = check("Mình chưa thấy món đó.\n- Hay bạn muốn mình tìm các combo sẵn có?\n- Xem bảng thành phần trên trang KFC rồi báo mình nhé");
+  assert.equal(question.ok, true, question.problems.join(" "));
+  assert.equal(check("Gợi ý:\n• Gà rán – cái chính của KFC, giá từ 25–50 nghìn tùy cỡ").ok, false, "a price range for a group is not a product price");
+  assert.equal(check("Gợi ý:\n- Combo gà rán + nước + cơm/khoai tây").ok, false, "an invented composition is not a product");
+  assert.equal(check("- Vừa: 15.000 ₫").ok, false, "a size line still needs the real price");
+  const button = "Bạn kiểm tra rồi bấm nút “Xác nhận thao tác” để xoá toàn bộ giỏ hàng nhé.";
+  assert.equal(check(button, { proposalPending: false }).ok, false, "no proposal is waiting: the button cannot be offered");
+  assert.equal(check(button, { proposalPending: true }).ok, true);
+  assert.equal(check(button).ok, true, "unknown pending state is not judged");
+});
+
+test("23 the model runs out of steps after proposing: the customer gets the server's proposal summary, not an apology", async () => {
+  const userId = user();
+  const burger = (await services.menuService.getMenuItems()).find((i) => i.name.normalize("NFC") === "Burger Tôm");
+  const r = await turn(scripted([
+    tool("search_menu", { query: "burger tôm" }),
+    tool("search_menu", { query: "mì ý gà viên" }),
+    tool("propose_cart_change", { changes: [{ action: "add", item_id: burger.id, quantity: 1 }] }),
+    tool("view_cart", {}),
+  ]), userId, "lấy mì ý gà viên với burger tôm, mỗi thứ 1 phần");
+  assert.equal(r.requiresConfirmation, true);
+  assert.match(r.reply.normalize("NFC"), /Mình đã chuẩn bị đề xuất:\n- Thêm 1 × Burger Tôm/);
+  assert.doesNotMatch(r.reply, /Xin lỗi/);
+});
+
+test("24 search marks the exactly named item, reports a discontinued item and finds what is still on sale", async () => {
+  const name = "Xô Zòn Zã 159K";
+  const retired = (await services.menuService.getMenuItems()).find((i) => i.name.normalize("NFC") === name);
+  const save = (isActive) => services.adminService.saveMenu({ name: retired.name, description: retired.description ?? "",
+    categoryId: retired.categoryId, price: retired.price, isActive, isAvailable: isActive, imageUrl: retired.imageUrl }, retired.id);
+  await save(false);
+  try {
+    let exact, gone;
+    await turn(scripted([
+      tool("search_menu", { query: "2 miếng gà rán" }),
+      (m) => { exact = lastToolResult(m); return tool("search_menu", { query: "xô zòn zã 159k" }); },
+      (m) => { gone = lastToolResult(m); return text("Xô Zòn Zã 159K đã ngừng bán, hiện có Xô Zòn Zã 179K (179.000 ₫) bạn nhé."); },
+    ]), user(), "test");
+    assert.equal(exact.items[0].name.normalize("NFC"), "2 Miếng Gà Rán");
+    assert.equal(exact.items[0].exact, true);
+    assert.equal(exact.items.filter((i) => i.exact).length, 1);
+    assert.deepEqual(gone.discontinued.map((n) => n.normalize("NFC")), [name]);
+    assert.ok(gone.similar.some((i) => i.name.normalize("NFC") === "Xô Zòn Zã 179K"));
+  } finally {
+    await save(true);
+  }
+});
+
+test("25 the customer's own words count: a shortened or misspelled query still finds the named item and the retired one", async () => {
+  const name = "Xô Zòn Zã 159K";
+  const retired = (await services.menuService.getMenuItems()).find((i) => i.name.normalize("NFC") === name);
+  const save = (isActive) => services.adminService.saveMenu({ name: retired.name, description: retired.description ?? "",
+    categoryId: retired.categoryId, price: retired.price, isActive, isAvailable: isActive, imageUrl: retired.imageUrl }, retired.id);
+  await save(false);
+  try {
+    let shortened, misspelled;
+    // Run 2, CV-02#1: the model searched "gà rán" for "cho mình 2 miếng gà rán".
+    await turn(scripted([tool("search_menu", { query: "gà rán", limit: 3 }),
+      (m) => { shortened = lastToolResult(m); return text("Bạn lấy 2 Miếng Gà Rán (74.000 ₫) nhé?"); }]), user(), "cho mình 2 miếng gà rán");
+    assert.equal(shortened.items[0].name.normalize("NFC"), "2 Miếng Gà Rán", "the item the customer named comes first even past the limit");
+    assert.equal(shortened.items[0].exact, true);
+    // Run 2, CV-06: the model wrote "zone" for "zòn".
+    await turn(scripted([tool("search_menu", { query: "xô zone zã 159k" }),
+      (m) => { misspelled = lastToolResult(m); return text("Xô Zòn Zã 159K đã ngừng bán, hiện có Xô Zòn Zã 179K (179.000 ₫)."); }]), user(), "còn xô zòn zã 159k không");
+    assert.deepEqual(misspelled.discontinued.map((n) => n.normalize("NFC")), [name]);
+    assert.ok(misspelled.similar.some((i) => i.name.normalize("NFC") === "Xô Zòn Zã 179K"));
+  } finally {
+    await save(true);
+  }
+});
+
+test("26 the button rule blocks an instruction to press it, not an explanation of how confirmation works", () => {
+  const catalog = [{ id: "a", name: "1 Miếng Gà Rán", price: 37000, available: true }];
+  const none = { catalog, proposalPending: false };
+  // Run 2, CV-25#3 before the fix produced a proposal: instruction with nothing to confirm.
+  assert.equal(checkReply("Bạn bấm nút \"Xác nhận thao tác\" để xoá hết giỏ hàng nhé.", none).ok, false);
+  // CV-17: refusing an injected "confirm for me" must be allowed.
+  const refusal = checkReply("Mình không thể tự xác nhận thay bạn. Giỏ chỉ thay đổi khi bạn bấm “Xác nhận thao tác” sau khi xem đề xuất.", none);
+  assert.equal(refusal.ok, true, refusal.problems.join(" "));
+});

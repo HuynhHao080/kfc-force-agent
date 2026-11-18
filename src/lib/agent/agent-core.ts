@@ -656,12 +656,37 @@ async function runToolAgent(
         maxPrice: input.max_price, minPrice: input.min_price, sort: input.sort ?? "price_asc", categoryId: category?.id,
       });
       const signals = query ? rankMenuCandidates(query, withCategory) : { unknownTokens: [] as string[], soldOut: [] as { name: string }[] };
+      // "1 cơm gà rán" names the item "1 Cơm Gà Rán": compare names with a leading count dropped.
+      const bare = (value: string) => normalizeVietnamese(value).replace(/^\d+\s+/, "");
+      const noPrice = (value: string) => normalizeVietnamese(value).split(" ").filter((word) => !/\d/.test(word)).join(" ");
+      // The model may shorten or misspell what the customer said ("gà rán" for "2 miếng gà rán",
+      // "xô zone zã" for "xô zòn zã"), so names are also matched against the customer's own words.
+      const said = ` ${normalizeVietnamese(message)} `;
+      const inMessage = (name: string) => said.includes(` ${normalizeVietnamese(name)} `);
+      const isExact = (name: string) => inMessage(name)
+        || (!!query && (normalizeVietnamese(name) === normalizeVietnamese(query) || bare(name) === bare(query)));
+      const ranked = [...all.filter((item) => isExact(item.name)), ...all.filter((item) => !isExact(item.name))];
+      const hit = (item: (typeof all)[number]) => ({
+        id: item.id, name: item.name, price: item.price,
+        category: categoryName.get(item.categoryId),
+        description: item.description?.slice(0, 160),
+        ...(isExact(item.name) ? { exact: true } : {}),
+      });
+      // Removed items the customer or the query names, and what is on sale under the same name without
+      // its price tag ("xô zòn zã 159k" → "Xô Zòn Zã 179K").
+      const discontinuedItems = catalogItems.filter((item) => !item.isActive && (inMessage(item.name)
+        || (!!query && (normalizeVietnamese(item.name) === normalizeVietnamese(query)
+          || (noPrice(item.name) !== "" && noPrice(item.name) === noPrice(query))))));
+      const discontinued = discontinuedItems.map((item) => item.name);
+      const similarQuery = discontinuedItems.length ? noPrice(discontinuedItems[0].name)
+        : query && all.length === 0 && noPrice(query) !== normalizeVietnamese(query) ? noPrice(query) : "";
+      const similar = similarQuery
+        ? (await services.menuService.searchMenuItemsForCustomer(similarQuery, { sort: "price_asc" })).slice(0, 5)
+        : [];
       return {
-        items: all.slice(0, input.limit ?? 8).map((item) => ({
-          id: item.id, name: item.name, price: item.price,
-          category: categoryName.get(item.categoryId),
-          description: item.description?.slice(0, 160),
-        })),
+        items: ranked.slice(0, input.limit ?? 8).map(hit),
+        ...(discontinued.length ? { discontinued } : {}),
+        ...(similar.length ? { similar: similar.map(hit) } : {}),
         totalMatches: all.length,
         notOnMenu: signals.unknownTokens,
         soldOut: signals.soldOut.map((item) => item.name),
@@ -710,6 +735,12 @@ async function runToolAgent(
           ? "Giờ mở cửa khác nhau theo từng nhà hàng; khách xem tại trang hệ thống nhà hàng."
           : "Danh sách và địa chỉ nhà hàng KFC.";
       return { topic, url, note };
+    },
+    async hasPendingProposal() {
+      const stored = (await services.sessionService.getConversationContext(sessionId))?.context as
+        { pendingConfirmation?: { expiresAt?: string } | null } | undefined;
+      const expiresAt = Date.parse(stored?.pendingConfirmation?.expiresAt ?? "");
+      return Number.isFinite(expiresAt) && expiresAt > Date.now();
     },
     async catalog() {
       return catalogItems.map((item) => ({ id: item.id, name: item.name, price: item.price, available: item.isActive && item.isAvailable, retired: !item.isActive, category: categoryName.get(item.categoryId) }));

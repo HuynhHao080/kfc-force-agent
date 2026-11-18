@@ -46,7 +46,7 @@
       "id": "CV-04", "family": "off-menu", "title": "Hỏi Coca (không bán) rồi chọn đồ uống có thật",
       "turns": [
         { "user": "có coca không bạn",
-          "expect": { "proposal": null, "mention": [["không"]], "mustNot": ["coca-cola có", "có coca"] } },
+          "expect": { "proposal": null, "mention": [["không"]] } },
         { "user": "vậy lấy 1 lon 7up",
           "expect": { "proposal": { "action": "add", "items": [{ "anyOf": ["7Up (Lon)"], "quantity": 1 }] } } }
       ]

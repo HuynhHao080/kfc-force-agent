@@ -97,8 +97,16 @@ export type OfficialTopic = z.infer<typeof officialInputSchema>["topic"];
 export type SearchInput = z.infer<typeof searchInputSchema>;
 export type CartChange = z.infer<typeof changeSchema>;
 
-export interface MenuHit { id: string; name: string; price: number; category?: string; description?: string }
-export interface SearchResult { items: MenuHit[]; totalMatches: number; notOnMenu: string[]; soldOut: string[] }
+/** `exact`: the item's name is exactly what the customer asked for (leading count aside). */
+export interface MenuHit { id: string; name: string; price: number; category?: string; description?: string; exact?: boolean }
+export interface SearchResult {
+  items: MenuHit[]; totalMatches: number; notOnMenu: string[]; soldOut: string[];
+  /** Items KFC has removed from the menu that match the query. */
+  discontinued?: string[];
+  /** Items on sale found after dropping price tokens ("159k") when the full query found nothing. */
+  similar?: MenuHit[];
+  categories?: string[]; note?: string;
+}
 export interface CartResult { lines: { item_id: string; name: string; quantity: number; unit_price: number; subtotal: number }[]; total: number }
 export interface ProposalResult { status: "awaiting_customer_confirmation" | "blocked"; summary: string[]; blocked: string[] }
 
@@ -110,4 +118,6 @@ export interface ToolAgentDeps {
   officialInfo(topic: OfficialTopic): { topic: OfficialTopic; url: string; note: string };
   /** Every catalog item with its current price and availability, for the fact check. */
   catalog(): Promise<{ id: string; name: string; price: number; available: boolean; retired?: boolean; category?: string }[]>;
+  /** Whether a proposal from an earlier turn is still waiting for the customer's button. */
+  hasPendingProposal(): Promise<boolean>;
 }

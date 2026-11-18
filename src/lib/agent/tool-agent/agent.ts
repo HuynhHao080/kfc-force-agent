@@ -21,7 +21,12 @@ Dữ liệu:
 Giỏ hàng:
 - Khách muốn thêm món và chỉ một món khớp rõ (kể cả cỡ/loại khách nói): gọi propose_cart_change luôn, không hỏi lại. Nhiều món khớp: hỏi lại kèm lựa chọn có thật, ưu tiên món đúng cỡ/loại khách đã nói ("lon", "vừa"). Nếu totalMatches lớn hơn số món nhận được, tra lại cụ thể hơn thay vì đoán.
 - Đổi số lượng hoặc bỏ món: xem view_cart trước; món không có trong giỏ thì nói rõ và hỏi khách có muốn thêm không.
-- propose_cart_change dùng item_id từ dữ liệu công cụ. Đây chỉ là đề xuất; nhắc khách kiểm tra rồi bấm nút “Xác nhận thao tác”. Không bao giờ nói "đã thêm/đã đặt/đã xoá" hay mở đầu bằng "Xong" — giỏ chưa đổi cho tới khi khách bấm nút.
+- propose_cart_change dùng item_id từ dữ liệu công cụ. Món có "exact": true là đúng món khách gọi tên: đề xuất luôn.
+- Khách chọn theo thứ tự trong câu trả lời trước của bạn ("cái đầu tiên", "phương án 2", "món thứ hai"): lấy đúng mục đó, kể cả số lượng bạn đã nêu, và đề xuất luôn.
+- Đổi số lượng/bỏ món: nếu giỏ chỉ có một dòng khớp ý khách thì làm luôn, không hỏi lại.
+- Chỉ nhắc khách bấm “Xác nhận thao tác” khi propose_cart_change đã trả về awaiting_customer_confirmation (trong lượt này hoặc đề xuất trước còn chờ). Muốn xoá/đổi/thêm thì phải gọi công cụ, không chỉ nói.
+- Cần tra nhiều món một lúc: gọi nhiều search_menu trong cùng một lượt trả lời để tiết kiệm bước.
+- Kết quả có "discontinued": nói rõ món đó đã ngừng bán; gợi ý món trong "similar" nếu có. Đây chỉ là đề xuất; nhắc khách kiểm tra rồi bấm nút “Xác nhận thao tác”. Không bao giờ nói "đã thêm/đã đặt/đã xoá" hay mở đầu bằng "Xong" — giỏ chưa đổi cho tới khi khách bấm nút.
 - "ok", "được", "đúng rồi" không phải xác nhận; nhắc khách bấm nút.
 - Thanh toán, giao hàng, mã giảm giá: hướng dẫn khách dùng giao diện.
 
@@ -40,7 +45,7 @@ export interface ToolAgentTrace {
   inputTokens: number;
   outputTokens: number;
   latencyMs: number;
-  outcome: "answered" | "fallback_guard" | "fallback_steps" | "provider_error";
+  outcome: "answered" | "fallback_guard" | "fallback_steps" | "fallback_proposal" | "provider_error";
 }
 
 export interface ToolAgentResult {
@@ -63,7 +68,15 @@ export class ToolAgent {
     const finish = (reply: string, outcome: ToolAgentTrace["outcome"], referencedIds: string[] = []): ToolAgentResult =>
       ({ reply, proposal, referencedIds, trace: { ...trace, outcome, latencyMs: Date.now() - started } });
 
-    const evidence: Evidence = { catalog: await deps.catalog() };
+    const evidence: Evidence = { catalog: await deps.catalog(), proposalPending: await deps.hasPendingProposal() };
+    // When the model cannot finish its reply but a proposal exists, tell the customer what the
+    // server prepared (its own summary) instead of a vague apology next to a confirm button.
+    const fallback = (outcome: ToolAgentTrace["outcome"]): ToolAgentResult => {
+      const current = proposal as ProposalResult | null;
+      return current?.summary.length
+        ? finish(`Mình đã chuẩn bị đề xuất:\n${current.summary.map((line) => "- " + line).join("\n")}\nBạn kiểm tra rồi bấm “Xác nhận thao tác” nhé.`, "fallback_proposal")
+        : finish(SAFE_FALLBACK, outcome);
+    };
     const messages: ToolMessage[] = [
       ...history.filter((turn) => turn.role !== "system" && turn.content.trim()).slice(-10)
         .map((turn) => ({ role: turn.role as "user" | "assistant", content: turn.content })),
@@ -91,7 +104,7 @@ export class ToolAgent {
         const results: Record<string, unknown>[] = [];
         for (const use of toolUses) {
           trace.toolCalls.push(use.name);
-          const output = await this.runTool(use.name, use.input, deps, (value) => { proposal = value; });
+          const output = await this.runTool(use.name, use.input, deps, (value) => { proposal = value; evidence.proposalPending = true; });
           results.push({ type: "tool_result", tool_use_id: use.id, content: json(output.data), ...(output.error ? { is_error: true } : {}) });
         }
         messages.push({ role: "user", content: results });
@@ -106,12 +119,12 @@ export class ToolAgent {
       // Problems name catalog items and prices, never the customer's message.
       if (!check.ok && process.env.TOOL_AGENT_DEBUG === "1") console.info("tool_agent_guard", JSON.stringify(check.problems));
       if (check.ok) return finish(reply, "answered", check.referencedIds);
-      if (guardFeedbackUsed || trace.calls >= MAX_MODEL_CALLS) return finish(SAFE_FALLBACK, "fallback_guard");
+      if (guardFeedbackUsed || trace.calls >= MAX_MODEL_CALLS) return fallback("fallback_guard");
       guardFeedbackUsed = true;
       trace.guardRetries++;
       messages.push({ role: "user", content: `[Kiểm tra dữ liệu tự động, không phải lời khách] Câu trả lời chưa được gửi vì: ${check.problems.join(" ")} Hãy sửa đúng chỗ đó (tra lại bằng công cụ nếu cần) và viết lại câu trả lời cho khách.` });
     }
-    return finish(SAFE_FALLBACK, "fallback_steps");
+    return fallback("fallback_steps");
   }
 
   private async runTool(
