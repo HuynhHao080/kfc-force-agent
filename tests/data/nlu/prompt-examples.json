@@ -1,0 +1,22 @@
+[
+  {
+    "caseId": "N2-ADD-01",
+    "groupId": "single-add",
+    "utterance": "Cho mình hai Pepsi nhé"
+  },
+  {
+    "caseId": "N2-ABS-01",
+    "groupId": "single-abs",
+    "utterance": "Đổi Pepsi thành bốn phần"
+  },
+  {
+    "caseId": "N2-NEG-01",
+    "groupId": "single-neg",
+    "utterance": "Đừng thêm hai Pepsi"
+  },
+  {
+    "caseId": "N2-CON-01",
+    "groupId": "single-con",
+    "utterance": "Tư vấn cho hai người dưới 200k, không cay và khỏi nước"
+  }
+]

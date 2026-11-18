@@ -82,6 +82,7 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   products?: import("./chat-product").ChatProduct[];
+  ai?: import("@/lib/agent/read-only/contract").ReadOnlyTrace;
   reply: string;
   sessionId: string;
   actions: ProposedAction[];

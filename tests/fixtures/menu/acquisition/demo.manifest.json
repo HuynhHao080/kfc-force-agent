@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "snapshotId": "snapshot-demo-1",
+  "payloadPath": "demo.snapshot.json",
+  "source": {
+    "type": "demo_fixture",
+    "namespace": "project-demo-seed",
+    "url": null,
+    "evidence": {"status":"not_applicable","reference":null,"reason":"Self-authored synthetic fixture transcribed from project demo seed; not KFC official data"}
+  },
+  "capturedAt": "2026-11-09T00:00:00.000Z",
+  "contentHash": "daddc22472fbe36d26039e353fd69f19be549bdbc6e154e681af213251959abc",
+  "contentType": "application/json",
+  "captureMethod": "local_fixture",
+  "httpStatus": null,
+  "scope": {
+    "store": {"status":"not_applicable","value":null,"reference":null,"reason":"Synthetic fixture"},
+    "region": {"status":"not_applicable","value":null,"reference":null,"reason":"Synthetic fixture"},
+    "channel": {"status":"not_applicable","value":null,"reference":null,"reason":"Synthetic fixture"},
+    "currency": {"status":"verified","value":"VND","reference":"Demo seed currency declaration","reason":null},
+    "description": "Synthetic offline demo only; no live KFC observation"
+  },
+  "rights": {"status":"verified","reference":"Project-authored synthetic test fixture; no assertion of rights to external KFC content","reason":null},
+  "review": {"status":"pending","reviewer":null,"reviewedAt":null,"reference":null,"reason":"Awaiting staging review"}
+}

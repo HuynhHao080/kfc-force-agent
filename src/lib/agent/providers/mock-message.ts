@@ -54,6 +54,28 @@ function polite(text: string) {
     text = text.replace(/^(?:ban oi|lam on|vui long|hay)\s+/, "");
   return text.replace(/\s+(?:nhe|nha|a)(?:\s+(?:ban|a))?$/, "").trim();
 }
+/**
+ * Returns the diacritic-preserving words that correspond to `stripped`, a
+ * contiguous word range of `folded` (the accent-free form of `masked`).
+ * Falls back to the folded text when the two tokenisations disagree.
+ */
+function alignAccented(masked: string, folded: string, stripped: string): string {
+  const accentedWords = masked
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ");
+  const foldedWords = folded.split(" ");
+  if (accentedWords.length !== foldedWords.length) return stripped;
+  const target = stripped.split(" ").filter(Boolean);
+  for (let start = 0; start + target.length <= foldedWords.length; start++) {
+    if (foldedWords.slice(start, start + target.length).join(" ") === stripped)
+      return accentedWords.slice(start, start + target.length).join(" ");
+  }
+  return stripped;
+}
 /** Conservative lexical parsing only. No cart reads, arithmetic on cart or execution. */
 export function prepareMockMessage(message: string) {
   const quantities: { value: number | undefined; ambiguous: boolean }[] = [];
@@ -95,7 +117,12 @@ export function prepareMockMessage(message: string) {
       return "kfcqty" + index + "token";
     },
   );
-  const normalized = polite(normalizeVietnamese(masked));
+  const folded = normalizeVietnamese(masked);
+  const normalized = polite(folded);
+  // Product phrase keeps its diacritics: "pepsi lớn" (large) must not reach
+  // the menu resolver as "pepsi lon" (can). Intent detection stays accent-free,
+  // so the accented words are aligned to the politeness-stripped folded words.
+  const accented = alignAccented(masked, folded, normalized);
   if (/\d/.test(masked.replace(/kfc(?:qty|size)\d+token/g, "")))
     ambiguous = true;
   ambiguous ||=
@@ -121,7 +148,7 @@ export function prepareMockMessage(message: string) {
     /\b(?:va|roi|sau do|hoac|nhung|thay vi|neu|khi)\b/.test(text);
   return {
     text,
-    queryText: normalized.replace(/kfcqty\d+token/g, " "),
+    queryText: accented.replace(/kfcqty\d+token/g, " "),
     quantity: quantities[0]?.value,
     ambiguous,
     multiple,

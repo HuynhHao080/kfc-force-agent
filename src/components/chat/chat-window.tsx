@@ -11,6 +11,7 @@ interface ChatWindowProps {
   onSendMessage: (message: string) => void;
   isLoading: boolean;
   disabled?: boolean;
+  readOnlyLlm?: boolean;
 }
 export function ChatWindow({
   inputId,
@@ -20,6 +21,7 @@ export function ChatWindow({
   disabled = false,
   onChooseProduct,
   onViewProduct,
+  readOnlyLlm = false,
 }: ChatWindowProps) {
   const [input, setInput] = useState("");
   const log = useRef<HTMLDivElement>(null);
@@ -65,6 +67,13 @@ export function ChatWindow({
       />
       <details className="chat-help">
         <summary>Cách nói với trợ lý</summary>
+        {readOnlyLlm ? (
+          <p>
+            Bạn có thể hỏi menu, xem giỏ hoặc nhờ gợi ý món theo ngân sách và số
+            người bằng cách nói tự nhiên. Chat hiện chỉ tư vấn; dùng nút trên giao
+            diện để thay đổi giỏ và xác nhận đặt hàng.
+          </p>
+        ) : (<>
         <p>
           Nên gửi một món và một thao tác mỗi lần, dùng chữ số hoặc số viết bằng
           chữ rõ ràng.
@@ -79,6 +88,7 @@ export function ChatWindow({
           Đọc lại món, số lượng và giá rồi bấm xác nhận. Câu tăng/giảm tương đối
           hoặc chưa rõ sẽ cần làm rõ; chữ “ok” không thực thi thay nút xác nhận.
         </p>
+        </>)}
       </details>
     </div>
   );

@@ -16,6 +16,7 @@ export function AssistantPanel({
   onClose,
   onChooseProduct,
   onViewProduct,
+  readOnlyLlm,
 }: {
   id: string;
   messages: ChatTurn[];
@@ -28,6 +29,7 @@ export function AssistantPanel({
   onClose?: () => void;
   onChooseProduct?: (id: string) => void;
   onViewProduct?: (id: string) => void;
+  readOnlyLlm?: boolean;
 }) {
   return (
     <section
@@ -67,6 +69,7 @@ export function AssistantPanel({
         disabled={disabled}
         onChooseProduct={onChooseProduct}
         onViewProduct={onViewProduct}
+        readOnlyLlm={readOnlyLlm}
       />
       {pending && (
         <div className="pending-action">

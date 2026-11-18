@@ -1,6 +1,7 @@
 import { BaseLLMProvider, LLMResult } from "./llm-provider";
 import { AgentResponse, ProposedAction } from "@/lib/types/agent";
 import { prepareMockMessage, restoreMockSizes } from "./mock-message";
+import { normalizeVietnamese } from "@/lib/menu-search";
 
 /** Offline intent parser. Only proposes actions; policy and tools execute them. */
 export class MockLLMProvider extends BaseLLMProvider {
@@ -251,9 +252,10 @@ const stopWords = new Set([
   "het",
 ]);
 function extractItemQuery(text: string): string {
+  // `text` keeps diacritics; stop words are matched on the accent-free form.
   return text
     .split(" ")
-    .filter((word) => word && !stopWords.has(word) && !/^\d+$/.test(word))
+    .filter((word) => word && !stopWords.has(normalizeVietnamese(word)) && !/^\d+$/.test(word))
     .join(" ")
     .replace(/(\d+)d(\d+)(l|lit)\b/g, "$1 $2$3")
     .trim();
