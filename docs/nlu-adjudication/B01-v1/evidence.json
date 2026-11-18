@@ -1,0 +1,597 @@
+{
+  "artifactType": "documentation_only_B01_review_evidence",
+  "packetVersion": "B01-v1",
+  "batchId": "B01",
+  "policyLogVersion": "B00-policy-v1",
+  "policyLogSha256": "f8ca3a1a6aeffdde2f090503876e701ba6045aeee1f4bb13c3d4daed2d4a97bb",
+  "provenance": {
+    "selectionSource": "User message: KFC Force Agent — B00 Policy Logging & B01 Readiness (Documentation Only)",
+    "reviewerIdentity": null,
+    "approvalTimestamp": null,
+    "signature": null
+  },
+  "humanReviewStatus": "not_performed",
+  "datasetApproval": false,
+  "caseIds": [
+    "N2-D-BUDGET-1-1",
+    "N2-D-BUDGET-1-2",
+    "N2-D-BUDGET-1-3",
+    "N2-D-BUDGET-2-1",
+    "N2-D-BUDGET-2-2",
+    "N2-D-BUDGET-2-3"
+  ],
+  "caseHashAlgorithm": "SHA-256 of the existing canonical JSON hash function used by N3.1; unchanged original case hashes",
+  "sources": {
+    "tests/data/nlu/pilot.vi.json": {
+      "sha256": "fdf93f924fb92584e679a3867f6fd98d074506489585e775bbe7e7f811c7b723"
+    },
+    "tests/data/nlu/review-manifest.json": {
+      "sha256": "46e62f3705dfc9500cfbeaa6cbfa437e858fee07221b36f6c6fc50bde967a16f"
+    },
+    "docs/nlu-adjudication/review-queue.json": {
+      "sha256": "5697b7e8735ab65e8fff2c90053b856cefd34d1e04f1515dd1171ec6bd3e4969"
+    },
+    "docs/nlu-adjudication/review-cards.md": {
+      "sha256": "ffd55d7ab63d62bb3eb15463dcfd4d89f92e8039a508f3febc72e3a0e7c30e38"
+    },
+    "docs/nlu-adjudication/N3.1A-report.md": {
+      "sha256": "245904c83c0cbe23f86f1ff874a8ea8d36402957bd4dbc3d654398cdd25962b8"
+    }
+  },
+  "cases": [
+    {
+      "caseId": "N2-D-BUDGET-1-1",
+      "originalCaseHash": "be7e5d4b750a397c796469cc618cb0948d76ee5d99b51a710c6f2914297e100f",
+      "split": "train",
+      "groupId": "dialogue-family-budget",
+      "dialogueId": "dialogue-budget-1",
+      "turnIndex": 1,
+      "originalUtterance": "Tư vấn đồ ăn cho nhóm mình",
+      "trustedContext": {
+        "classification": "seed_demo",
+        "menuVersion": "n2-synthetic-v1",
+        "storeId": "demo-a",
+        "channel": "pickup",
+        "products": [
+          {
+            "id": "demo-pepsi",
+            "name": "Pepsi",
+            "options": [
+              {
+                "id": "size",
+                "values": [
+                  "small",
+                  "large"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "demo-burger",
+            "name": "Burger demo",
+            "options": [
+              {
+                "id": "spice",
+                "values": [
+                  "mild",
+                  "hot"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "demo-fries",
+            "name": "Khoai demo",
+            "options": []
+          }
+        ],
+        "cart": {
+          "revision": "r1",
+          "lines": [
+            {
+              "id": "line1",
+              "productId": "demo-pepsi",
+              "quantity": 3,
+              "optionValueIds": []
+            }
+          ]
+        },
+        "references": [
+          {
+            "id": "last-item",
+            "productId": "demo-pepsi"
+          }
+        ]
+      },
+      "allowedHistory": [],
+      "originalGoldenSnapshot": {
+        "status": "needs_clarification",
+        "missingSlots": [
+          "meaning"
+        ],
+        "reason": "Need recommendation requirements",
+        "intents": [
+          {
+            "id": "i",
+            "kind": "request_recommendation",
+            "polarity": "affirmed",
+            "targetIds": []
+          }
+        ],
+        "entities": []
+      }
+    },
+    {
+      "caseId": "N2-D-BUDGET-1-2",
+      "originalCaseHash": "377c7491629453453214028c719b336bee3678026f77f7696c14aaddb87e5490",
+      "split": "train",
+      "groupId": "dialogue-family-budget",
+      "dialogueId": "dialogue-budget-1",
+      "turnIndex": 2,
+      "originalUtterance": "Tụi mình có bốn người ăn",
+      "trustedContext": {
+        "classification": "seed_demo",
+        "menuVersion": "n2-synthetic-v1",
+        "storeId": "demo-a",
+        "channel": "pickup",
+        "products": [
+          {
+            "id": "demo-pepsi",
+            "name": "Pepsi",
+            "options": [
+              {
+                "id": "size",
+                "values": [
+                  "small",
+                  "large"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "demo-burger",
+            "name": "Burger demo",
+            "options": [
+              {
+                "id": "spice",
+                "values": [
+                  "mild",
+                  "hot"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "demo-fries",
+            "name": "Khoai demo",
+            "options": []
+          }
+        ],
+        "cart": {
+          "revision": "r1",
+          "lines": [
+            {
+              "id": "line1",
+              "productId": "demo-pepsi",
+              "quantity": 3,
+              "optionValueIds": []
+            }
+          ]
+        },
+        "references": [
+          {
+            "id": "last-item",
+            "productId": "demo-pepsi"
+          }
+        ]
+      },
+      "allowedHistory": [
+        {
+          "caseId": "N2-D-BUDGET-1-1",
+          "role": "user",
+          "utterance": "Tư vấn đồ ăn cho nhóm mình"
+        }
+      ],
+      "originalGoldenSnapshot": {
+        "status": "understood",
+        "intents": [
+          {
+            "id": "i",
+            "kind": "request_recommendation",
+            "polarity": "affirmed",
+            "targetIds": []
+          }
+        ],
+        "entities": [
+          {
+            "id": "n",
+            "kind": "party_size",
+            "text": "Tụi mình có bốn người ăn",
+            "value": 4
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "N2-D-BUDGET-1-3",
+      "originalCaseHash": "465c8efb40323b01819c0dfadde06cf49498fcc96d7a3c54c6ea997e0691ed14",
+      "split": "train",
+      "groupId": "dialogue-family-budget",
+      "dialogueId": "dialogue-budget-1",
+      "turnIndex": 3,
+      "originalUtterance": "Chi tối đa ba trăm nghìn cả nhóm",
+      "trustedContext": {
+        "classification": "seed_demo",
+        "menuVersion": "n2-synthetic-v1",
+        "storeId": "demo-a",
+        "channel": "pickup",
+        "products": [
+          {
+            "id": "demo-pepsi",
+            "name": "Pepsi",
+            "options": [
+              {
+                "id": "size",
+                "values": [
+                  "small",
+                  "large"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "demo-burger",
+            "name": "Burger demo",
+            "options": [
+              {
+                "id": "spice",
+                "values": [
+                  "mild",
+                  "hot"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "demo-fries",
+            "name": "Khoai demo",
+            "options": []
+          }
+        ],
+        "cart": {
+          "revision": "r1",
+          "lines": [
+            {
+              "id": "line1",
+              "productId": "demo-pepsi",
+              "quantity": 3,
+              "optionValueIds": []
+            }
+          ]
+        },
+        "references": [
+          {
+            "id": "last-item",
+            "productId": "demo-pepsi"
+          }
+        ]
+      },
+      "allowedHistory": [
+        {
+          "caseId": "N2-D-BUDGET-1-1",
+          "role": "user",
+          "utterance": "Tư vấn đồ ăn cho nhóm mình"
+        },
+        {
+          "caseId": "N2-D-BUDGET-1-2",
+          "role": "user",
+          "utterance": "Tụi mình có bốn người ăn"
+        }
+      ],
+      "originalGoldenSnapshot": {
+        "status": "understood",
+        "intents": [
+          {
+            "id": "i",
+            "kind": "request_recommendation",
+            "polarity": "affirmed",
+            "targetIds": []
+          }
+        ],
+        "entities": [
+          {
+            "id": "n",
+            "kind": "party_size",
+            "text": "Chi tối đa ba trăm nghìn cả nhóm",
+            "value": 4
+          },
+          {
+            "id": "b",
+            "kind": "budget",
+            "text": "Chi tối đa ba trăm nghìn cả nhóm",
+            "amount": 300000,
+            "currency": "VND",
+            "scope": "total"
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "N2-D-BUDGET-2-1",
+      "originalCaseHash": "2d2659b37f6c418dc79ae532fd0626e54880e7a850895a9bb50abc71d9aaa0f2",
+      "split": "train",
+      "groupId": "dialogue-family-budget",
+      "dialogueId": "dialogue-budget-2",
+      "turnIndex": 1,
+      "originalUtterance": "Nhóm mình cần gợi ý món ăn",
+      "trustedContext": {
+        "classification": "seed_demo",
+        "menuVersion": "n2-synthetic-v1",
+        "storeId": "demo-a",
+        "channel": "pickup",
+        "products": [
+          {
+            "id": "demo-pepsi",
+            "name": "Pepsi",
+            "options": [
+              {
+                "id": "size",
+                "values": [
+                  "small",
+                  "large"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "demo-burger",
+            "name": "Burger demo",
+            "options": [
+              {
+                "id": "spice",
+                "values": [
+                  "mild",
+                  "hot"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "demo-fries",
+            "name": "Khoai demo",
+            "options": []
+          }
+        ],
+        "cart": {
+          "revision": "r1",
+          "lines": [
+            {
+              "id": "line1",
+              "productId": "demo-pepsi",
+              "quantity": 3,
+              "optionValueIds": []
+            }
+          ]
+        },
+        "references": [
+          {
+            "id": "last-item",
+            "productId": "demo-pepsi"
+          }
+        ]
+      },
+      "allowedHistory": [],
+      "originalGoldenSnapshot": {
+        "status": "needs_clarification",
+        "missingSlots": [
+          "meaning"
+        ],
+        "reason": "Need recommendation requirements",
+        "intents": [
+          {
+            "id": "i",
+            "kind": "request_recommendation",
+            "polarity": "affirmed",
+            "targetIds": []
+          }
+        ],
+        "entities": []
+      }
+    },
+    {
+      "caseId": "N2-D-BUDGET-2-2",
+      "originalCaseHash": "5053e210b8f4f7bbc14c52e05c3e5e65ef94071908aa3ae19fb4b7d9d680b609",
+      "split": "train",
+      "groupId": "dialogue-family-budget",
+      "dialogueId": "dialogue-budget-2",
+      "turnIndex": 2,
+      "originalUtterance": "Nhóm này gồm 4 người nhé",
+      "trustedContext": {
+        "classification": "seed_demo",
+        "menuVersion": "n2-synthetic-v1",
+        "storeId": "demo-a",
+        "channel": "pickup",
+        "products": [
+          {
+            "id": "demo-pepsi",
+            "name": "Pepsi",
+            "options": [
+              {
+                "id": "size",
+                "values": [
+                  "small",
+                  "large"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "demo-burger",
+            "name": "Burger demo",
+            "options": [
+              {
+                "id": "spice",
+                "values": [
+                  "mild",
+                  "hot"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "demo-fries",
+            "name": "Khoai demo",
+            "options": []
+          }
+        ],
+        "cart": {
+          "revision": "r1",
+          "lines": [
+            {
+              "id": "line1",
+              "productId": "demo-pepsi",
+              "quantity": 3,
+              "optionValueIds": []
+            }
+          ]
+        },
+        "references": [
+          {
+            "id": "last-item",
+            "productId": "demo-pepsi"
+          }
+        ]
+      },
+      "allowedHistory": [
+        {
+          "caseId": "N2-D-BUDGET-2-1",
+          "role": "user",
+          "utterance": "Nhóm mình cần gợi ý món ăn"
+        }
+      ],
+      "originalGoldenSnapshot": {
+        "status": "understood",
+        "intents": [
+          {
+            "id": "i",
+            "kind": "request_recommendation",
+            "polarity": "affirmed",
+            "targetIds": []
+          }
+        ],
+        "entities": [
+          {
+            "id": "n",
+            "kind": "party_size",
+            "text": "Nhóm này gồm 4 người nhé",
+            "value": 4
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "N2-D-BUDGET-2-3",
+      "originalCaseHash": "a4fadfd48c57921de80f687578670e70c6a177fd8a7954dda966f32142527582",
+      "split": "train",
+      "groupId": "dialogue-family-budget",
+      "dialogueId": "dialogue-budget-2",
+      "turnIndex": 3,
+      "originalUtterance": "Tổng ngân sách nhóm là 300k thôi",
+      "trustedContext": {
+        "classification": "seed_demo",
+        "menuVersion": "n2-synthetic-v1",
+        "storeId": "demo-a",
+        "channel": "pickup",
+        "products": [
+          {
+            "id": "demo-pepsi",
+            "name": "Pepsi",
+            "options": [
+              {
+                "id": "size",
+                "values": [
+                  "small",
+                  "large"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "demo-burger",
+            "name": "Burger demo",
+            "options": [
+              {
+                "id": "spice",
+                "values": [
+                  "mild",
+                  "hot"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "demo-fries",
+            "name": "Khoai demo",
+            "options": []
+          }
+        ],
+        "cart": {
+          "revision": "r1",
+          "lines": [
+            {
+              "id": "line1",
+              "productId": "demo-pepsi",
+              "quantity": 3,
+              "optionValueIds": []
+            }
+          ]
+        },
+        "references": [
+          {
+            "id": "last-item",
+            "productId": "demo-pepsi"
+          }
+        ]
+      },
+      "allowedHistory": [
+        {
+          "caseId": "N2-D-BUDGET-2-1",
+          "role": "user",
+          "utterance": "Nhóm mình cần gợi ý món ăn"
+        },
+        {
+          "caseId": "N2-D-BUDGET-2-2",
+          "role": "user",
+          "utterance": "Nhóm này gồm 4 người nhé"
+        }
+      ],
+      "originalGoldenSnapshot": {
+        "status": "understood",
+        "intents": [
+          {
+            "id": "i",
+            "kind": "request_recommendation",
+            "polarity": "affirmed",
+            "targetIds": []
+          }
+        ],
+        "entities": [
+          {
+            "id": "n",
+            "kind": "party_size",
+            "text": "Tổng ngân sách nhóm là 300k thôi",
+            "value": 4
+          },
+          {
+            "id": "b",
+            "kind": "budget",
+            "text": "Tổng ngân sách nhóm là 300k thôi",
+            "amount": 300000,
+            "currency": "VND",
+            "scope": "total"
+          }
+        ]
+      }
+    }
+  ]
+}
