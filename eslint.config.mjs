@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // AgentCore direct-code deployment bundle (npm run agentcore:build).
+    "dist/**",
   ]),
 ]);
 

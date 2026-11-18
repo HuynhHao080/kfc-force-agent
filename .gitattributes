@@ -1,0 +1,3 @@
+# Snapshot hashes cover exact bytes; do not transform acquisition fixtures.
+tests/fixtures/menu/acquisition/*.json -text
+tests/fixtures/menu/acquisition/*.html -text

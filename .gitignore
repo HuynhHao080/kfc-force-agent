@@ -61,3 +61,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AgentCore direct-code deployment package (npm run agentcore:build)
+/dist/
+/.local-agent-test/
