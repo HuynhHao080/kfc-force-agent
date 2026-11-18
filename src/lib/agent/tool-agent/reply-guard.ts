@@ -44,10 +44,14 @@ export interface GuardResult {
 const COMPLETION_CLAIMS =
   /\b(?:(?:da|vua) (?:them|dat|xoa|bo|cap nhat|thanh toan|doi|sua|giam|tang|huy)|dat hang thanh cong|thanh toan thanh cong|da duoc (?:them|dat|xoa|cap nhat)|don hang cua ban da)\b/;
 const UNAVAILABLE_WORDS = /\b(?:het|tam het|ngung|khong con|khong ban)\b/;
+/** A sold-out statement right after a product name ("Pepsi (Lon) tạm hết rồi"); "… hết 40.000 ₫" is a cost, not this. */
+const SOLD_OUT_AFTER_NAME = /^\s*(?:(?:hien|hien tai|da|dang|bi|cung|thi|nay)\s+)*(?:tam het|het hang|het roi|ngung ban|ngung kinh doanh|khong con ban|khong con|het(?=\s*$))\b/;
 const MAX_REPLY_CHARS = 1500;
-/** Grammar and quantity words that may appear in a bullet head without being part of a product name. */
+/** Grammar, quantity and cart-action words that may appear in a bullet head without being part of a product name
+ *  ("- Đổi Pepsi (Vừa) thành 2 phần", "- Xoá Burger Tôm khỏi giỏ hàng" describe a proposal). */
 const LIST_WORDS = new Set(("cac loai mon phan va hoac hay voi kem them co cho ban minh nguoi size cai ly lon chai " +
-  "mot hai ba bon nam x khac do nhe nua gi nao the la cung nhieu thuong").split(" "));
+  "mot hai ba bon nam x khac do nhe nua gi nao the la cung nhieu thuong " +
+  "doi xoa thanh khoi gio hang toan bo").split(" "));
 /** A bullet with an amount but no product is fine only when it is arithmetic over the customer's own choice. */
 const TOTAL_WORDS = /\b(?:tong|cong|con du|con lai|du|thieu|moi nguoi|chia|ngan sach|tat ca)\b/;
 const BULLET = /^\s*(?:[-•*+]|\d+[.)])\s+(.+)$/;
@@ -178,6 +182,9 @@ export function checkReply(reply: string, evidence: Evidence): GuardResult {
       // A product's price may be stated per unit or for several units ("2 × Pepsi (Đại): 40.000 ₫").
       if (price && !(price.value % hit.item.price === 0 && price.value / hit.item.price <= 20))
         problems.push(`Giá của "${hit.item.name}" là ${hit.item.price.toLocaleString("vi-VN")} ₫, không phải ${price.value.toLocaleString("vi-VN")} ₫.`);
+      // The opposite error: calling an item that is on sale sold out (e.g. after a proposal with a wrong id was blocked).
+      if (hit.item.available && SOLD_OUT_AFTER_NAME.test(original.slice(hit.end, nextName)))
+        problems.push(`"${hit.item.name}" đang bán, không hết hàng. Nếu đề xuất bị chặn, kiểm tra lại item_id lấy từ search_menu.`);
       if (!hit.item.available && !UNAVAILABLE_WORDS.test(original))
         problems.push(hit.item.retired
           ? `"${hit.item.name}" đã ngừng bán (KFC không còn món này); nói rõ với khách và gợi ý món đang bán.`

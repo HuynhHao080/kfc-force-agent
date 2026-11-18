@@ -143,3 +143,33 @@ Còn trượt (log debug cho biết nguyên nhân):
 | 2 | 37/43 | 21/25 | 91 |
 | 3 | 38/43 | 21/25 | 93 |
 | 4 | 39/43 | 22/25 | 91 |
+
+### Đã sửa sau lượt 4 (offline, chưa đo lại)
+
+- Guard chặn câu **nói món đang bán là hết** ("Pepsi (Lon) tạm hết rồi"): chỉ xét cụm hết/tạm hết/ngừng bán/không còn đứng ngay sau tên món, nên "KFC không bán Coca, có Pepsi (Lon)" hay "2 Pepsi (Lon) hết 40.000 ₫" vẫn qua.
+- `propose_cart_change` với `item_id` không có trong catalog trả lý do "mã sai, KHÔNG phải món hết hàng: lấy đúng item_id từ search_menu" thay vì chỉ câu chung của PolicyEngine.
+- Từ chỉ thao tác giỏ (đổi, xoá, thành, khỏi giỏ hàng, toàn bộ) được phép ở gạch đầu dòng, nên tóm tắt đề xuất của server ("- Đổi Pepsi (Vừa) thành 2 phần") không bị coi là món lạ.
+- Test 29–30 (`test:tool-agent` 28/28), tắt từng thay đổi → test tương ứng fail. Phát lại 224 câu trả lời thật: chặn đúng 11 câu sai (thêm CV-03#2 lượt 4), không chặn nhầm; luật đối chiếu đề xuất trên 47 lượt có đề xuất chỉ chặn CV-02#3 lượt 3.
+- Chưa làm: cho thêm một lượt gọi khi guard yêu cầu sửa sau đề xuất (CV-02 lượt 4) — tăng chi phí/độ trễ; khách hiện vẫn nhận tóm tắt đề xuất thật.
+
+## Lượt 5 (18/11/2026, Haiku 4.5, sau các bản sửa của lượt 4, `TOOL_AGENT_DEBUG=1`)
+
+90/120 lượt gọi. **39/43 lượt đạt, 22/25 hội thoại đạt** (bằng lượt 4). Báo cáo: `output/evaluation/conversations-2026-11-18T15-20-35-186Z.json`.
+
+Bản sửa có tác dụng: "lon nha" — model gửi mã sai `pepsi-lon`, server báo "mã sai, KHÔNG phải món hết hàng", model tra lại và đề xuất đúng 2 Pepsi (Lon); không còn câu báo hết hàng sai. Sửa giỏ 3/3.
+
+Còn trượt:
+
+| Lượt | Hiện tượng | Nguyên nhân |
+|---|---|---|
+| CV-02#3 | **Khách nhận "Mình đã chuẩn bị đề xuất: Burger Tôm + Combo Burger Tôm" nhưng không có đề xuất nào** | **Lỗi code agent**: model tạo đề xuất, lần gọi sau bị chặn → server thay đề xuất bằng rỗng (đề xuất mới nhất thay cũ), nhưng agent vẫn giữ đề xuất cũ và câu dự phòng mô tả nó |
+| CV-24#1 "thêm 1 cơm gà rán" | Hỏi "hay combo có kèm đồ uống?" dù kết quả đánh dấu đúng món | Không ổn định (lượt 2–4 đạt) |
+| CV-20 "hai cái bánh trứng" | Hỏi lại đơn lẻ hay combo | Không ổn định (lượt 1, 2, 4 đạt) |
+
+| Lượt | Lượt khách đạt | Hội thoại đạt | Lượt gọi |
+|---|---|---|---|
+| 1 | 30/43 | 19/25 | 91 |
+| 2 | 37/43 | 21/25 | 91 |
+| 3 | 38/43 | 21/25 | 93 |
+| 4 | 39/43 | 22/25 | 91 |
+| 5 | 39/43 | 22/25 | 90 |

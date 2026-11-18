@@ -716,7 +716,14 @@ async function runToolAgent(
       const execution = await executeProposedActions(actions, { userId, sessionId, confirmed: false });
       const pending = actions.filter((action) =>
         execution.some((row) => row.actionId === action.id && row.decision === "REQUIRE_CONFIRMATION"));
-      const blocked = execution.filter((row) => row.decision === "BLOCK").map((row) => row.reason ?? "Không thực hiện được.");
+      // An id that is not in the catalog is a copying mistake, not a sold-out item: say so, or the model tells
+      // the customer the product is out of stock.
+      const unknownIds = changes.filter((change) => change.action === "add" && change.item_id
+        && !catalogItems.some((item) => item.id === change.item_id)).map((change) => change.item_id);
+      const blocked = [
+        ...unknownIds.map((id) => `item_id "${id}" không có trong catalog (mã sai, KHÔNG phải món hết hàng): lấy đúng item_id từ kết quả search_menu rồi gọi lại.`),
+        ...execution.filter((row) => row.decision === "BLOCK").map((row) => row.reason ?? "Không thực hiện được."),
+      ];
       // The latest proposal in a turn replaces earlier ones, as a new request does.
       pendingConfirmation = await storePendingProposal(sessionId, userId, pending);
       proposedActions = pending;

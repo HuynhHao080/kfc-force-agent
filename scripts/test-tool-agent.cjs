@@ -530,3 +530,42 @@ test("28 a mismatched proposal is corrected through the guard; a leading 'Xong!'
     ["Thêm 1 × Mì Ý Gà Viên: 43.000 ₫", "Thêm 1 × Burger Tôm: 45.000 ₫"], "the latest proposal replaces the wrong one");
   assert.match(r.reply.normalize("NFC"), /^Mình đề xuất 1 Mì Ý Gà Viên/, "'Xong rồi!' was dropped, not sent and not rewritten");
 });
+
+test("29 run 4 findings: an item on sale called sold out is caught; cart-action lines from the server pass", () => {
+  const catalog = [
+    { id: "pl", name: "Pepsi (Lon)", price: 20000, available: true, category: "Thức Uống & Tráng Miệng" },
+    { id: "pd", name: "Pepsi (Đại)", price: 20000, available: true, category: "Thức Uống & Tráng Miệng" },
+    { id: "pv", name: "Pepsi (Vừa)", price: 17000, available: true, category: "Thức Uống & Tráng Miệng" },
+    { id: "bt", name: "Burger Tôm", price: 45000, available: true, category: "Burger - Cơm - Mì Ý" },
+    { id: "su", name: "Súp Rong Biển", price: 20000, available: false, category: "Thức Ăn Nhẹ" },
+  ];
+  const check = (reply) => checkReply(reply, { catalog });
+  // Run 4, CV-03#2: a blocked proposal (wrong id) turned into "sold out".
+  const wrong = check("Mình vừa kiểm tra lại, Pepsi (Lon) tạm hết rồi bạn. Bạn có muốn lấy Pepsi (Đại) 20.000 ₫ thay không, hay chọn cỡ khác?");
+  assert.equal(wrong.ok, false);
+  assert.match(wrong.problems.join(" "), /Pepsi \(Lon\)" đang bán/);
+  assert.equal(check("Pepsi (Lon) đã hết").ok, false);
+  for (const fine of [
+    "KFC không bán Coca, bạn thử Pepsi (Lon) 20.000 ₫ nhé.",
+    "2 Pepsi (Lon) hết 40.000 ₫ bạn nhé.",
+    "Súp Rong Biển đang tạm hết, bạn lấy Pepsi (Lon) không?",
+    // Run 4, CV-09#3 and #5: the server's own proposal summary.
+    "Mình đã chuẩn bị đề xuất:\n- Đổi Pepsi (Vừa) thành 2 phần: 34.000 ₫\nBạn kiểm tra rồi bấm “Xác nhận thao tác” nhé.",
+    "Mình đã chuẩn bị đề xuất:\n- Xoá Burger Tôm khỏi giỏ hàng\nBạn kiểm tra rồi bấm “Xác nhận thao tác” nhé.",
+    "Mình đã chuẩn bị đề xuất:\n- Xoá toàn bộ món trong giỏ hàng\nBạn kiểm tra rồi bấm “Xác nhận thao tác” nhé.",
+  ]) {
+    const r = check(fine);
+    assert.equal(r.ok, true, `${fine}: ${r.problems.join(" ")}`);
+  }
+});
+
+test("30 a proposal with an id that is not in the catalog is reported as a wrong id, not as sold out", async () => {
+  let result;
+  await turn(scripted([
+    tool("propose_cart_change", { changes: [{ action: "add", item_id: "kfc_item_does_not_exist", quantity: 2 }] }),
+    (messages) => { result = lastToolResult(messages); return text("Mình tra lại món giúp bạn nhé?"); },
+  ]), user(), "lon nha");
+  assert.equal(result.status, "blocked");
+  assert.match(result.blocked.join(" "), /KHÔNG phải món hết hàng/);
+  assert.match(result.blocked.join(" "), /search_menu/);
+});
