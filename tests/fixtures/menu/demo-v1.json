@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "datasetId": "kfc-force-demo",
+  "datasetVersion": "1",
+  "classification": "seed_demo",
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "provenance": [{
+    "id": "seed",
+    "sourceKind": "seed_demo",
+    "sourceUrl": null,
+    "sourceRef": "src/lib/db/repositories/implementations/mock-repository.ts#seedData; sha256 of UTF-8 with LF newlines",
+    "rawSha256": "ba179254212f4b522dc27353b3c04bd8dc42aa8d018bfc0f1a791528aa42ec1d",
+    "observedAt": null,
+    "sourceUpdatedAt": "2024-01-01T00:00:00.000Z",
+    "verificationStatus": "unverified",
+    "verifiedAt": null,
+    "verifiedBy": null,
+    "reason": "Dữ liệu seed demo; timestamp là khai báo trong seed, chưa xác minh với KFC."
+  }],
+  "products": [
+    {
+      "id": "item_burger_001", "name": "Burger Gà Rán",
+      "price": { "status": "known", "amount": 89000, "currency": "VND", "provenanceId": "seed" },
+      "availability": { "status": "available", "scope": "Demo seed; không xác định cửa hàng/kênh bán", "provenanceId": "seed", "observedAt": null },
+      "provenanceId": "seed", "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "item_french_fries_005", "name": "Khoai Tây Chiên",
+      "price": { "status": "known", "amount": 35000, "currency": "VND", "provenanceId": "seed" },
+      "availability": { "status": "available", "scope": "Demo seed; không xác định cửa hàng/kênh bán", "provenanceId": "seed", "observedAt": null },
+      "provenanceId": "seed", "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "item_pepsi_004", "name": "Pepsi 1.5L",
+      "price": { "status": "known", "amount": 25000, "currency": "VND", "provenanceId": "seed" },
+      "availability": { "status": "available", "scope": "Demo seed; không xác định cửa hàng/kênh bán", "provenanceId": "seed", "observedAt": null },
+      "provenanceId": "seed", "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "combos": [{
+    "id": "bundle_family_001", "name": "Combo Gia Đình",
+    "price": { "status": "known", "amount": 299000, "currency": "VND", "provenanceId": "seed" },
+    "availability": { "status": "available", "scope": "Demo seed; không xác định cửa hàng/kênh bán", "provenanceId": "seed", "observedAt": null },
+    "compositionStatus": "known", "compositionReason": null,
+    "provenanceId": "seed", "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z"
+  }],
+  "comboItems": [
+    { "id": "bundle_item_1_1", "comboId": "bundle_family_001", "productId": "item_burger_001", "variantId": null, "quantity": 2, "provenanceId": "seed", "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z" },
+    { "id": "bundle_item_1_2", "comboId": "bundle_family_001", "productId": "item_french_fries_005", "variantId": null, "quantity": 1, "provenanceId": "seed", "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z" },
+    { "id": "bundle_item_1_3", "comboId": "bundle_family_001", "productId": "item_pepsi_004", "variantId": null, "quantity": 2, "provenanceId": "seed", "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z" }
+  ],
+  "variants": [{
+    "id": "variant_pepsi_1_5l", "productId": "item_pepsi_004", "name": "Pepsi 1.5L", "attributes": { "volume": "1.5L" },
+    "price": { "status": "known", "amount": 25000, "currency": "VND", "provenanceId": "seed" },
+    "availability": { "status": "available", "scope": "Demo seed; không xác định cửa hàng/kênh bán", "provenanceId": "seed", "observedAt": null },
+    "provenanceId": "seed", "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z"
+  }],
+  "options": [{
+    "id": "option_spicy_level_001", "productId": "item_burger_001", "variantId": null, "name": "Cấp độ cay",
+    "minSelections": 0, "maxSelections": 1,
+    "provenanceId": "seed", "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z"
+  }],
+  "optionValues": [
+    {
+      "id": "value_spicy_1", "optionId": "option_spicy_level_001", "name": "Ít cay",
+      "priceDelta": { "status": "known", "amount": 0, "currency": "VND", "provenanceId": "seed" },
+      "availability": { "status": "available", "scope": "Demo seed; không xác định cửa hàng/kênh bán", "provenanceId": "seed", "observedAt": null },
+      "provenanceId": "seed", "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "value_spicy_2", "optionId": "option_spicy_level_001", "name": "Cay vừa",
+      "priceDelta": { "status": "known", "amount": 5000, "currency": "VND", "provenanceId": "seed" },
+      "availability": { "status": "available", "scope": "Demo seed; không xác định cửa hàng/kênh bán", "provenanceId": "seed", "observedAt": null },
+      "provenanceId": "seed", "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "value_spicy_3", "optionId": "option_spicy_level_001", "name": "Cay nhiều",
+      "priceDelta": { "status": "known", "amount": 10000, "currency": "VND", "provenanceId": "seed" },
+      "availability": { "status": "available", "scope": "Demo seed; không xác định cửa hàng/kênh bán", "provenanceId": "seed", "observedAt": null },
+      "provenanceId": "seed", "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "formatVersion": 1,
+  "products": [
+    {"key":"burger","name":"Burger Gà Rán","category":"Bữa trưa","price":{"current":{"amount":89000,"currency":"VND"},"strikethrough":null},"availability":null},
+    {"key":"fries","name":"Khoai Tây Chiên","category":"Món ăn kèm","price":{"current":{"amount":35000,"currency":"VND"},"strikethrough":null},"availability":null},
+    {"key":"pepsi","name":"Pepsi 1.5L","category":"Đồ uống","price":{"current":{"amount":25000,"currency":"VND"},"strikethrough":null},"availability":null}
+  ],
+  "combos": [
+    {"key":"family","name":"Combo Gia Đình","price":{"current":{"amount":299000,"currency":"VND"},"strikethrough":null},"availability":null,"composition":{"status":"known","reason":null,"rawText":null}}
+  ],
+  "comboItems": [
+    {"key":"family-burger","comboKey":"family","productKey":"burger","variantKey":null,"quantity":2},
+    {"key":"family-fries","comboKey":"family","productKey":"fries","variantKey":null,"quantity":1},
+    {"key":"family-pepsi","comboKey":"family","productKey":"pepsi","variantKey":null,"quantity":2}
+  ],
+  "variants": [
+    {"key":"pepsi-volume","productKey":"pepsi","name":"Pepsi 1.5L","attributes":{"volume":"1.5L"},"price":{"current":{"amount":25000,"currency":"VND"},"strikethrough":null},"availability":null}
+  ],
+  "options": [
+    {"key":"spice","productKey":"burger","variantKey":null,"name":"Cấp độ cay","minSelections":0,"maxSelections":1}
+  ],
+  "optionValues": [
+    {"key":"spice-low","optionKey":"spice","name":"Ít cay","price":{"current":{"amount":0,"currency":"VND"},"strikethrough":null},"availability":null},
+    {"key":"spice-medium","optionKey":"spice","name":"Cay vừa","price":{"current":{"amount":5000,"currency":"VND"},"strikethrough":null},"availability":null},
+    {"key":"spice-high","optionKey":"spice","name":"Cay nhiều","price":{"current":{"amount":10000,"currency":"VND"},"strikethrough":null},"availability":null}
+  ]
+}
