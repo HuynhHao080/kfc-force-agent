@@ -47,7 +47,7 @@ export class ChatService {
     });
 
     // 4. Persist the assistant message
-    const products = chatProducts(resultProductIds(agentResult.execution), await services.menuService.getAvailableMenuItems());
+    const products = chatProducts(agentResult.productIds?.length ? agentResult.productIds : resultProductIds(agentResult.execution), await services.menuService.getAvailableMenuItems());
     const assistantMessage: Message = {
       id: `msg_${crypto.randomUUID()}_assistant`,
       sessionId: session.id,
@@ -73,6 +73,7 @@ export class ChatService {
       requiresConfirmation: agentResult.requiresConfirmation,
       pendingConfirmation: agentResult.pendingConfirmation ?? null,
       execution: agentResult.execution,
+      ai: agentResult.ai,
     };
   }
 }
