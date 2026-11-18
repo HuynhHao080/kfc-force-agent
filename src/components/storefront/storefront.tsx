@@ -78,6 +78,7 @@ export function Storefront() {
   const [selected, setSelected] = useState<OrderDetail | null>(null);
   const [messages, setMessages] = useState<ChatTurn[]>([welcome]);
   const [pending, setPending] = useState<PendingConfirmation | null>(null);
+  const [readOnlyLlm, setReadOnlyLlm] = useState(false);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [chatBusy, setChatBusy] = useState(false);
@@ -531,6 +532,7 @@ export function Storefront() {
           { role: "assistant", content: response.reply, products: response.products },
         ]);
         setPending(response.pendingConfirmation ?? null);
+        setReadOnlyLlm(response.ai?.mode === "read_only");
         checkoutKey.current = null;
         setCheckoutAttempt(null);
         await refresh();
@@ -1145,7 +1147,7 @@ export function Storefront() {
             )}
           </div>
           <aside className="sidebar desktop-assistant">
-            <AssistantPanel key={conversationOwner ?? "loading"} id="desktop-assistant" messages={messages} pending={pending} busy={chatBusy}
+            <AssistantPanel key={conversationOwner ?? "loading"} id="desktop-assistant" messages={messages} pending={pending} busy={chatBusy} readOnlyLlm={readOnlyLlm}
               onChooseProduct={id => { const item = items.find(item => item.id === id); if (item) sendMessage(`Thêm 1 ${item.name}`, undefined, { itemId: id, quantity: 1 }); }}
               onViewProduct={id => { const item = items.find(item => item.id === id); if (item) setProduct(item); }}
               disabled={disabled || mobileAssistantOpen || !!clearCartDraft || handoffOpen} onSend={sendMessage} onConfirm={() => sendMessage("Xác nhận", pending ?? undefined)}
@@ -1357,7 +1359,7 @@ export function Storefront() {
               first?.focus();
             }
           }}>
-          {mobileAssistantOpen && <AssistantPanel key={conversationOwner ?? "loading"} id="mobile-assistant" messages={messages} pending={pending} busy={chatBusy}
+          {mobileAssistantOpen && <AssistantPanel key={conversationOwner ?? "loading"} id="mobile-assistant" messages={messages} pending={pending} busy={chatBusy} readOnlyLlm={readOnlyLlm}
             onChooseProduct={id => { const item = items.find(item => item.id === id); if (item) sendMessage(`Thêm 1 ${item.name}`, undefined, { itemId: id, quantity: 1 }); }}
             onViewProduct={id => { const item = items.find(item => item.id === id); if (item) setProduct(item); }}
             disabled={disabled || !!clearCartDraft || handoffOpen} onSend={sendMessage} onConfirm={() => sendMessage("Xác nhận", pending ?? undefined)}
