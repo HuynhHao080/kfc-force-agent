@@ -84,6 +84,9 @@ export function Storefront() {
   const [chatBusy, setChatBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [noticeVersion, setNoticeVersion] = useState(0);
+  const [noticeLeaving, setNoticeLeaving] = useState(false);
+  const [noticeHovered, setNoticeHovered] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [feedbackDraft, setFeedbackDraft] = useState<{ orderId: string; feedback: OrderFeedback | null } | null>(null);
@@ -304,6 +307,15 @@ export function Storefront() {
     addressesOpen,
   ]);
   useEffect(() => {
+    if (!notice || noticeHovered) return;
+    const leaveTimer = window.setTimeout(() => setNoticeLeaving(true), 4_500);
+    const removeTimer = window.setTimeout(() => setNotice(""), 5_050);
+    return () => {
+      window.clearTimeout(leaveTimer);
+      window.clearTimeout(removeTimer);
+    };
+  }, [notice, noticeHovered, noticeVersion]);
+  useEffect(() => {
     if (!pending) return;
     const timer = window.setTimeout(
       () => {
@@ -352,7 +364,6 @@ export function Storefront() {
     working.current = true;
     setBusy(true);
     setError("");
-    setNotice("");
     try {
       await operation();
     } catch (err) {
@@ -463,7 +474,11 @@ export function Storefront() {
       setPending(null);
       checkoutKey.current = null;
       setCheckoutAttempt(null);
-      if (message) setNotice(message);
+      if (message) {
+        setNoticeLeaving(false);
+        setNotice(message);
+        setNoticeVersion(version => version + 1);
+      }
       onSaved?.();
     });
   const prepareHandoff = () => run(async () => {
@@ -1056,9 +1071,34 @@ export function Storefront() {
           </div>
         )}
         {notice && (
-          <div className="notice-box storefront-notice scroll-reveal">
-            <span role="status">{notice}</span>
-            <button type="button" aria-label="Ẩn thông báo" onClick={() => setNotice("")}>×</button>
+          <div
+            className={`notice-box storefront-notice scroll-reveal${noticeLeaving ? " is-leaving" : ""}`}
+            onMouseEnter={() => {
+              setNoticeHovered(true);
+              setNoticeLeaving(false);
+            }}
+            onMouseLeave={() => setNoticeHovered(false)}
+            onFocus={() => {
+              setNoticeHovered(true);
+              setNoticeLeaving(false);
+            }}
+            onBlur={event => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                setNoticeHovered(false);
+              }
+            }}
+          >
+            <span className="storefront-notice-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="m5 12.5 4.2 4.2L19 7" />
+              </svg>
+            </span>
+            <span className="storefront-notice-message" role="status">{notice}</span>
+            <button type="button" aria-label="Ẩn thông báo" onClick={() => setNotice("")}>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="m7 7 10 10M17 7 7 17" />
+              </svg>
+            </button>
           </div>
         )}
         <div className="content-grid">
@@ -1206,7 +1246,9 @@ export function Storefront() {
                         aria-label={`${favorites?.itemIds.includes(item.id) ? "Bỏ lưu" : "Lưu yêu thích"} ${item.name}`}
                         aria-pressed={favorites?.itemIds.includes(item.id) ?? false}
                         disabled={disabled || !favorites} onClick={() => toggleFavorite(item)}>
-                        <span aria-hidden="true">{favorites?.itemIds.includes(item.id) ? "♥" : "♡"}</span>
+                        <svg className="favorite-heart" viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z" />
+                        </svg>
                       </button>
                       <button type="button" className={`food-art product-photo-trigger food-${index % 3}`} aria-label={`Ảnh và thông tin ${item.name}`} onClick={() => { setError(""); setProduct(item); }}>
                         <span className="food-art-label" aria-hidden="true">
@@ -1238,7 +1280,7 @@ export function Storefront() {
                           <button
                             disabled={disabled}
                             className="add-button"
-                            aria-label={`Thêm ${item.name}`}
+                            aria-label={`${(basketQuantities[item.id] ?? 0) >= 1 ? "Thêm" : "Chọn"} ${item.name}`}
                             onClick={() =>
                               mutateCart(
                                 "/api/cart",
@@ -1248,7 +1290,7 @@ export function Storefront() {
                               )
                             }
                           >
-                            +<span> Thêm món</span>
+                            + <span>{(basketQuantities[item.id] ?? 0) >= 1 ? "Thêm món" : "Chọn món"}</span>
                           </button>
                         </div>
                       </div>
