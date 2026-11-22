@@ -12,7 +12,7 @@ import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createMemoryRepositories } from "./mock-repository";
 import { catalogRecords } from "@/lib/catalog/kfc-catalog";
-import { kfcPurchaseAssistantEnabled } from "@/lib/purchase-mode";
+import { kfcCatalogEnabled } from "@/lib/purchase-mode";
 import bundledCatalog from "@/lib/catalog/kfc-menu.snapshot.json";
 import type { RepositorySet } from "../repositories";
 import { mergeCatalog } from "@/lib/catalog/merge-catalog";
@@ -58,9 +58,9 @@ export function localRepositories(): RepositorySet {
   let initialCatalog: ReturnType<typeof catalogRecords> | undefined;
   if (!existsSync(file)) {
     if (catalogFile) initialCatalog = catalogRecords(JSON.parse(readFileSync(resolve(catalogFile), "utf8")));
-    else if (kfcPurchaseAssistantEnabled()) initialCatalog = catalogRecords(bundledCatalog);
+    else if (kfcCatalogEnabled()) initialCatalog = catalogRecords(bundledCatalog);
   }
-  const repositoryCatalog = initialCatalog ?? (kfcPurchaseAssistantEnabled() ? { categories: [], items: [] } : undefined);
+  const repositoryCatalog = initialCatalog ?? (kfcCatalogEnabled() ? { categories: [], items: [] } : undefined);
   const repositories = createMemoryRepositories(repositoryCatalog);
   const snapshot = (): Snapshot =>
     Object.fromEntries(
@@ -90,7 +90,7 @@ export function localRepositories(): RepositorySet {
   };
   if (existsSync(file)) {
     restore(JSON.parse(readFileSync(file, "utf8")));
-    if (kfcPurchaseAssistantEnabled() && process.env.KFC_CATALOG_REFRESH === "1") {
+    if (kfcCatalogEnabled() && process.env.KFC_CATALOG_REFRESH === "1") {
       const incoming = catalogRecords(catalogFile ? JSON.parse(readFileSync(resolve(catalogFile), "utf8")) : bundledCatalog);
       const merged = mergeCatalog(snapshot(), incoming);
       if (merged.changed) {

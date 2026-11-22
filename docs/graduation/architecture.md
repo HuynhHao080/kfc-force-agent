@@ -26,6 +26,34 @@ flowchart LR
 
 Monolith chia lớp giữ đường đi giao dịch dễ kiểm chứng trong một đồ án. Provider và persistence có abstraction riêng để thay đổi hạ tầng mà không đưa AWS vào kiểm thử local.
 
+## Kênh WhatsApp (kế hoạch, issue #16; chưa có code)
+
+Kênh chính của khách là WhatsApp. Kênh này là một adapter mới gọi vào `ChatService` hiện có, đi qua cùng agent, policy, xác nhận, tool và service như web. Phần lõi không viết lại.
+
+```mermaid
+flowchart LR
+  W[Khách WhatsApp] --> M[Meta webhook]
+  M --> GW[API Gateway + WAF]
+  GW --> WH[Lambda webhook: kiểm chữ ký, chuẩn hoá, đưa vào hàng đợi, trả 200]
+  WH --> Q[SQS FIFO: nhóm theo khách, chống trùng theo mã tin + DLQ]
+  Q --> WK[Lambda worker]
+  WK --> RT[AgentCore Runtime: ChatService → agent → policy → xác nhận → tool]
+  RT --> DB[DynamoDB]
+  WK --> S[Gửi tin qua Graph API: chữ, nút, danh sách]
+  RT --> SF[Step Functions: vòng đời đơn, báo trạng thái cho khách]
+  SF --> S
+  O[Nhân viên] --> AU[Admin / kitchen board / tiếp quản hội thoại]
+  AU --> DB
+```
+
+| Quyết định | Lý do |
+|---|---|
+| Webhook trả 200 ngay, xử lý qua hàng đợi | Meta gửi lại tin nếu phản hồi chậm hoặc lỗi; agent cần vài giây |
+| SQS FIFO, nhóm theo khách | Tin của cùng một khách xử lý tuần tự; khách khác nhau chạy song song |
+| Nút WhatsApp gọi đúng luồng xác nhận hiện có | Giữ UUID, hạn 15 phút, chữ ký giỏ và kiểm tra lại policy; gõ chữ "xác nhận" không thực thi |
+| Định danh bằng mã băm của số WhatsApp | Số điện thoại không nằm trong id hay log |
+| Đơn CONFIRMED lên kitchen board | Dùng lại checkout có idempotency và máy trạng thái đơn hiện có |
+
 ## Trình tự chat
 
 ```mermaid

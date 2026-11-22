@@ -2,7 +2,12 @@
 
 ## Bài toán
 
-Hệ thống đặt món phải giữ nhất quán giữa món đang bán, giá, giỏ và đơn. Khi thêm hội thoại, phần hiểu câu có thể thiếu hoặc hiểu sai thông tin. Đề tài tách đề xuất khỏi thực thi; policy và xác nhận kiểm soát các thao tác thay đổi giỏ.
+Đề tài giải quyết hai vấn đề (điều chỉnh 22/11/2026, issue #16):
+
+1. **Đặt món phiền:** khách phải cài app, tạo tài khoản và lướt menu qua nhiều bước. Hướng giải quyết là đặt món ngay trong chat. Kênh chính là WhatsApp; web là kênh phụ để demo và test, đồng thời là giao diện quản trị.
+2. **AI đặt sai đơn:** hệ thống đặt món phải giữ nhất quán giữa món đang bán, giá, giỏ và đơn. Phần hiểu câu có thể thiếu hoặc hiểu sai thông tin, nên đề tài tách đề xuất khỏi thực thi: policy và xác nhận của khách kiểm soát các thao tác thay đổi giỏ.
+
+Đầu ra là đơn CONFIRMED trên kitchen board. Chế độ chuyển khách sang website KFC (`KFC_PURCHASE_ASSISTANT=1`) là chế độ phụ, không thuộc phạm vi. Thanh toán thật và POS thật nằm ngoài phạm vi. Kênh WhatsApp đang ở giai đoạn kế hoạch, chưa có code.
 
 Quy mô đến từ các phân hệ khách–vận hành, ràng buộc dữ liệu, xử lý lỗi và bằng chứng kiểm chứng. Chưa có yêu cầu đo đạc chứng minh cần microservice hoặc khả năng chịu tải lớn.
 
@@ -10,6 +15,7 @@ Quy mô đến từ các phân hệ khách–vận hành, ràng buộc dữ li�
 
 | Tác nhân           | Quyền                                                                            |
 | ------------------ | -------------------------------------------------------------------------------- |
+| Khách WhatsApp (kế hoạch) | Định danh bằng số WhatsApp, không cần đăng ký; chat, giỏ và đơn qua nút xác nhận |
 | Khách guest        | Có phiên riêng; dùng menu, chat, giỏ và đơn thuộc phiên                          |
 | Khách có tài khoản | Đăng ký/đăng nhập/đăng xuất; giỏ và lịch sử theo tài khoản trên trình duyệt khác |
 | Quản trị           | Đăng nhập riêng; xử lý đơn đúng trạng thái, quản lý món, xem báo cáo và CSV      |
