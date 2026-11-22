@@ -708,6 +708,32 @@ async function runToolAgent(
       }));
       return { lines, total: lines.reduce((sum, line) => sum + line.subtotal, 0) };
     },
+    async recentOrders() {
+      // Only this customer's orders; each line is checked against today's catalog so the model never
+      // re-offers a removed item or an old price. No name, phone or address leaves the order.
+      const orders = (await services.orderService.getUserOrders(userId))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 3);
+      const result = await Promise.all(orders.map(async (order) => ({
+        order_code: "#" + order.id.slice(-8).toUpperCase(),
+        placed_at: order.createdAt,
+        status: order.status,
+        ...(order.fulfillment ? { fulfillment: order.fulfillment } : {}),
+        lines: (await services.orderService.getOrderItems(order.id)).slice(0, 20).map((line) => {
+          const item = catalogItems.find((entry) => entry.id === line.menuItemId);
+          const category = item ? categoryName.get(item.categoryId) : undefined;
+          const base = { item_id: line.menuItemId, quantity: line.quantity, ...(category ? { category } : {}) };
+          if (!item || !item.isActive) return { ...base, name: item?.name ?? line.nameSnapshot, status: "discontinued" as const };
+          if (!item.isAvailable) return { ...base, name: item.name, status: "sold_out" as const };
+          return { ...base, name: item.name, status: "available" as const, price: item.price, ...(item.price !== line.unitPrice ? { price_changed: true } : {}) };
+        }),
+      })));
+      return {
+        orders: result,
+        note: result.length
+          ? "Giá là giá hiện tại. Đặt lại = propose_cart_change các món available; khách phải bấm “Xác nhận thao tác”."
+          : "Khách chưa có đơn nào.",
+      };
+    },
     async proposeChanges(changes: CartChange[]) {
       const actions: ProposedAction[] = changes.map((change) => ({
         id: randomUUID(),

@@ -43,6 +43,11 @@ export interface GuardResult {
 
 const COMPLETION_CLAIMS =
   /\b(?:(?:da|vua) (?:them|dat|xoa|bo|cap nhat|thanh toan|doi|sua|giam|tang|huy)|dat hang thanh cong|thanh toan thanh cong|da duoc (?:them|dat|xoa|cap nhat)|don hang cua ban da)\b/;
+/**
+ * "giá Pepsi (Lon) đã tăng/đổi/giảm" describes a menu price (past orders, #16 phase 5), not a cart action.
+ * Only when "giá" comes first, at most 3 words before, with no "mình"/"bạn" in between ("giá 45k, mình đã giảm…" stays a claim).
+ */
+const PRICE_MOVES = /\bgia(?: (?!minh\b|ban\b)\S+){0,3} (?:da|vua) (?:doi|tang|giam)\b/g;
 const UNAVAILABLE_WORDS = /\b(?:het|tam het|ngung|khong con|khong ban)\b/;
 /** A sold-out statement right after a product name ("Pepsi (Lon) tạm hết rồi"); "… hết 40.000 ₫" is a cost, not this. */
 const SOLD_OUT_AFTER_NAME = /^\s*(?:(?:hien|hien tai|da|dang|bi|cung|thi|nay)\s+)*(?:tam het|het hang|het roi|ngung ban|ngung kinh doanh|khong con ban|khong con|het(?=\s*$))\b/;
@@ -85,7 +90,7 @@ export function checkReply(reply: string, evidence: Evidence): GuardResult {
   if (text.length > MAX_REPLY_CHARS) problems.push(`Câu trả lời dài quá ${MAX_REPLY_CHARS} ký tự.`);
   if (/^xong\b/.test(normalizeVietnamese(text)))
     problems.push("Đừng mở đầu bằng \"Xong\": giỏ chưa đổi cho tới khi khách bấm nút Xác nhận.");
-  if (COMPLETION_CLAIMS.test(normalizeVietnamese(text)))
+  if (COMPLETION_CLAIMS.test(normalizeVietnamese(text).replace(PRICE_MOVES, " ")))
     problems.push("Không được nói đã thêm/đặt/xoá/cập nhật/thanh toán: bạn chỉ đề xuất, khách phải bấm nút Xác nhận.");
   // Only an instruction to press the button now is wrong without a proposal; explaining how
   // confirmation works ("mình không thể tự xác nhận, chỉ khi bạn bấm…") is fine.

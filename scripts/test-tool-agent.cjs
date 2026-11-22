@@ -57,7 +57,7 @@ test("01 '200k cho 2 người': model searches, recommends with real prices, rep
   assert.deepEqual(r.products.map((p) => p.id), [combo.id], "product card comes from the referenced item");
   assert.equal(model.calls.length, 2);
   assert.match(model.calls[0].system, /lấy từ search_menu/);
-  assert.deepEqual(model.calls[0].tools.map((t) => t.name), ["search_menu", "view_cart", "official_info", "propose_cart_change"]);
+  assert.deepEqual(model.calls[0].tools.map((t) => t.name), ["search_menu", "view_cart", "get_recent_orders", "official_info", "propose_cart_change"]);
 });
 
 test("02 an invented price is caught; the model rewrites with real data", async () => {
@@ -568,4 +568,110 @@ test("30 a proposal with an id that is not in the catalog is reported as a wrong
   assert.equal(result.status, "blocked");
   assert.match(result.blocked.join(" "), /KHÔNG phải món hết hàng/);
   assert.match(result.blocked.join(" "), /search_menu/);
+});
+
+/** Places a real order through the checkout service (synthetic customer data). */
+async function placeOrder(userId, lines) {
+  for (const [item, quantity] of lines) await services.cartService.addMenuItem(userId, item, quantity);
+  const view = await services.cartService.getCartView(userId);
+  const order = await services.checkoutService.checkout(userId, {
+    cartId: view.cart.id, cartSignature: view.signature, customerName: "Khách Synthetic", phone: "0900000001",
+    fulfillment: "pickup", address: "", note: "", idempotencyKey: crypto.randomUUID(), expectedTotal: view.cart.total, confirm: true,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 5)); // distinct createdAt
+  return order;
+}
+const saveItem = (item, changes) => services.adminService.saveMenu({ name: item.name, description: item.description ?? "",
+  categoryId: item.categoryId, price: item.price, isActive: item.isActive, isAvailable: item.isAvailable, imageUrl: item.imageUrl, ...changes }, item.id);
+
+test("31 get_recent_orders: the customer's own last 3 orders, each line checked against today's menu; no contact data", async () => {
+  const menu = await services.menuService.getMenuItems();
+  const byName = (n) => menu.find((i) => i.name.normalize("NFC") === n);
+  const [shrimp, pepsi, yo, pasta] = [byName("Burger Tôm"), byName("Pepsi (Lon)"), byName("Burger Gà Yo"), byName("Mì Ý Gà Viên")];
+  const userId = user(), other = user();
+  await placeOrder(userId, [[yo, 1]]);                       // oldest: falls outside the 3 most recent
+  await placeOrder(userId, [[pasta, 1]]);
+  await placeOrder(userId, [[shrimp, 1]]);
+  const latest = await placeOrder(userId, [[shrimp, 2], [pepsi, 1]]);
+  await placeOrder(other, [[pasta, 3]]);
+  await saveItem(pepsi, { price: pepsi.price + 2000 });        // price changed since the order
+  await saveItem(pasta, { isAvailable: false });              // temporarily sold out
+  await saveItem(shrimp, { isActive: false, isAvailable: false }); // removed from the menu
+  try {
+    let result, empty;
+    await turn(scripted([tool("get_recent_orders", {}), (m) => { result = lastToolResult(m); return text("Bạn muốn đặt lại đơn nào?"); }]), userId, "đặt lại như lần trước");
+    await turn(scripted([tool("get_recent_orders", {}), (m) => { empty = lastToolResult(m); return text("Bạn chưa có đơn nào."); }]), user(), "như lần trước");
+    assert.equal(result.orders.length, 3, "at most 3 orders");
+    assert.equal(result.orders[0].order_code, "#" + latest.id.slice(-8).toUpperCase(), "newest first");
+    assert.ok(!JSON.stringify(result).includes(yo.id), "the oldest order is not returned");
+    const lines = Object.fromEntries(result.orders[0].lines.map((l) => [l.name.normalize("NFC"), l]));
+    assert.equal(lines["Burger Tôm"].item_id, shrimp.id);
+    assert.equal(lines["Burger Tôm"].quantity, 2);
+    assert.equal(lines["Burger Tôm"].status, "discontinued");
+    assert.equal(lines["Burger Tôm"].price, undefined, "no price for a removed item");
+    assert.ok(lines["Burger Tôm"].category, "category given to search for a replacement");
+    assert.equal(lines["Pepsi (Lon)"].status, "available");
+    assert.equal(lines["Pepsi (Lon)"].price, pepsi.price + 2000, "today's price only");
+    assert.equal(lines["Pepsi (Lon)"].price_changed, true);
+    const pastaLine = result.orders.flatMap((o) => o.lines).find((l) => l.item_id === pasta.id);
+    assert.equal(pastaLine.status, "sold_out");
+    assert.equal(pastaLine.price, undefined, "no price offered for an item that cannot be ordered");
+    const raw = JSON.stringify(result);
+    assert.doesNotMatch(raw, /0900000001|Khách Synthetic|customerName|phone|address/, "no contact data reaches the model");
+    assert.deepEqual(empty, { orders: [], note: "Khách chưa có đơn nào." });
+  } finally {
+    await saveItem(pepsi, {});
+    await saveItem(pasta, {});
+    await saveItem(shrimp, {});
+  }
+});
+
+test("32 'đặt lại như lần trước': the model proposes the available lines; nothing changes until the button; today's price is charged", async () => {
+  const menu = await services.menuService.getMenuItems();
+  const byName = (n) => menu.find((i) => i.name.normalize("NFC") === n);
+  const [shrimp, pepsi] = [byName("Burger Tôm"), byName("Pepsi (Lon)")];
+  const userId = user();
+  await placeOrder(userId, [[shrimp, 2], [pepsi, 1]]);
+  await saveItem(pepsi, { price: pepsi.price + 3000 });
+  try {
+    const r = await turn(scripted([
+      tool("get_recent_orders", {}),
+      (m) => {
+        const available = lastToolResult(m).orders[0].lines.filter((l) => l.status === "available");
+        return tool("propose_cart_change", { changes: available.map((l) => ({ action: "add", item_id: l.item_id, quantity: l.quantity })) });
+      },
+      text(`Mình đề xuất đặt lại 2 Burger Tôm (${vnd(shrimp.price)}) và 1 Pepsi (Lon), giá Pepsi đã đổi thành ${vnd(pepsi.price + 3000)}. Bạn kiểm tra rồi bấm “Xác nhận thao tác” nhé.`),
+    ]), userId, "đặt lại như lần trước");
+    assert.equal(r.requiresConfirmation, true);
+    const summary = r.pendingConfirmation.summary.join("\n").normalize("NFC");
+    assert.match(summary, /2 × Burger Tôm/);
+    assert.match(summary.replace(/\s/g, " "), new RegExp(vnd(pepsi.price + 3000).replace(/\s/g, " ")), "the preview shows the new price");
+    assert.equal((await services.cartService.getCartView(userId))?.items.length ?? 0, 0, "nothing in the cart before the button");
+    await services.chatService.processChat({ platform: "web", userId, sessionId: "s", message: "Xác nhận", confirm: true, confirmationId: r.pendingConfirmation.id });
+    const cart = await services.cartService.getCartView(userId);
+    assert.equal(cart.items.find((l) => l.menuItemId === pepsi.id).unitPrice, pepsi.price + 3000);
+    assert.equal(cart.items.find((l) => l.menuItemId === shrimp.id).quantity, 2);
+  } finally {
+    await saveItem(pepsi, {});
+  }
+});
+
+test("33 the reply check holds for past orders: an old price is caught; a removed item may be named as removed, not offered", () => {
+  const catalog = [
+    { id: "pl", name: "Pepsi (Lon)", price: 23000, available: true },
+    { id: "bt", name: "Burger Tôm", price: 45000, available: false, retired: true },
+  ];
+  const old = checkReply("Lần trước bạn gọi Pepsi (Lon) 20.000 ₫, mình đặt lại nhé?", { catalog });
+  assert.equal(old.ok, false, "the old price is not today's price");
+  const named = checkReply("Burger Tôm đã ngừng bán nên mình chỉ đặt lại được Pepsi (Lon) 23.000 ₫ thôi.", { catalog });
+  assert.equal(named.ok, true, named.problems.join(" "));
+  const offered = checkReply("Mình đặt lại Burger Tôm cho bạn nhé?", { catalog });
+  assert.equal(offered.ok, false, "a removed item is not offered again");
+  // A price that moved since the last order is not a cart action; a quantity the agent claims to have changed still is.
+  for (const fine of ["Giá Pepsi (Lon) đã tăng lên 23.000 ₫ so với lần trước.", "Pepsi (Lon) giá đã đổi, hiện là 23.000 ₫.", "Giá hiện tại đã thay đổi: Pepsi (Lon) 23.000 ₫."]) {
+    const r = checkReply(fine, { catalog });
+    assert.equal(r.ok, true, `${fine}: ${r.problems.join(" ")}`);
+  }
+  for (const claim of ["Mình đã giảm 1 Pepsi (Lon) trong giỏ.", "Giá 23.000 ₫, mình đã giảm 1 Pepsi (Lon) rồi.", "Giá Pepsi (Lon) 23.000 ₫, đã thêm vào giỏ."])
+    assert.equal(checkReply(claim, { catalog }).ok, false, claim);
 });
