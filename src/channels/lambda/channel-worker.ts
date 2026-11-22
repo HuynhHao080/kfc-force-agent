@@ -47,18 +47,24 @@ export function createChannelWorkerHandler(deps: { worker: Pick<ChannelWorker, "
 }
 
 /** Cổng gọi AgentCore Runtime (InvokeAgentRuntime). Lambda truyền hàm gọi thật khi deploy; test truyền bản giả. */
-export type AgentCoreInvoke = (payload: { userId: string; message: string; platform: "whatsapp" }) => Promise<unknown>;
+export type AgentCoreInvoke = (payload: {
+  userId: string; message: string; platform: "whatsapp"; confirm?: true; confirmationId?: string;
+}) => Promise<unknown>;
 
 /**
- * Agent trên AWS: worker gọi AgentCore Runtime với cùng payload như web (src/agentcore/invocation.ts).
+ * Agent trên AWS: worker gọi AgentCore Runtime với cùng payload như web (src/agentcore/invocation.ts),
+ * kể cả xác nhận bằng nút (confirm + confirmationId). Đề xuất đang chờ trả về để worker gửi nút xác nhận.
  * Lỗi có kiểm soát của runtime ({status: "error"}) thành exception để worker gửi câu xin lỗi cho khách.
  */
 export function agentCoreChatPort(invoke: AgentCoreInvoke): ChannelChatPort {
   return {
-    async chat({ userId, message }) {
-      const body = await invoke({ userId, message, platform: "whatsapp" }) as { status?: unknown; reply?: unknown } | null;
+    async chat({ userId, message, confirm, confirmationId }) {
+      const body = await invoke({ userId, message, platform: "whatsapp", ...(confirm ? { confirm: true as const, confirmationId } : {}) }) as
+        { status?: unknown; reply?: unknown; pendingConfirmation?: unknown } | null;
       if (body?.status !== "success" || typeof body.reply !== "string") throw new Error("AGENTCORE_ERROR");
-      return { reply: body.reply };
+      const pending = body.pendingConfirmation as { id?: unknown; summary?: unknown } | null | undefined;
+      const valid = pending && typeof pending.id === "string" && Array.isArray(pending.summary) && pending.summary.every((line) => typeof line === "string");
+      return { reply: body.reply, pendingConfirmation: valid ? { id: pending.id as string, summary: pending.summary as string[] } : null };
     },
   };
 }

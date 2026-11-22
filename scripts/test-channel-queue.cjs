@@ -49,6 +49,9 @@ function fakes({ agent } = {}) {
       states: new ChannelStateService(new MockChannelRepository()),
       agent: { chat: agent ?? (async ({ userId, message }) => { asked.push({ userId, message }); return { reply: "Mình đã hiểu: " + message.replace(/\n/g, " | ") }; }) },
       sender: { send: async (to, out) => { sent.push({ to, out }); return { ok: true }; } },
+      // Phase 4 port: an empty cart and no pending proposal, so replies stay plain text as in phase 3.
+      commerce: { cart: async () => null, pendingConfirmation: async () => null, skipProposal: async () => "none",
+        quote: async () => { throw new Error("not used"); }, placeOrder: async () => { throw new Error("not used"); }, orderingEnabled: () => true },
     },
   };
 }
@@ -242,7 +245,7 @@ test("07 Lambda worker on SQS: one turn per customer per batch, in order; a fail
 
   const payloads = [];
   const port = agentCoreChatPort(async (payload) => { payloads.push(payload); return { status: "success", reply: "Chào bạn" }; });
-  assert.deepEqual(await port.chat({ userId: "wa_x", message: "hi" }), { reply: "Chào bạn" });
+  assert.deepEqual(await port.chat({ userId: "wa_x", message: "hi" }), { reply: "Chào bạn", pendingConfirmation: null });
   assert.deepEqual(payloads, [{ userId: "wa_x", message: "hi", platform: "whatsapp" }]);
   assert.equal(invocationSchema.safeParse(payloads[0]).success, true, "AgentCore accepts the WhatsApp platform");
   await assert.rejects(agentCoreChatPort(async () => ({ status: "error", error: "internal_error" })).chat({ userId: "wa_x", message: "hi" }), /AGENTCORE_ERROR/);
