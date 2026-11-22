@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolvePersistenceDriver } from "@/lib/db/repositories/repositories";
-import { kfcPurchaseAssistantEnabled } from "@/lib/purchase-mode";
+import { kfcCatalogEnabled, kfcPurchaseAssistantEnabled } from "@/lib/purchase-mode";
 export async function GET() {
   return NextResponse.json(
     {
@@ -9,6 +9,7 @@ export async function GET() {
       version: "0.2.0",
       phase: kfcPurchaseAssistantEnabled() ? "purchase-assistant" : "graduation-demo",
       mode: kfcPurchaseAssistantEnabled() ? "kfc-assistant" : "demo",
+      catalog: kfcCatalogEnabled() ? "kfc" : "demo",
       aiProvider: (process.env.AI_PROVIDER || "mock").toLowerCase(),
       persistence: resolvePersistenceDriver(),
       cloudVerified: false,

@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto";
 import { catalogRecords } from "./kfc-catalog";
 import { fetchCatalog } from "./fetch-catalog";
 import { applyLocalCatalog } from "@/lib/db/repositories/implementations/local-repository";
+import { kfcCatalogEnabled } from "@/lib/purchase-mode";
 
 interface RefreshState {
   day: string;
@@ -133,7 +134,7 @@ export function startCatalogRefresh() {
   if (
     shared.kfcCatalogRefreshTimer ||
     process.env.KFC_CATALOG_AUTO_REFRESH !== "1" ||
-    process.env.KFC_PURCHASE_ASSISTANT !== "1" ||
+    !kfcCatalogEnabled() ||
     process.env.PERSISTENCE_DRIVER !== "local"
   )
     return;

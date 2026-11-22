@@ -1,12 +1,23 @@
-# KFC Force Agent — trợ lý hỗ trợ mua hàng KFC
+# KFC Force Agent — hệ thống đặt món bằng AI tác tử trên AWS cho KFC Việt Nam
 
-Website hỗ trợ người dùng xem thực đơn KFC, tìm món, lọc giá, so sánh và chuẩn bị danh sách mua bằng giao diện hoặc AI. Bản ngày 15/11/2026 dùng 101 món thuộc chín nhóm được TinyFish thu thập từ KFC Việt Nam, có ảnh, giá và nguồn. Ngôn ngữ và công nghệ gồm Next.js 16.4.5, React 19, TypeScript, Tailwind CSS 4 và Bedrock Haiku 5.5.
+Khách đặt món ngay trong khung chat, không cần cài app hay tạo tài khoản. AI chỉ đề xuất; policy và nút xác nhận của khách mới quyết định thay đổi giỏ. Đơn được tạo ở trạng thái CONFIRMED rồi chuyển lên kitchen board để nhân viên xử lý. Thực đơn gồm 101 món thuộc chín nhóm, được TinyFish thu thập từ KFC Việt Nam. Công nghệ: Next.js 16.4.5, React 19, TypeScript, Tailwind CSS 4, Amazon Bedrock và Bedrock AgentCore.
 
-**Trợ lý lựa chọn món độc lập. Người dùng hoàn tất đặt hàng và thanh toán trên website KFC Việt Nam.**
+## Phạm vi (điều chỉnh 22/11/2026, issue #16)
 
-## Bản trợ lý mua hàng ngày 15/11/2026
+| Thành phần | Vai trò | Trạng thái |
+|---|---|---|
+| WhatsApp (WhatsApp Cloud API) | Kênh chính của khách: chat, nút xác nhận, đặt đơn | **Kế hoạch, chưa có code** |
+| Web `/chat` và storefront | Kênh phụ để demo và test | Đã có |
+| Admin, kitchen board | Nhân viên xử lý đơn, quản lý món, xem báo cáo | Đã có |
+| Đặt đơn → CONFIRMED → kitchen board | Đầu ra chính | Đã có; là cấu hình mặc định trong `.env.example` |
+| Chuyển khách sang website KFC (`KFC_PURCHASE_ASSISTANT=1`) | Chế độ phụ, không thuộc phạm vi khoá luận | Giữ code, không phát triển thêm |
+| Thanh toán thật, POS thật | — | Ngoài phạm vi |
 
-Cấu hình `KFC_PURCHASE_ASSISTANT=1`, `AI_PROVIDER=bedrock` và `PERSISTENCE_DRIVER=local`. Thư mục dữ liệu mới dùng snapshot thực đơn thật đã được kiểm tra trong source, hoặc catalog do `KFC_CATALOG_FILE` chỉ định. UI có tìm kiếm không dấu, sắp xếp giá/tên, giá tối đa, so sánh ba món, chi tiết nguồn và số lượng. Giỏ được giữ qua restart. Nút mua hỗ trợ sao chép danh sách và mở KFC để người dùng chọn lại món, nhà hàng và thanh toán.
+Cấu hình luồng chính: `KFC_CATALOG=kfc` (thực đơn thật) và `KFC_PURCHASE_ASSISTANT=0` (đặt đơn xuống bếp). Hai cờ độc lập với nhau; bỏ trống `KFC_CATALOG` thì giữ hành vi cũ. Ý tưởng bài toán tham khảo "KFC Force Agent" của đội One Team (AWS Hackathon HCM).
+
+## Chế độ phụ: trợ lý mua hàng ngày 15/11/2026
+
+Cấu hình `KFC_PURCHASE_ASSISTANT=1`, `AI_PROVIDER=bedrock` và `PERSISTENCE_DRIVER=local`. Ở chế độ này trợ lý chỉ giúp chọn món; khách hoàn tất đặt hàng và thanh toán trên website KFC Việt Nam. Thư mục dữ liệu mới dùng snapshot thực đơn thật đã được kiểm tra trong source, hoặc catalog do `KFC_CATALOG_FILE` chỉ định. UI có tìm kiếm không dấu, sắp xếp giá/tên, giá tối đa, so sánh ba món, chi tiết nguồn và số lượng. Giỏ được giữ qua restart. Nút mua hỗ trợ sao chép danh sách và mở KFC để người dùng chọn lại món, nhà hàng và thanh toán.
 
 Hướng dẫn TinyFish, cấu hình và kiểm tra tại [trợ lý mua hàng](docs/kfc-purchase-assistant.md). Các phân hệ vận hành nội bộ của bản trước có chế độ cấu hình riêng. Phần trạng thái AWS bên dưới ghi bằng chứng của lần phát hành trước khi chuyển luồng mua hàng.
 

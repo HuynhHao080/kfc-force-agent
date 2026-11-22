@@ -1,5 +1,7 @@
 # Trợ lý hỗ trợ mua hàng KFC
 
+> **Chế độ phụ, không thuộc phạm vi khoá luận** (điều chỉnh 22/11/2026, issue #16). Luồng chính là đặt món trong chat, tạo đơn CONFIRMED rồi chuyển lên kitchen board; kênh chính của khách là WhatsApp. Chế độ này chỉ bật khi `KFC_PURCHASE_ASSISTANT=1`. Code được giữ lại nhưng không phát triển thêm. Thực đơn thật giờ chọn bằng `KFC_CATALOG=kfc`, độc lập với chế độ này. Phần thu thập thực đơn (TinyFish) bên dưới vẫn dùng cho luồng chính.
+
 Người dùng chốt phạm vi ngày 15/11/2026 là website giúp người mua lựa chọn món KFC. Luồng chính gồm xem thực đơn công khai, tìm kiếm tiếng Việt, lọc theo giá, sắp xếp, so sánh tối đa ba món, xem chi tiết và nguồn, chuẩn bị danh sách bằng thao tác trực tiếp hoặc AI, rồi mở KFC Việt Nam để hoàn tất mua hàng.
 
 ## Cập nhật AI và dữ liệu mới
