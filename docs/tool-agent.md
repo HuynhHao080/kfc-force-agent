@@ -11,6 +11,8 @@ Luồng cũ: mỗi lượt model chỉ được chọn **một hành động**; 
 ```
 khách nói ─► ToolAgent ─► Haiku (tool-use) ─┬─► search_menu        (đọc catalog, đã hiểu không dấu/alias/cỡ)
                  ▲                           ├─► view_cart          (đọc giỏ của chính khách)
+                 │                           ├─► get_recent_orders  (3 đơn gần nhất của chính khách, đối chiếu menu hôm nay)
+                 │                           ├─► official_info      (dị ứng, nhà hàng, giờ mở cửa)
                  │                           └─► propose_cart_change (CHỈ đề xuất; PolicyEngine kiểm tra)
                  │                                     │
                  └──── kết quả công cụ ◄──────────────┘
@@ -51,6 +53,29 @@ Không còn định tuyến bằng từ khoá ở chế độ tools: câu hỏi 
 Kiểm tra đột biến: tắt reply-guard → test 02, 03, 04 fail như mong đợi.
 
 Toàn bộ test cũ vẫn xanh (`npm test` 101, smoke 84, `test:understanding` 22, `test:readonly-agent` 34, `test:bedrock` 14, build, evaluate).
+
+## Nhớ đơn cũ: `get_recent_orders` (issue #16, giai đoạn 5)
+
+Khách nói "như lần trước", "đặt lại", "món tôi hay gọi": model gọi `get_recent_orders`.
+
+- **Trả về:** tối đa 3 đơn gần nhất **của chính khách đó**, mới nhất trước, mỗi đơn có mã đơn (như admin hiển thị), thời điểm, trạng thái, hình thức nhận.
+- **Mỗi món được đối chiếu với thực đơn hôm nay:**
+  - `available`: kèm giá hiện tại, và `price_changed` nếu khác giá khách đã trả;
+  - `sold_out`: không kèm giá;
+  - `discontinued`: không kèm giá, nhưng có nhóm món để model tìm món thay thế bằng `search_menu`.
+- **Không đưa tên, số điện thoại, địa chỉ của đơn vào prompt.**
+- **Đặt lại vẫn là `propose_cart_change`**, nên khách phải bấm “Xác nhận thao tác” như mọi thay đổi giỏ. Bản xem trước của server luôn dùng giá hiện tại; xác nhận thì giỏ được tính theo giá hiện tại.
+- **Reply-guard:** vẫn chặn giá cũ và chặn gợi ý lại món đã ngừng bán. Riêng cụm "giá … đã tăng/đổi/giảm" không còn bị coi là câu "đã làm xong", nếu "giá" đứng trước (cách tối đa 3 từ) và không có "mình"/"bạn" chen giữa; "mình đã giảm 1 Pepsi" vẫn bị chặn. Chạy lại guard trên 215 câu trả lời thật của 5 lượt đo: 26 câu "đã làm xong" trước và sau khi sửa, không câu nào đổi kết quả.
+- **AgentCore Memory:** chưa dùng. Lịch sử đơn đọc từ repository đơn hàng (local/DynamoDB) nên test được offline.
+
+Test: `test:tool-agent` 31–33.
+- Đơn của khách khác không lộ; chỉ 3 đơn.
+- Món ngừng bán, tạm hết, đổi giá được đánh dấu đúng.
+- Không có dữ liệu liên hệ trong kết quả.
+- Đặt lại: không đổi giỏ trước khi bấm nút, tính giá mới.
+- Guard với giá cũ, món đã ngừng bán, cụm "giá đã tăng".
+
+Kiểm tra ngược: coi món ngừng bán là còn bán, hoặc bỏ giới hạn 3 đơn → test 31 fail; bỏ ngoại lệ "giá đã tăng" → test 32, 33 fail.
 
 ## Chưa làm / giới hạn
 

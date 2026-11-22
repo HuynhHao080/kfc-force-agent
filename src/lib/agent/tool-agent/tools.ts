@@ -32,6 +32,13 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     input_schema: { type: "object", additionalProperties: false, properties: {} },
   },
   {
+    name: "get_recent_orders",
+    description:
+      "Xem tối đa 3 đơn gần nhất của chính khách này (mới nhất trước), để hiểu \"như lần trước\", \"đặt lại đơn hôm qua\", \"món tôi hay gọi\". " +
+      "Mỗi món có trạng thái HIỆN TẠI (available / sold_out / discontinued), giá hiện tại và item_id. Chỉ đọc: muốn đặt lại thì vẫn phải propose_cart_change.",
+    input_schema: { type: "object", additionalProperties: false, properties: {} },
+  },
+  {
     name: "official_info",
     description:
       "Thông tin chính thức của KFC Việt Nam mà thực đơn không có: bảng thành phần dị ứng, hệ thống nhà hàng (địa chỉ, giờ mở cửa). Trả về đường dẫn chính thức để khách tự xem.",
@@ -111,12 +118,32 @@ export interface CartResult { lines: { item_id: string; name: string; quantity: 
 /** `items`: product names the pending proposal touches. */
 export interface ProposalResult { status: "awaiting_customer_confirmation" | "blocked"; summary: string[]; items: string[]; blocked: string[] }
 
+/**
+ * A past order line as it stands now. `price` is today's price (the only price the model may quote);
+ * `price_changed` says it differs from what the customer paid. No name, phone or address of the order.
+ */
+export interface RecentOrderLine {
+  item_id: string;
+  name: string;
+  quantity: number;
+  status: "available" | "sold_out" | "discontinued";
+  price?: number;
+  price_changed?: boolean;
+  category?: string;
+}
+export interface RecentOrdersResult {
+  orders: { order_code: string; placed_at: string; status: string; fulfillment?: string; lines: RecentOrderLine[] }[];
+  note: string;
+}
+
 /** Capabilities bound to one customer and session by agent-core. */
 export interface ToolAgentDeps {
   searchMenu(input: SearchInput): Promise<SearchResult>;
   viewCart(): Promise<CartResult>;
   proposeChanges(changes: CartChange[]): Promise<ProposalResult>;
   officialInfo(topic: OfficialTopic): { topic: OfficialTopic; url: string; note: string };
+  /** The customer's own recent orders, with each line checked against the current catalog. */
+  recentOrders(): Promise<RecentOrdersResult>;
   /** Every catalog item with its current price and availability, for the fact check. */
   catalog(): Promise<{ id: string; name: string; price: number; available: boolean; retired?: boolean; category?: string }[]>;
   /** Whether a proposal from an earlier turn is still waiting for the customer's button. */

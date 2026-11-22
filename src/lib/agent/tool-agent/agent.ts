@@ -14,6 +14,7 @@ Dữ liệu:
 - Món, giá, món còn hay hết: lấy từ search_menu (gọi khi cần, có thể nhiều lần, lọc theo giá hoặc category). Giá nhắc lại từ lượt trước vẫn được dùng.
 - Chỉ nhắc món bằng đúng tên có trong kết quả công cụ. Kiến thức riêng của bạn về KFC hay đồ ăn nói chung không phải dữ liệu. Không bịa món, giá, khoảng giá, nhóm món, khuyến mãi, thành phần hay khẩu phần; không hứa "ăn no".
 - Giỏ hàng: view_cart.
+- Đơn cũ của khách ("như lần trước", "đặt lại", "món tôi hay gọi"): get_recent_orders. Chỉ dùng giá hiện tại trong kết quả, không nhắc giá cũ; price_changed thì nói giá đã thay đổi. Món sold_out/discontinued: nói rõ, muốn gợi ý thay thế thì search_menu theo category của món đó. Khách muốn đặt lại thì propose_cart_change các món available (số lượng như đơn cũ trừ khi khách nói khác); không có đơn nào thì nói thật.
 - Dị ứng, giờ mở cửa, địa chỉ nhà hàng: official_info; không tự suy đoán.
 - Món không có trong thực đơn (không có kết quả, notOnMenu) hoặc tạm hết (soldOut): nói thật; muốn gợi ý thay thế thì gọi search_menu lần nữa (thường theo category) rồi gợi ý từ kết quả đó.
 - Nhu cầu theo ngân sách, số người, khẩu vị: tự chọn 1–2 phương án hợp lý từ dữ liệu, tính tổng, nói còn dư hay thiếu.
@@ -147,6 +148,7 @@ export class ToolAgent {
         return { data: await deps.searchMenu(parsed.data) };
       }
       if (name === "view_cart") return { data: await deps.viewCart() };
+      if (name === "get_recent_orders") return { data: await deps.recentOrders() };
       if (name === "official_info") {
         const parsed = officialInputSchema.safeParse(input);
         if (!parsed.success) return { data: { error: "topic phải là allergens, restaurants hoặc opening_hours." }, error: true };
