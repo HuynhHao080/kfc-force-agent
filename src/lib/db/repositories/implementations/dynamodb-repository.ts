@@ -33,6 +33,8 @@ import { SessionRepository } from "../interfaces/session-repository.interface";
 import { IMenuRepository } from "../interfaces/menu-repository.interface";
 import { CartRepository } from "../interfaces/cart-repository.interface";
 import { OrderRepository } from "../interfaces/order-repository.interface";
+import type { ChannelRepository } from "../interfaces/channel-repository.interface";
+import type { ChannelId, ConversationState } from "@/lib/channels/types";
 
 /**
  * Lazily resolves the document client so that importing this module in mock
@@ -62,6 +64,7 @@ const TABLE = () => process.env.DYNAMODB_TABLE_NAME || "KfcForceAgent";
  *   order lookup   PK = USER#<userId>          SK = ORDER#<orderId>
  *   order items    PK = ORDER#<orderId>        SK = ITEM#<orderItemId>
  *   order events   PK = ORDER#<orderId>        SK = EVENT#<eventId>
+ *   channel state  PK = CHANNEL#<channel>#<customerId> SK = STATE
  */
 
 type Keyed = { PK: string; SK: string };
@@ -450,6 +453,34 @@ export class DynamoDBSessionRepository implements SessionRepository {
       }),
     });
     await getClient().send(command);
+  }
+}
+
+/** Trạng thái hội thoại theo kênh: PK = CHANNEL#<channel>#<customerId>, SK = STATE. customerId là mã băm, không phải số điện thoại. */
+export class DynamoDBChannelRepository implements ChannelRepository {
+  async getConversationState(channel: ChannelId, customerId: string): Promise<ConversationState | null> {
+    const response = await getClient().send(new GetCommand({
+      TableName: TABLE(),
+      Key: { PK: `CHANNEL#${channel}#${customerId}`, SK: "STATE" },
+      ConsistentRead: true,
+    }));
+    return stripKeys<ConversationState>(response.Item, ["PK", "SK"]);
+  }
+
+  async saveConversationState(state: ConversationState, expectedRevision: string | null): Promise<void> {
+    try {
+      await getClient().send(new PutCommand({
+        TableName: TABLE(),
+        Item: withKeys(state, { PK: `CHANNEL#${state.channel}#${state.customerId}`, SK: "STATE" }),
+        ...(expectedRevision === null
+          ? { ConditionExpression: "attribute_not_exists(PK)" }
+          : { ConditionExpression: "#revision = :expected", ExpressionAttributeNames: { "#revision": "revision" }, ExpressionAttributeValues: { ":expected": expectedRevision } }),
+      }));
+    } catch (error) {
+      if (error instanceof Error && error.name === "ConditionalCheckFailedException")
+        throw new DomainError("CHANNEL_STATE_CHANGED", "Trạng thái hội thoại vừa thay đổi. Vui lòng thử lại.", 409);
+      throw error;
+    }
   }
 }
 
@@ -1256,6 +1287,7 @@ export const dynamodbRepositories = {
   accountRepository: new DynamoDBAccountRepository(),
   userRepository: new DynamoDBUserRepository(),
   sessionRepository: new DynamoDBSessionRepository(),
+  channelRepository: new DynamoDBChannelRepository(),
   menuRepository: new DynamoDBMenuRepository(),
   cartRepository: new DynamoDBCartRepository(),
   orderRepository: new DynamoDBOrderRepository(),

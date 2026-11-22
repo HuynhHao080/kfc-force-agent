@@ -51,6 +51,7 @@ import { officialAnswer } from "./official-answer";
 import { chatProducts } from "./chat-products";
 import { ReadOnlyAgent } from "@/lib/agent/read-only/agent";
 import type { ReadOnlyTrace } from "@/lib/agent/read-only/contract";
+import { ChannelStateService } from "@/lib/channels/state-service";
 
 export interface AgentCoreResult {
   reply: string;
@@ -80,6 +81,7 @@ export class ServiceContainer {
   promotionService: PromotionService;
   reorderService: ReorderService;
   chatService: ChatService;
+  channelStateService: ChannelStateService;
   menuTool: MenuTool;
   cartTool: CartTool;
   bedrockService: BedrockService;
@@ -124,6 +126,7 @@ export class ServiceContainer {
       this.shopService,
     );
     this.chatService = new ChatService(this.sessionService);
+    this.channelStateService = new ChannelStateService(repositories.channelRepository);
 
     this.menuTool = new MenuTool(this.menuService);
     this.cartTool = new CartTool(this.cartService, this.menuService);

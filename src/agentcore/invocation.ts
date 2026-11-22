@@ -19,7 +19,7 @@ export const invocationSchema = z
   .object({
     userId: z.string().min(1).max(128),
     message: z.string(),
-    platform: z.enum(["web", "mobile"]).default("web"),
+    platform: z.enum(["web", "mobile", "whatsapp"]).default("web"),
     confirm: z.boolean().optional(),
     confirmationId: z.string().optional(),
     selectedProduct: z.unknown().optional(),

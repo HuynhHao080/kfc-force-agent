@@ -29,15 +29,25 @@ export type OutboundMessage =
   | { kind: "buttons"; text: string; buttons: { id: string; title: string }[] }
   | { kind: "list"; text: string; buttonLabel: string; rows: { id: string; title: string; description?: string }[] };
 
-/** Trạng thái hội thoại để nhân viên tiếp quản (giai đoạn 6). */
+/**
+ * Trạng thái hội thoại của một khách trên một kênh (tạo tự động ở tin đầu tiên).
+ * Nhân viên tiếp quản dùng mode/takenOver* ở giai đoạn 6.
+ */
 export interface ConversationState {
   channel: ChannelId;
+  /** whatsapp: waId, cần để gửi trả lời. Dữ liệu liên hệ: chỉ lưu ở đây, không ghi log, không đưa vào id. */
   externalUserId: string;
-  /** Map từ waId, tạo tự động lần đầu. */
+  /** userId nội bộ: wa_ + HMAC của waId (identity.ts). */
   customerId: string;
   mode: "AI" | "HUMAN";
   takenOverBy?: string;
   takenOverAt?: string;
+  /** Tên hiển thị WhatsApp gần nhất, gợi ý tên nhận đơn. */
+  profileName?: string;
   /** Để biết còn trong cửa sổ 24 giờ của WhatsApp không. */
   lastInboundAt: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Đổi ở mỗi lần ghi; ghi kèm revision cũ (compare-and-set) để hai lần ghi đồng thời không đè nhau. */
+  revision: string;
 }
