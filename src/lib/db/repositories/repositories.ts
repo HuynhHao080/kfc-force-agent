@@ -11,6 +11,7 @@ export interface RepositorySet {
   accountRepository: import("./interfaces/account-repository.interface").AccountRepository;
   userRepository: UserRepository;
   sessionRepository: SessionRepository;
+  channelRepository: import("./interfaces/channel-repository.interface").ChannelRepository;
   menuRepository: IMenuRepository;
   cartRepository: CartRepository;
   orderRepository: OrderRepository;

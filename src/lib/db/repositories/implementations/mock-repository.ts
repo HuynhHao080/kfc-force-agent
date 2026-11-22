@@ -24,6 +24,8 @@ import { SessionRepository } from "../interfaces/session-repository.interface";
 import { IMenuRepository } from "../interfaces/menu-repository.interface";
 import { CartRepository } from "../interfaces/cart-repository.interface";
 import { OrderRepository } from "../interfaces/order-repository.interface";
+import type { ChannelRepository } from "../interfaces/channel-repository.interface";
+import type { ChannelId, ConversationState } from "@/lib/channels/types";
 
 export class MockAccountRepository implements AccountRepository {
   async updateAccount(
@@ -188,6 +190,20 @@ export class MockSessionRepository implements SessionRepository {
   async saveConversationContext(context: ConversationContext): Promise<void> {
     // Keyed by context.sessionId; the read above uses the same key.
     this.conversationContexts.set(context.sessionId, context);
+  }
+}
+
+export class MockChannelRepository implements ChannelRepository {
+  private conversationStates = new Map<string, ConversationState>();
+  async getConversationState(channel: ChannelId, customerId: string) {
+    const state = this.conversationStates.get(`${channel}#${customerId}`);
+    return state ? structuredClone(state) : null;
+  }
+  async saveConversationState(state: ConversationState, expectedRevision: string | null) {
+    const key = `${state.channel}#${state.customerId}`;
+    if ((this.conversationStates.get(key)?.revision ?? null) !== expectedRevision)
+      throw new DomainError("CHANNEL_STATE_CHANGED", "Trạng thái hội thoại vừa thay đổi. Vui lòng thử lại.", 409);
+    this.conversationStates.set(key, structuredClone(state));
   }
 }
 
@@ -974,6 +990,7 @@ export function createMemoryRepositories(catalog?: { categories: MenuCategory[];
     accountRepository: new MockAccountRepository(),
     userRepository: new MockUserRepository(),
     sessionRepository: new MockSessionRepository(),
+    channelRepository: new MockChannelRepository(),
     menuRepository: new MockMenuRepository(catalog),
     cartRepository,
     orderRepository: new MockOrderRepository(cartRepository),

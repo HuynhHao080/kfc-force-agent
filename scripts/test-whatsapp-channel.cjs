@@ -232,10 +232,9 @@ test("09 sender: retries 429/5xx and network errors, not other 4xx; logs never h
   assert.throws(() => createWhatsAppSender({ accessToken: token, phoneNumberId: "200000000000001", graphVersion: "21" }), /GRAPH_VERSION/);
 });
 
-test("10 Next.js route: GET verification and POST with signature, on the local queue", async () => {
+test("10 Next.js route: GET verification; POST is refused until it can answer, and checks the signature", async () => {
   Object.assign(process.env, { WHATSAPP_VERIFY_TOKEN: "verify-me", WHATSAPP_APP_SECRET: SECRET, CHANNEL_QUEUE_DRIVER: "local" });
   const route = require("../src/app/api/channels/whatsapp/webhook/route.ts");
-  const { localWhatsAppQueue } = require("../src/lib/channels/whatsapp/local-runtime.ts");
   const url = "http://localhost/api/channels/whatsapp/webhook";
   const get = await route.GET(new Request(url + "?hub.mode=subscribe&hub.verify_token=verify-me&hub.challenge=42"));
   assert.equal(get.status, 200);
@@ -243,14 +242,13 @@ test("10 Next.js route: GET verification and POST with signature, on the local q
   assert.equal(get.headers.get("cache-control"), "no-store");
   assert.equal((await route.GET(new Request(url + "?hub.mode=subscribe&hub.verify_token=nope&hub.challenge=42"))).status, 403);
   const raw = JSON.stringify(fixtures.text);
-  const logs = await captureLogs(async () => {
-    const post = await route.POST(new Request(url, { method: "POST", body: raw, headers: { "x-hub-signature-256": sign(bytes(raw)), "content-type": "application/json" } }));
-    assert.equal(post.status, 200);
-    await localWhatsAppQueue().idle();
-  });
-  assert.match(logs, /whatsapp_inbound/);
-  assert.doesNotMatch(logs, /84900000001|gà rán/, "phase 2 logs only the kind and a masked number");
+  // Phase 3: without send settings and CHANNEL_ID_SECRET the route cannot reply, so it does not accept messages.
+  assert.equal((await route.POST(new Request(url, { method: "POST", body: raw, headers: { "x-hub-signature-256": sign(bytes(raw)) } }))).status, 503);
+  Object.assign(process.env, { WHATSAPP_ACCESS_TOKEN: "synthetic-access-token-do-not-log", WHATSAPP_PHONE_NUMBER_ID: "200000000000001",
+    WHATSAPP_GRAPH_VERSION: "v21.0", CHANNEL_ID_SECRET: "synthetic-channel-id-secret-32-chars-min" });
+  // Signed messages through the agent are tested end to end in test-channel-queue.cjs.
   assert.equal((await route.POST(new Request(url, { method: "POST", body: raw, headers: { "x-hub-signature-256": sign(bytes(raw), "x") } }))).status, 401);
+  for (const key of ["WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_GRAPH_VERSION", "CHANNEL_ID_SECRET"]) delete process.env[key];
   process.env.CHANNEL_QUEUE_DRIVER = "sqs";
   assert.equal((await route.POST(new Request(url, { method: "POST", body: raw, headers: { "x-hub-signature-256": sign(bytes(raw)) } }))).status, 503,
     "the local route never pretends to use SQS");

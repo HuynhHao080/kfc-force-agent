@@ -12,7 +12,7 @@ export class ChatService {
     let session = await this.sessionService.getActiveSession(request.userId);
     if (!session) {
       const platform: Session["platform"] =
-        request.platform === "mobile" ? "mobile" : "web";
+        request.platform === "mobile" || request.platform === "whatsapp" ? request.platform : "web";
       session = {
         id: `session_${Date.now()}_${request.userId}`,
         userId: request.userId,

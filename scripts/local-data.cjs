@@ -23,7 +23,10 @@ const FIELDS = {
   ],
   cartRepository: ["carts", "cartItems"],
   orderRepository: ["orders", "orderItems", "orderEvents"],
+  // Trạng thái hội thoại theo kênh (WhatsApp, #16). Snapshot tạo trước khi có repository này vẫn hợp lệ.
+  channelRepository: ["conversationStates"],
 };
+const OPTIONAL_REPOSITORIES = new Set(["channelRepository"]);
 const hash = (data) => crypto.createHash("sha256").update(data).digest("hex");
 const object = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
@@ -55,8 +58,8 @@ function validateSnapshot(data) {
   const snapshot = parseJson(data, "Local snapshot is not valid JSON.");
   if (
     !object(snapshot) ||
-    Object.keys(snapshot).length !== Object.keys(FIELDS).length ||
-    Object.keys(FIELDS).some((name) => !Object.hasOwn(snapshot, name))
+    Object.keys(snapshot).some((name) => !Object.hasOwn(FIELDS, name)) ||
+    Object.keys(FIELDS).some((name) => !OPTIONAL_REPOSITORIES.has(name) && !Object.hasOwn(snapshot, name))
   )
     throw new Error("Invalid local snapshot.");
   for (const [repository, fields] of Object.entries(snapshot)) {
