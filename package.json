@@ -13,7 +13,7 @@
     "test": "node scripts/test-chat.cjs",
     "typecheck": "tsc --noEmit",
     "test:smoke": "node scripts/smoke-chat.cjs",
-    "check": "npm run lint && npm run typecheck && npm test && npm run test:data && npm run test:aws && npm run test:bedrock && npm run test:bedrock-haiku && npm run test:readonly-agent && npm run test:understanding && npm run test:tool-agent && npm run test:conversation-eval && npm run test:agentcore && npm run test:acquisition && npm run build && npm run test:smoke",
+    "check": "npm run lint && npm run typecheck && npm test && npm run test:data && npm run test:aws && npm run test:bedrock && npm run test:bedrock-haiku && npm run test:readonly-agent && npm run test:understanding && npm run test:tool-agent && npm run test:conversation-eval && npm run test:whatsapp-channel && npm run test:agentcore && npm run test:acquisition && npm run build && npm run test:smoke",
     "test:data": "node scripts/test-local-data.cjs",
     "data:backup": "node scripts/local-data.cjs backup",
     "data:verify": "node scripts/local-data.cjs verify",
@@ -48,7 +48,8 @@
     "test:dynamodb": "node scripts/test-dynamodb.cjs",
     "test:tool-agent": "node scripts/test-tool-agent.cjs",
     "test:conversation-eval": "node scripts/test-conversation-eval.cjs",
-    "evaluate:conversations": "node scripts/evaluate-conversations.cjs"
+    "evaluate:conversations": "node scripts/evaluate-conversations.cjs",
+    "test:whatsapp-channel": "node scripts/test-whatsapp-channel.cjs"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1137.0",

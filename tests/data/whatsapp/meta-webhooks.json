@@ -1,0 +1,124 @@
+{
+  "_note": "Synthetic WhatsApp Cloud API webhook payloads in Meta's documented shape. Fake numbers (84900000xxx) and fake ids only.",
+  "text": {
+    "object": "whatsapp_business_account",
+    "entry": [{
+      "id": "100000000000001",
+      "changes": [{
+        "field": "messages",
+        "value": {
+          "messaging_product": "whatsapp",
+          "metadata": { "display_phone_number": "15550000000", "phone_number_id": "200000000000001" },
+          "contacts": [{ "profile": { "name": "Khách Test" }, "wa_id": "84900000001" }],
+          "messages": [{ "from": "84900000001", "id": "wamid.TEST_TEXT_1", "timestamp": "1763769600", "type": "text", "text": { "body": "cho mình 2 miếng gà rán" } }]
+        }
+      }]
+    }]
+  },
+  "button_reply": {
+    "object": "whatsapp_business_account",
+    "entry": [{
+      "id": "100000000000001",
+      "changes": [{
+        "field": "messages",
+        "value": {
+          "messaging_product": "whatsapp",
+          "metadata": { "display_phone_number": "15550000000", "phone_number_id": "200000000000001" },
+          "contacts": [{ "profile": { "name": "Khách Test" }, "wa_id": "84900000001" }],
+          "messages": [{
+            "context": { "from": "15550000000", "id": "wamid.TEST_PROMPT_1" },
+            "from": "84900000001", "id": "wamid.TEST_BUTTON_1", "timestamp": "1763769660", "type": "interactive",
+            "interactive": { "type": "button_reply", "button_reply": { "id": "confirm:00000000-0000-4000-8000-000000000001", "title": "Xác nhận thao tác" } }
+          }]
+        }
+      }]
+    }]
+  },
+  "list_reply": {
+    "object": "whatsapp_business_account",
+    "entry": [{
+      "id": "100000000000001",
+      "changes": [{
+        "field": "messages",
+        "value": {
+          "messaging_product": "whatsapp",
+          "metadata": { "display_phone_number": "15550000000", "phone_number_id": "200000000000001" },
+          "contacts": [{ "profile": { "name": "Khách Test" }, "wa_id": "84900000001" }],
+          "messages": [{
+            "from": "84900000001", "id": "wamid.TEST_LIST_1", "timestamp": "1763769720", "type": "interactive",
+            "interactive": { "type": "list_reply", "list_reply": { "id": "fulfillment:pickup", "title": "Nhận tại quán", "description": "Đến lấy tại cửa hàng" } }
+          }]
+        }
+      }]
+    }]
+  },
+  "multi": {
+    "object": "whatsapp_business_account",
+    "entry": [
+      {
+        "id": "100000000000001",
+        "changes": [{
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": { "display_phone_number": "15550000000", "phone_number_id": "200000000000001" },
+            "contacts": [
+              { "profile": { "name": "Khách A" }, "wa_id": "84900000001" },
+              { "profile": { "name": "Khách B" }, "wa_id": "84900000002" }
+            ],
+            "messages": [
+              { "from": "84900000001", "id": "wamid.TEST_MULTI_1", "timestamp": "1763769800", "type": "text", "text": { "body": "cho 2 gà" } },
+              { "from": "84900000002", "id": "wamid.TEST_MULTI_2", "timestamp": "1763769801", "type": "text", "text": { "body": "menu có gì" } }
+            ]
+          }
+        }]
+      },
+      {
+        "id": "100000000000001",
+        "changes": [{
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": { "display_phone_number": "15550000000", "phone_number_id": "200000000000001" },
+            "contacts": [{ "profile": { "name": "Khách A" }, "wa_id": "84900000001" }],
+            "messages": [{ "from": "84900000001", "id": "wamid.TEST_MULTI_3", "timestamp": "1763769802", "type": "text", "text": { "body": "à 3 đi" } }]
+          }
+        }]
+      }
+    ]
+  },
+  "status": {
+    "object": "whatsapp_business_account",
+    "entry": [{
+      "id": "100000000000001",
+      "changes": [{
+        "field": "messages",
+        "value": {
+          "messaging_product": "whatsapp",
+          "metadata": { "display_phone_number": "15550000000", "phone_number_id": "200000000000001" },
+          "statuses": [{ "id": "wamid.TEST_OUT_1", "status": "delivered", "timestamp": "1763769900", "recipient_id": "84900000001" }]
+        }
+      }]
+    }]
+  },
+  "unsupported": {
+    "object": "whatsapp_business_account",
+    "entry": [{
+      "id": "100000000000001",
+      "changes": [{
+        "field": "messages",
+        "value": {
+          "messaging_product": "whatsapp",
+          "metadata": { "display_phone_number": "15550000000", "phone_number_id": "200000000000001" },
+          "contacts": [{ "profile": { "name": "Khách Test" }, "wa_id": "84900000001" }],
+          "messages": [
+            { "from": "84900000001", "id": "wamid.TEST_IMAGE_1", "timestamp": "1763770000", "type": "image", "image": { "id": "media-1", "mime_type": "image/jpeg" } },
+            { "from": "84900000001", "id": "wamid.TEST_STICKER_1", "timestamp": "1763770001", "type": "sticker", "sticker": { "id": "media-2", "mime_type": "image/webp" } },
+            { "from": "not-a-number", "id": "wamid.TEST_BAD_1", "timestamp": "1763770002", "type": "text", "text": { "body": "malformed sender" } },
+            { "from": "84900000001", "timestamp": "1763770003", "type": "text", "text": { "body": "missing id" } }
+          ]
+        }
+      }]
+    }]
+  }
+}
