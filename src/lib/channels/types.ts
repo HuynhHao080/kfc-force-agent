@@ -46,8 +46,27 @@ export interface ConversationState {
   profileName?: string;
   /** Để biết còn trong cửa sổ 24 giờ của WhatsApp không. */
   lastInboundAt: string;
+  /** Bản nháp chốt đơn trong chat (giai đoạn 4); null khi không chốt đơn. */
+  checkout?: CheckoutDraft | null;
+  /** Đơn vừa đặt từ nút "Đặt đơn": bấm lại cùng nút trả về đúng đơn này, không tạo đơn mới. */
+  lastOrder?: { token: string; orderId: string; total: number; placedAt: string } | null;
   createdAt: string;
   updatedAt: string;
   /** Đổi ở mỗi lần ghi; ghi kèm revision cũ (compare-and-set) để hai lần ghi đồng thời không đè nhau. */
   revision: string;
+}
+
+/**
+ * Các bước chốt đơn: hình thức nhận → tên → số điện thoại (bỏ qua nếu số WhatsApp là số Việt Nam) →
+ * địa chỉ (chỉ khi giao hàng) → xem lại và bấm "Đặt đơn".
+ */
+export interface CheckoutDraft {
+  step: "fulfillment" | "name" | "phone" | "address" | "review";
+  fulfillment?: "pickup" | "delivery";
+  customerName?: string;
+  phone?: string;
+  address?: string;
+  /** Có ở bước review: khoá idempotency của đơn và dữ liệu giỏ/tổng tiền khách đã xem. */
+  review?: { token: string; cartId: string; cartSignature: string; expectedTotal: number; shopRevision: string };
+  startedAt: string;
 }

@@ -1,6 +1,6 @@
 # Kênh WhatsApp
 
-Issue #16. Giai đoạn 2 làm webhook, chuẩn hoá tin và gửi tin. Giai đoạn 3 làm hàng đợi, worker và định danh khách.
+Issue #16. Giai đoạn 2 làm webhook, chuẩn hoá tin và gửi tin. Giai đoạn 3 làm hàng đợi, worker và định danh khách. Giai đoạn 4 làm nút xác nhận, chốt đơn trong chat và báo trạng thái đơn.
 
 | Phần | Trạng thái |
 |---|---|
@@ -13,7 +13,9 @@ Issue #16. Giai đoạn 2 làm webhook, chuẩn hoá tin và gửi tin. Giai đo
 | Worker: ghi trạng thái → gọi agent (cùng pipeline với web) → gửi trả lời; nhân viên tiếp quản thì AI im lặng | Đã code, đã test end-to-end local với AI mock và Graph API giả |
 | Driver SQS FIFO, Lambda worker (partial batch), cổng gọi AgentCore | Đã code, đã test với SQS/AgentCore giả; **chưa deploy, chưa nối SDK thật** |
 | Cổng Next.js `/api/channels/whatsapp/webhook`, adapter Lambda cho API Gateway | Đã code, đã test offline; Lambda **chưa deploy** |
-| Nút xác nhận, checkout trong chat | **Chưa làm** (giai đoạn 4) |
+| Nút "Xác nhận thao tác"/"Bỏ qua" cho đề xuất giỏ, đi qua luồng xác nhận hiện có | Đã code, đã test end-to-end local (AI mock, thực đơn demo) |
+| Chốt đơn trong chat → đơn CONFIRMED trên kitchen board, idempotent | Đã code, đã test end-to-end local |
+| Báo trạng thái đơn khi admin chuyển trạng thái (trong 24 giờ) | Đã code, đã test local; trên AWS **chưa làm** (Step Functions, giai đoạn 7) |
 | Thử với Meta thật và điện thoại thật | **Chưa làm** |
 
 ## Luồng
@@ -32,7 +34,35 @@ Meta → webhook (kiểm chữ ký, chuẩn hoá) → hàng đợi → gộp tin
    - có tin chữ: gọi agent với `platform: "whatsapp"`, phiên `chat_<userId>`, và gửi câu trả lời. Agent lỗi thì gửi câu xin lỗi, không để khách chờ;
    - chỉ có loại chưa hỗ trợ: gửi câu hướng dẫn nhắn bằng chữ.
 
-Mọi thay đổi giỏ vẫn chỉ là đề xuất của agent và cần xác nhận. Giai đoạn 4 sẽ gửi nút xác nhận; gõ chữ "xác nhận" không thực thi.
+## Xác nhận và chốt đơn (giai đoạn 4)
+
+**Đề xuất thay đổi giỏ.** Khi agent tạo đề xuất, khách nhận tin có tóm tắt của server (món, số lượng, giá) và hai nút:
+
+- "Xác nhận thao tác" (`confirm:<id>`): gọi đúng luồng xác nhận của web (`confirm: true` + `confirmationId`). Luồng này kiểm id, hạn 15 phút, chữ ký giỏ và giá rồi mới thực thi qua policy.
+  - Nút của đề xuất cũ thì server gửi lại đề xuất mới nhất kèm nút của nó.
+  - Giỏ đổi ở nơi khác thì từ chối.
+  - Bấm lại sau khi đã thực thi thì không lặp.
+- "Bỏ qua" (`skip:<id>`): như `DELETE /api/chat`, chỉ bỏ đúng đề xuất khách đang thấy.
+
+Gõ chữ "xác nhận" hay "ok" **không thực thi**: tin chữ không bao giờ thành `confirm`.
+
+**Chốt đơn.** Đây là luồng cố định, không qua LLM, vì liên quan tiền và đơn hàng. Khi giỏ có món và không có đề xuất chờ, câu trả lời kèm nút "Chốt đơn". Các bước:
+
+1. Hình thức nhận: nhận tại quán hoặc giao hàng. Server kiểm điều kiện cửa hàng (đang mở, hình thức đang bật, tiền tối thiểu).
+2. Tên người nhận: dùng tên hiển thị WhatsApp hoặc khách nhắn tên khác.
+3. Số điện thoại: tự lấy từ số WhatsApp Việt Nam; số nước ngoài thì hỏi.
+4. Địa chỉ (chỉ khi giao hàng).
+5. Xem lại: món, tạm tính, phí giao, tổng, người nhận, kèm nút "Đặt đơn" có khoá idempotency riêng của lần xem lại này.
+
+Khi bấm "Đặt đơn", server gọi `checkoutService.checkout` với cùng schema như `POST /api/orders`, dùng khoá đó làm idempotency key, nên đơn lên kitchen board ở trạng thái CONFIRMED.
+
+- **Bấm hai lần** (kể cả hai lần tới cùng lúc) chỉ có một đơn; lần sau nhận lại mã đơn đã đặt.
+- **Giỏ, giá hoặc điều kiện cửa hàng đổi sau khi xem lại:** đơn bị từ chối, khách nhận bản xem lại mới với khoá mới. Nút "Đặt đơn" cũ không đặt được.
+- **Tin chữ trong lúc chốt đơn:** chỉ bước tên, số điện thoại, địa chỉ nhận tin chữ. Ở các bước khác, tin chữ vẫn đi tới agent.
+- "Huỷ chốt đơn" giữ nguyên giỏ. Bản nháp chốt đơn hết hạn sau 30 phút.
+- Chế độ `KFC_PURCHASE_ASSISTANT=1` (chuyển sang website KFC) không nhận đặt đơn qua WhatsApp.
+
+**Báo trạng thái đơn.** Khi admin chuyển đơn sang PREPARING, READY, DELIVERING, COMPLETED hoặc CANCELLED (kèm lý do), khách WhatsApp được nhắn nếu còn trong 24 giờ kể từ tin gần nhất. Ngoài 24 giờ, WhatsApp chỉ cho gửi template đã duyệt, nên hệ thống không gửi. Việc báo chạy nền sau khi chuyển trạng thái thành công và không bao giờ làm hỏng việc chuyển trạng thái. Hiện việc này chỉ nối ở route admin của bản local; trên AWS dự kiến dùng Step Functions (giai đoạn 7).
 
 | | Local (Next.js) | AWS |
 |---|---|---|
@@ -59,7 +89,10 @@ SQS và AgentCore được truyền vào dưới dạng cổng (`SqsSendPort`, `
 - Gộp tin giữ các tin mới nhất trong giới hạn 1000 ký tự của chat; tin cũ hơn trong cùng cụm bị bỏ.
 - Thử lại sau lỗi mạng có thể làm khách nhận trùng một tin, nếu thực ra Meta đã nhận tin trước đó.
 - Nút có tiêu đề tối đa 20 ký tự; nhãn "Xác nhận thao tác" có 17 ký tự nên vừa.
+- Ở bước nhập tên, số điện thoại hoặc địa chỉ, tin chữ được hiểu là dữ liệu của bước đó. Khách muốn sửa giỏ giữa chừng thì bấm "Huỷ chốt đơn" trước. Trước khi đặt, khách luôn thấy bản xem lại.
+- Prompt của agent vẫn ghi "Thanh toán, giao hàng: hướng dẫn khách dùng giao diện"; trên WhatsApp, giao diện đó là nút "Chốt đơn". Chưa đổi prompt vì đổi prompt cần đo lại bằng Bedrock thật (tốn phí).
+- Chưa hỗ trợ mã giảm giá và ghi chú đơn trong chat.
 
 ## Kiểm tra
 
-`npm run test:whatsapp-channel` và `npm run test:channel-queue`, đều đã có trong `npm run check`. Test dùng payload mẫu (số và mã giả), AI mock, Graph API giả, SQS giả và AgentCore giả; không gọi mạng.
+`npm run test:whatsapp-channel`, `npm run test:channel-queue` và `npm run test:whatsapp-checkout`, đều đã có trong `npm run check`. Test dùng payload mẫu (số và mã giả), AI mock, thực đơn demo, Graph API giả, SQS giả và AgentCore giả; không gọi mạng.
