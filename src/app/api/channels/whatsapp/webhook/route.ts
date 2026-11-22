@@ -1,5 +1,5 @@
 import { readWhatsAppConfig } from "@/lib/channels/whatsapp/config";
-import { localWhatsAppQueue } from "@/lib/channels/whatsapp/local-runtime";
+import { localWhatsAppRuntime } from "@/lib/channels/whatsapp/local-runtime";
 import { MAX_WEBHOOK_BYTES, handleNotification, handleVerification, type WebhookResponse } from "@/lib/channels/whatsapp/webhook";
 
 /**
@@ -16,8 +16,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const config = readWhatsAppConfig();
-  // Cổng local chỉ có hàng đợi trong tiến trình; SQS dùng cổng Lambda (giai đoạn 3).
+  // Cổng local chỉ có hàng đợi trong tiến trình; SQS FIFO dùng cổng Lambda.
   if (config.queueDriver !== "local") return respond({ status: 503, body: "Not configured" });
+  // Thiếu cấu hình gửi tin hoặc CHANNEL_ID_SECRET: từ chối thay vì nhận tin rồi không trả lời được.
+  const runtime = localWhatsAppRuntime(config);
+  if (!runtime) return respond({ status: 503, body: "Not configured" });
   const declared = Number(request.headers.get("content-length") ?? 0);
   if (declared > MAX_WEBHOOK_BYTES) return respond({ status: 413, body: "Payload too large" });
   const rawBody = new Uint8Array(await request.arrayBuffer());
@@ -25,6 +28,6 @@ export async function POST(request: Request) {
     rawBody,
     signature: request.headers.get("x-hub-signature-256"),
     appSecret: config.appSecret,
-    queue: localWhatsAppQueue(),
+    queue: runtime.queue,
   }));
 }

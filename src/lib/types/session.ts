@@ -1,7 +1,7 @@
 export interface Session {
   id: string;
   userId: string;
-  platform: "web" | "mobile";
+  platform: "web" | "mobile" | "whatsapp";
   status: "ACTIVE" | "INACTIVE" | "EXPIRED";
   createdAt: string;
   updatedAt: string;
