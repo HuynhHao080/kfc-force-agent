@@ -705,6 +705,9 @@ async function runToolAgent(
         ...(all.length === 0 ? {
           categories: categories.map((entry) => entry.name),
           note: "Không có món nào khớp: KFC không bán món này. Muốn gợi ý món thay thế, gọi search_menu lại theo category và chỉ nhắc món có trong kết quả.",
+        } : all.some((item) => isExact(item.name)) ? {
+          // Runs 2–5 (CV-20, CV-24): the item was marked exact, yet the model still asked "single or combo?".
+          note: "Món có exact: true trùng tên khách gọi. Khách muốn đặt thì đề xuất luôn với số lượng khách nói (không nói thì 1), không hỏi thêm combo hay đồ uống. Số đầu tên món là số miếng trong một phần (\"1 Bánh Trứng\", \"4 Bánh Trứng\"): khách nói N cái thì lấy phần đúng N nếu có, không thì lấy phần \"1 …\" với quantity N.",
         } : {}),
       };
     },
@@ -778,6 +781,8 @@ async function runToolAgent(
         summary: pendingConfirmation?.summary ?? [],
         items,
         blocked,
+        // Storing an empty proposal cleared any earlier one: the customer has nothing to confirm now.
+        ...(pending.length ? {} : { note: "Không có đề xuất nào đang chờ (đề xuất trước, nếu có, đã bị huỷ). Không nhắc khách bấm nút; sửa lại rồi gọi propose_cart_change lần nữa hoặc nói rõ cho khách." }),
       };
     },
     officialInfo(topic) {

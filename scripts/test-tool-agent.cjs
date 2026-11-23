@@ -675,3 +675,40 @@ test("33 the reply check holds for past orders: an old price is caught; a remove
   for (const claim of ["Mình đã giảm 1 Pepsi (Lon) trong giỏ.", "Giá 23.000 ₫, mình đã giảm 1 Pepsi (Lon) rồi.", "Giá Pepsi (Lon) 23.000 ₫, đã thêm vào giỏ."])
     assert.equal(checkReply(claim, { catalog }).ok, false, claim);
 });
+
+test("34 run 5, CV-02#3: a later blocked proposal cancels the earlier one; the customer is not sent to a button", async () => {
+  const shrimp = (await services.menuService.getMenuItems()).find((i) => i.name.normalize("NFC") === "Burger Tôm");
+  const propose = (id) => tool("propose_cart_change", { changes: [{ action: "add", item_id: id, quantity: 1 }] });
+  // Out of steps after the blocked proposal: an apology, not "Mình đã chuẩn bị đề xuất".
+  const steps = await turn(scripted([propose(shrimp.id), propose("kfc_item_does_not_exist"), tool("view_cart", {}), tool("view_cart", {})]),
+    user(), "lấy burger tôm với mì ý");
+  assert.equal(steps.requiresConfirmation, false);
+  assert.doesNotMatch(steps.reply, /chuẩn bị đề xuất|Xác nhận thao tác/);
+  // A reply that still points to the button is caught; the model is told nothing is pending.
+  let blocked, feedback;
+  const guarded = await turn(scripted([
+    propose(shrimp.id),
+    propose("kfc_item_does_not_exist"),
+    (m) => { blocked = lastToolResult(m); return text("Bạn kiểm tra rồi bấm “Xác nhận thao tác” nhé."); },
+    (m) => { feedback = m.at(-1).content; return text("Mình chưa tìm đúng món thứ hai, bạn nói lại tên món giúp mình nhé?"); },
+  ]), user(), "lấy burger tôm với mì ý");
+  assert.equal(blocked.status, "blocked");
+  assert.match(blocked.note, /Không có đề xuất nào đang chờ/);
+  assert.match(feedback, /Xác nhận thao tác/);
+  assert.equal(guarded.requiresConfirmation, false);
+  assert.match(guarded.reply, /nói lại tên món/);
+});
+
+test("35 search says what to do with an exactly named item and how to read the count in its name", async () => {
+  let named, none;
+  await turn(scripted([
+    tool("search_menu", { query: "bánh trứng" }),
+    (m) => { named = lastToolResult(m); return tool("search_menu", { query: "gà" }); },
+    (m) => { none = lastToolResult(m); return text("Bạn lấy 2 phần 1 Bánh Trứng nhé?"); },
+  ]), user(), "hai cái bánh trứng");
+  assert.ok(named.items.some((i) => i.exact));
+  assert.match(named.note, /đề xuất luôn/);
+  assert.match(named.note, /quantity N/);
+  assert.ok(!none.items.some((i) => i.exact));
+  assert.equal(none.note, undefined, "no exact item, no instruction");
+});
