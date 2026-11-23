@@ -52,6 +52,8 @@ import { chatProducts } from "./chat-products";
 import { ReadOnlyAgent } from "@/lib/agent/read-only/agent";
 import type { ReadOnlyTrace } from "@/lib/agent/read-only/contract";
 import { ChannelStateService } from "@/lib/channels/state-service";
+import { ChannelStaffService } from "@/lib/channels/staff-service";
+import { servicesTranscript } from "@/lib/channels/transcript";
 
 export interface AgentCoreResult {
   reply: string;
@@ -82,6 +84,7 @@ export class ServiceContainer {
   reorderService: ReorderService;
   chatService: ChatService;
   channelStateService: ChannelStateService;
+  channelStaffService: ChannelStaffService;
   menuTool: MenuTool;
   cartTool: CartTool;
   bedrockService: BedrockService;
@@ -127,6 +130,11 @@ export class ServiceContainer {
     );
     this.chatService = new ChatService(this.sessionService);
     this.channelStateService = new ChannelStateService(repositories.channelRepository);
+    // invalidateProposal imports this module, so it is loaded when first used.
+    this.channelStaffService = new ChannelStaffService(repositories.channelRepository, {
+      transcript: servicesTranscript(),
+      invalidateProposal: async (userId) => (await import("@/lib/server/invalidate-proposal")).invalidateProposal(userId),
+    });
 
     this.menuTool = new MenuTool(this.menuService);
     this.cartTool = new CartTool(this.cartService, this.menuService);

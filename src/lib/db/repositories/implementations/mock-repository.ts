@@ -205,6 +205,10 @@ export class MockChannelRepository implements ChannelRepository {
       throw new DomainError("CHANNEL_STATE_CHANGED", "Trạng thái hội thoại vừa thay đổi. Vui lòng thử lại.", 409);
     this.conversationStates.set(key, structuredClone(state));
   }
+  async listConversationStates(channel: ChannelId, limit: number) {
+    return [...this.conversationStates.values()].filter((state) => state.channel === channel)
+      .sort((a, b) => b.lastInboundAt.localeCompare(a.lastInboundAt)).slice(0, limit).map((state) => structuredClone(state));
+  }
 }
 
 export class MockMenuRepository implements IMenuRepository {

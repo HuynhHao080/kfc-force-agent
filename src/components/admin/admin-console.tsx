@@ -16,6 +16,7 @@ import { CatalogAuditPanel } from "./catalog-audit-panel";
 import { PromotionPanel } from "./promotion-panel";
 import { SalesReportPanel } from "./sales-report-panel";
 import { FeedbackPanel } from "./feedback-panel";
+import { ConversationsPanel } from "./conversations-panel";
 import { ShopSettingsPanel } from "./shop-settings-panel";
 import { KitchenBoardPanel } from "./kitchen-board-panel";
 import { CancelOrderDialog } from "./cancel-order-dialog";
@@ -46,7 +47,7 @@ export function AdminConsole() {
   const [dashboard, setDashboard] = useState(emptyDashboard);
   const [menu, setMenu] = useState<AdminCatalog>({ items: [], categories: [] });
   const [tab, setTab] = useState<
-    "orders" | "menu" | "reports" | "audit" | "promotions" | "kitchen" | "shop" | "feedback"
+    "orders" | "menu" | "reports" | "audit" | "promotions" | "kitchen" | "shop" | "feedback" | "conversations"
   >("orders");
   const [audit, setAudit] = useState<CatalogAuditEntry[]>([]);
   const [selected, setSelectedState] = useState<OrderDetail | null>(null);
@@ -375,7 +376,7 @@ export function AdminConsole() {
   const invalidRange = invalidDateRange(filters);
   const visibleOrders = filterOrders(dashboard.orders, filters);
   const stats =
-    tab === "menu" || tab === "audit" || tab === "promotions" || tab === "kitchen" || tab === "shop" || tab === "feedback"
+    tab === "menu" || tab === "audit" || tab === "promotions" || tab === "kitchen" || tab === "shop" || tab === "feedback" || tab === "conversations"
       ? dashboard.stats
       : summarizeOrders(visibleOrders);
   return (
@@ -425,6 +426,9 @@ export function AdminConsole() {
           <button aria-current={tab === "feedback" ? "page" : undefined} onClick={() => setTab("feedback")}>
             08 <span>Đánh giá</span>
           </button>
+          <button aria-current={tab === "conversations" ? "page" : undefined} onClick={() => setTab("conversations")}>
+            09 <span>Hội thoại</span>
+          </button>
         </nav>
         <div className="admin-side-bottom">
           <span>GRADUATION PROJECT</span>
@@ -441,7 +445,7 @@ export function AdminConsole() {
           <div>
             <span className="eyebrow">KFC FORCE AGENT / QUẢN TRỊ</span>
             <h1>
-              {tab === "feedback" ? "Sau bữa ăn, lắng nghe khách." : tab === "shop" ? "Mở cửa đúng lúc. Nhận đơn đúng điều kiện." : tab === "kitchen" ? "Nhịp bếp. Theo từng đơn." : tab === "orders"
+              {tab === "conversations" ? "Khi khách cần người thật." : tab === "feedback" ? "Sau bữa ăn, lắng nghe khách." : tab === "shop" ? "Mở cửa đúng lúc. Nhận đơn đúng điều kiện." : tab === "kitchen" ? "Nhịp bếp. Theo từng đơn." : tab === "orders"
                 ? "Bếp sẵn sàng. Đơn lên thôi."
                 : tab === "menu"
                   ? "Thực đơn, theo cách của bạn."
@@ -1027,6 +1031,7 @@ export function AdminConsole() {
               />
             )}
             {tab === "feedback" && <FeedbackPanel onExpired={clearStaffView} onChanged={announce} />}
+            {tab === "conversations" && <ConversationsPanel onExpired={clearStaffView} onChanged={setNotice} />}
             {tab === "shop" && <ShopSettingsPanel onExpired={clearStaffView} onChanged={announce} />}
             {tab === "kitchen" && <KitchenBoardPanel onExpired={clearStaffView} locked={busy}
               onOpenOrder={(id) => void run(async () => {

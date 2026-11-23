@@ -50,10 +50,19 @@ export interface ConversationState {
   checkout?: CheckoutDraft | null;
   /** Đơn vừa đặt từ nút "Đặt đơn": bấm lại cùng nút trả về đúng đơn này, không tạo đơn mới. */
   lastOrder?: { token: string; orderId: string; total: number; placedAt: string } | null;
+  /** Ai tiếp quản / trả lại AI và lúc nào (giai đoạn 6); giữ 20 sự kiện gần nhất. */
+  handoffEvents?: HandoffEvent[];
   createdAt: string;
   updatedAt: string;
   /** Đổi ở mỗi lần ghi; ghi kèm revision cũ (compare-and-set) để hai lần ghi đồng thời không đè nhau. */
   revision: string;
+}
+
+export interface HandoffEvent {
+  type: "TAKEOVER" | "RELEASE";
+  /** Mã nhân viên (hiện là "admin": repo có một tài khoản quản trị). */
+  by: string;
+  at: string;
 }
 
 /**
