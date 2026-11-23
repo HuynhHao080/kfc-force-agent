@@ -173,3 +173,9 @@ Còn trượt:
 | 3 | 38/43 | 21/25 | 93 |
 | 4 | 39/43 | 22/25 | 91 |
 | 5 | 39/43 | 22/25 | 90 |
+
+### Sửa sau lượt 5 (offline, chưa đo lại)
+
+- CV-02#3: đề xuất bị chặn ở lần gọi sau làm agent bỏ đề xuất cũ giống server (`proposal`, `proposalPending`, `proposalItems`). Câu dự phòng không còn mô tả đề xuất đã huỷ; câu nhắc bấm nút khi không còn đề xuất bị guard chặn. Kết quả `blocked` có thêm `note` báo model rằng không còn gì để khách xác nhận.
+- CV-20, CV-24: kết quả `search_menu` có món `exact` kèm `note`: khách muốn đặt thì đề xuất luôn với số lượng khách nói, không hỏi thêm combo; số đầu tên món ("1 Bánh Trứng", "4 Bánh Trứng") là số miếng trong một phần.
+- Test 34–35 (`test:tool-agent` 33/33 sau khi gộp với giai đoạn 5). Tắt bản sửa CV-02#3 → test 34 fail. Hai lỗi hỏi lại vốn không ổn định, chỉ đo lại mới biết có tác dụng.

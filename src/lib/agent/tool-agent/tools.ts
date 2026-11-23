@@ -116,7 +116,7 @@ export interface SearchResult {
 }
 export interface CartResult { lines: { item_id: string; name: string; quantity: number; unit_price: number; subtotal: number }[]; total: number }
 /** `items`: product names the pending proposal touches. */
-export interface ProposalResult { status: "awaiting_customer_confirmation" | "blocked"; summary: string[]; items: string[]; blocked: string[] }
+export interface ProposalResult { status: "awaiting_customer_confirmation" | "blocked"; summary: string[]; items: string[]; blocked: string[]; note?: string }
 
 /**
  * A past order line as it stands now. `price` is today's price (the only price the model may quote);

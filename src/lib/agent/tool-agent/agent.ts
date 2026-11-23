@@ -109,7 +109,13 @@ export class ToolAgent {
         const results: Record<string, unknown>[] = [];
         for (const use of toolUses) {
           trace.toolCalls.push(use.name);
-          const output = await this.runTool(use.name, use.input, deps, (value) => { proposal = value; evidence.proposalPending = true; evidence.proposalItems = value.items; });
+          // Mirror the server: a later proposal in the same turn replaces the earlier one, and a blocked
+          // one leaves nothing to confirm (the server cleared it). Reply checks and the fallback follow.
+          const output = await this.runTool(use.name, use.input, deps, (value) => {
+            proposal = value;
+            evidence.proposalPending = !!value;
+            evidence.proposalItems = value?.items;
+          });
           results.push({ type: "tool_result", tool_use_id: use.id, content: json(output.data), ...(output.error ? { is_error: true } : {}) });
         }
         messages.push({ role: "user", content: results });
@@ -139,7 +145,7 @@ export class ToolAgent {
     name: string,
     input: unknown,
     deps: ToolAgentDeps,
-    setProposal: (value: ProposalResult) => void,
+    setProposal: (value: ProposalResult | null) => void,
   ): Promise<{ data: unknown; error?: boolean }> {
     try {
       if (name === "search_menu") {
@@ -158,7 +164,7 @@ export class ToolAgent {
         const parsed = proposeInputSchema.safeParse(input);
         if (!parsed.success) return { data: { error: "Tham số propose_cart_change không hợp lệ: " + parsed.error.issues.map((i) => i.message).join("; ") }, error: true };
         const result = await deps.proposeChanges(parsed.data.changes);
-        if (result.status === "awaiting_customer_confirmation") setProposal(result);
+        setProposal(result.status === "awaiting_customer_confirmation" ? result : null);
         // Local diagnosis (TOOL_AGENT_DEBUG=1): outcome and server reasons only, no customer text.
         if (process.env.TOOL_AGENT_DEBUG === "1")
           console.info("tool_agent_proposal", JSON.stringify({ actions: parsed.data.changes.map((c) => c.action), status: result.status, blocked: result.blocked }));
