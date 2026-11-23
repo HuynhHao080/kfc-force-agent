@@ -1,6 +1,7 @@
 import type { ChannelStateService } from "./state-service";
 import type { ConversationState, InboundMessage, OutboundMessage } from "./types";
 import type { ChannelCommercePort } from "./commerce";
+import type { TranscriptPort } from "./transcript";
 import { cancelCheckout, checkoutText, chooseFulfillment, placeOrder, startCheckout, useProfileName, type FlowContext, type FlowResult } from "./checkout-flow";
 import { parseButton, proposalMessage, withCheckoutButton } from "./messages";
 import { maskWaId } from "./whatsapp/identity";
@@ -42,6 +43,8 @@ export interface ChannelWorkerDeps {
   sender: ChannelSenderPort;
   /** Khoá theo khách (local: withUserLock, như route web). Trên AWS, SQS FIFO đã tuần tự theo khách. */
   lock?: <T>(key: string, run: () => Promise<T>) => Promise<T>;
+  /** Lưu tin của khách khi nhân viên đang tiếp quản (agent không chạy nên ChatService không lưu). */
+  transcript?: Pick<TranscriptPort, "append">;
   now?: () => Date;
 }
 
@@ -101,8 +104,15 @@ export function createChannelWorker(deps: ChannelWorkerDeps) {
           channel: first.channel, customerId: userId, externalUserId: first.externalUserId, receivedAt,
           ...(profileName ? { profileName } : {}),
         });
-        // Nhân viên đang tiếp quản: AI không trả lời (giai đoạn 6 thêm giao diện tiếp quản).
-        if (state.mode === "HUMAN") return "human";
+        // Nhân viên đang tiếp quản: AI không trả lời, không chạy nút bấm; tin của khách được lưu để nhân viên đọc.
+        if (state.mode === "HUMAN") {
+          const text = mergeTurnText(messages);
+          const pressed = messages.filter((message) => message.kind !== "text").map((message) =>
+            message.kind === "unsupported" ? "[Khách gửi nội dung chưa hỗ trợ: ảnh, sticker…]" : `[Khách bấm nút: ${message.text ?? message.replyId}]`);
+          const content = [text, ...pressed].filter(Boolean).join("\n");
+          if (content) await deps.transcript?.append(userId, { role: "user", content });
+          return "human";
+        }
 
         const replies: OutboundMessage[] = [];
         let outcome: TurnOutcome = "ignored";

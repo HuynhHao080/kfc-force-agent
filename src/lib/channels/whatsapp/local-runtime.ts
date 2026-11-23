@@ -2,6 +2,7 @@ import { createLocalInboundQueue, type LocalInboundQueue } from "../queue";
 import { createTurnDebouncer } from "../debounce";
 import { createChannelWorker, type ChannelSenderPort, type ChannelWorkerDeps } from "../worker";
 import { servicesCommercePort } from "../commerce";
+import { servicesTranscript } from "../transcript";
 import { notifyOrderStatus, type OrderStatusUpdate } from "../order-notifications";
 import { channelUserId } from "./identity";
 import { createWhatsAppSender } from "./sender";
@@ -13,6 +14,8 @@ export interface LocalWhatsAppRuntime {
   drain(): Promise<void>;
   /** Báo khách WhatsApp khi đơn đổi trạng thái (gọi sau khi admin chuyển trạng thái thành công). */
   notifyOrder(order: OrderStatusUpdate): Promise<string>;
+  /** Gửi tin qua Graph API (nhân viên nhắn khách khi tiếp quản). */
+  sender: ChannelSenderPort;
 }
 
 const shared = globalThis as typeof globalThis & { kfcWhatsAppLocalRuntime?: LocalWhatsAppRuntime };
@@ -53,6 +56,7 @@ export function localWhatsAppRuntime(
       },
     },
     commerce: servicesCommercePort(),
+    transcript: servicesTranscript(),
     sender,
     lock: async (key, run) => (await import("@/lib/server/user-lock")).withUserLock(key, run),
   };
@@ -63,6 +67,7 @@ export function localWhatsAppRuntime(
   const queue = createLocalInboundQueue(async (message) => debouncer.push(message));
   shared.kfcWhatsAppLocalRuntime = {
     queue,
+    sender,
     async drain() {
       await queue.idle();
       await debouncer.flushAll();

@@ -13,6 +13,8 @@ export interface Message {
   role: "user" | "assistant" | "system";
   content: string;
   productIds?: string[];
+  /** "staff": tin nhân viên gửi khi tiếp quản hội thoại (role assistant). Không có = AI hoặc khách. */
+  sender?: "staff";
   createdAt: string;
 }
 

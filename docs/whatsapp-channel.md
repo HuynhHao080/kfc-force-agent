@@ -1,6 +1,6 @@
 # Kênh WhatsApp
 
-Issue #16. Giai đoạn 2 làm webhook, chuẩn hoá tin và gửi tin. Giai đoạn 3 làm hàng đợi, worker và định danh khách. Giai đoạn 4 làm nút xác nhận, chốt đơn trong chat và báo trạng thái đơn.
+Issue #16. Giai đoạn 2 làm webhook, chuẩn hoá tin và gửi tin. Giai đoạn 3 làm hàng đợi, worker và định danh khách. Giai đoạn 4 làm nút xác nhận, chốt đơn trong chat và báo trạng thái đơn. Giai đoạn 6 làm phần nhân viên tiếp quản hội thoại.
 
 | Phần | Trạng thái |
 |---|---|
@@ -16,6 +16,7 @@ Issue #16. Giai đoạn 2 làm webhook, chuẩn hoá tin và gửi tin. Giai đo
 | Nút "Xác nhận thao tác"/"Bỏ qua" cho đề xuất giỏ, đi qua luồng xác nhận hiện có | Đã code, đã test end-to-end local (AI mock, thực đơn demo) |
 | Chốt đơn trong chat → đơn CONFIRMED trên kitchen board, idempotent | Đã code, đã test end-to-end local |
 | Báo trạng thái đơn khi admin chuyển trạng thái (trong 24 giờ) | Đã code, đã test local; trên AWS **chưa làm** (Step Functions, giai đoạn 7) |
+| Nhân viên tiếp quản / trả lại AI, nhắn khách, tab "Hội thoại" trong admin | Service đã test end-to-end local; route admin và giao diện **chưa có test tự động** (cần phiên đăng nhập admin); danh sách trên DynamoDB **chưa chạy thật** |
 | Thử với Meta thật và điện thoại thật | **Chưa làm** |
 
 ## Luồng
@@ -75,10 +76,33 @@ Khi bấm "Đặt đơn", server gọi `checkoutService.checkout` với cùng sc
 
 SQS và AgentCore được truyền vào dưới dạng cổng (`SqsSendPort`, `AgentCoreInvoke`). Repo chưa thêm dependency `@aws-sdk/client-sqs` hay `@aws-sdk/client-bedrock-agentcore`. Việc thêm hai dependency này và nối SDK thật cần nhóm thống nhất khi làm phần deploy (giai đoạn 7).
 
+## Nhân viên tiếp quản (giai đoạn 6)
+
+Admin → tab **09 Hội thoại**: 50 hội thoại có tin gần nhất, lịch sử từng hội thoại, nút "Tiếp quản" / "Trả lại AI", ô nhắn khách. Màn hình đồng bộ 10 giây. API: `GET/PATCH/POST /api/admin/conversations`, đăng nhập admin, cùng kiểm tra origin như các API admin khác.
+
+**Tiếp quản** (`mode: HUMAN`):
+- AI không trả lời khách; nút bấm của khách (xác nhận, chốt đơn) không có tác dụng.
+- Đề xuất giỏ AI đang chờ bị vô hiệu (`invalidateProposal`), bước chốt đơn dở dang bị huỷ.
+- Tin của khách vẫn được lưu vào cùng phiên chat để nhân viên đọc. Nút khách bấm được ghi thành dòng mô tả.
+
+**Nhắn khách:** chỉ nhân viên đang giữ hội thoại, chỉ trong 24 giờ kể từ tin gần nhất của khách (quy định của WhatsApp với tin thường). Tin chỉ được lưu sau khi Meta nhận. Tin đã gửi cũng vào ngữ cảnh hội thoại, nên khi trả lại, AI biết nhân viên đã nói gì.
+
+**Trả lại AI** (`mode: AI`): chỉ nhân viên đang giữ hội thoại mới trả lại được.
+
+**Cạnh tranh:**
+- Mọi thao tác gửi kèm `revision` màn hình đang thấy, và repository ghi compare-and-set. Hai nhân viên bấm "Tiếp quản" cùng lúc thì một người thắng, người kia nhận lỗi 409 và màn hình tải lại.
+- Route khoá theo khách như worker, nên tiếp quản không chen giữa một lượt AI đang xử lý.
+- Mỗi lần tiếp quản hoặc trả lại được ghi vào `handoffEvents` (ai, lúc nào; giữ 20 sự kiện gần nhất).
+
+**Mã nhân viên:** repo có một tài khoản quản trị, nên mã nhân viên là `admin`. Service đã nhận mã nhân viên bất kỳ và có test hai nhân viên, nên khi có tài khoản nhân viên riêng chỉ cần truyền mã thật.
+
+**DynamoDB:** mỗi lần ghi trạng thái, một bản sao `PK = CHANNEL_INDEX#<kênh>`, `SK = <mã khách>` được ghi trong cùng giao dịch, để liệt kê không cần quét bảng. Danh sách đọc tối đa 1.000 hội thoại rồi sắp theo tin gần nhất. Phần này chưa chạy với DynamoDB thật.
+
 ## Dữ liệu cá nhân
 
 - Số WhatsApp là dữ liệu liên hệ. `userId` nội bộ là `wa_` + HMAC-SHA256 (khoá `CHANNEL_ID_SECRET`, tối thiểu 32 ký tự) nên không chứa số. Khoá này bắt buộc, vì không có khoá thì từ mã băm dò ngược ra số điện thoại được.
 - Số chỉ được lưu trong trạng thái hội thoại (`externalUserId`, cần để trả lời) và trong body tin SQS. Khi deploy, SQS và DynamoDB phải bật mã hoá. Khoá DynamoDB (`CHANNEL#whatsapp#<mã khách>`) và `MessageGroupId` SQS chỉ dùng mã băm.
+- Màn Hội thoại và API admin chỉ hiện số đã che; tên hiển thị WhatsApp và nội dung chat chỉ dành cho nhân viên đã đăng nhập (`private, no-store`).
 - Log chỉ ghi loại tin, kết quả, mã lỗi số và số đã che (`84******001`). Log không ghi token, App Secret, nội dung tin hay body phản hồi của Meta.
 - Số Việt Nam (`84` + 9 số) được đổi sang `0…` để đặt đơn. Với số nước ngoài, checkout trong chat sẽ hỏi số (giai đoạn 4).
 
@@ -95,4 +119,4 @@ SQS và AgentCore được truyền vào dưới dạng cổng (`SqsSendPort`, `
 
 ## Kiểm tra
 
-`npm run test:whatsapp-channel`, `npm run test:channel-queue` và `npm run test:whatsapp-checkout`, đều đã có trong `npm run check`. Test dùng payload mẫu (số và mã giả), AI mock, thực đơn demo, Graph API giả, SQS giả và AgentCore giả; không gọi mạng.
+`npm run test:whatsapp-channel`, `npm run test:channel-queue`, `npm run test:whatsapp-checkout` và `npm run test:staff-takeover`, đều đã có trong `npm run check`. Test dùng payload mẫu (số và mã giả), AI mock, thực đơn demo, Graph API giả, SQS giả và AgentCore giả; không gọi mạng.

@@ -65,6 +65,7 @@ const TABLE = () => process.env.DYNAMODB_TABLE_NAME || "KfcForceAgent";
  *   order items    PK = ORDER#<orderId>        SK = ITEM#<orderItemId>
  *   order events   PK = ORDER#<orderId>        SK = EVENT#<eventId>
  *   channel state  PK = CHANNEL#<channel>#<customerId> SK = STATE
+ *   channel list   PK = CHANNEL_INDEX#<channel>    SK = <customerId> (copy of the state, same transaction)
  */
 
 type Keyed = { PK: string; SK: string };
@@ -469,18 +470,43 @@ export class DynamoDBChannelRepository implements ChannelRepository {
 
   async saveConversationState(state: ConversationState, expectedRevision: string | null): Promise<void> {
     try {
-      await getClient().send(new PutCommand({
-        TableName: TABLE(),
-        Item: withKeys(state, { PK: `CHANNEL#${state.channel}#${state.customerId}`, SK: "STATE" }),
-        ...(expectedRevision === null
-          ? { ConditionExpression: "attribute_not_exists(PK)" }
-          : { ConditionExpression: "#revision = :expected", ExpressionAttributeNames: { "#revision": "revision" }, ExpressionAttributeValues: { ":expected": expectedRevision } }),
+      // The state and its list entry (CHANNEL_INDEX#<channel>, for the staff list) commit together.
+      await getClient().send(new TransactWriteCommand({
+        TransactItems: [
+          {
+            Put: {
+              TableName: TABLE(),
+              Item: withKeys(state, { PK: `CHANNEL#${state.channel}#${state.customerId}`, SK: "STATE" }),
+              ...(expectedRevision === null
+                ? { ConditionExpression: "attribute_not_exists(PK)" }
+                : { ConditionExpression: "#revision = :expected", ExpressionAttributeNames: { "#revision": "revision" }, ExpressionAttributeValues: { ":expected": expectedRevision } }),
+            },
+          },
+          { Put: { TableName: TABLE(), Item: withKeys(state, { PK: `CHANNEL_INDEX#${state.channel}`, SK: state.customerId }) } },
+        ],
       }));
     } catch (error) {
-      if (error instanceof Error && error.name === "ConditionalCheckFailedException")
+      if (error instanceof Error && (error.name === "ConditionalCheckFailedException" || error.name === "TransactionCanceledException"))
         throw new DomainError("CHANNEL_STATE_CHANGED", "Trạng thái hội thoại vừa thay đổi. Vui lòng thử lại.", 409);
       throw error;
     }
+  }
+
+  async listConversationStates(channel: ChannelId, limit: number): Promise<ConversationState[]> {
+    // One partition per channel; read at most 1 000 entries, then sort by the latest customer message.
+    const states: ConversationState[] = [];
+    let start: Record<string, unknown> | undefined;
+    do {
+      const page = await getClient().send(new QueryCommand({
+        TableName: TABLE(),
+        KeyConditionExpression: "PK = :pk",
+        ExpressionAttributeValues: { ":pk": `CHANNEL_INDEX#${channel}` },
+        ...(start ? { ExclusiveStartKey: start } : {}),
+      }));
+      states.push(...stripKeysList<ConversationState>(page.Items, ["PK", "SK"]));
+      start = page.LastEvaluatedKey as Record<string, unknown> | undefined;
+    } while (start && states.length < 1000);
+    return states.sort((a, b) => b.lastInboundAt.localeCompare(a.lastInboundAt)).slice(0, limit);
   }
 }
 

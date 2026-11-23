@@ -7,4 +7,6 @@ export interface ChannelRepository {
    * khác revision đang lưu thì ném DomainError "CHANNEL_STATE_CHANGED" (409) và không ghi.
    */
   saveConversationState(state: ConversationState, expectedRevision: string | null): Promise<void>;
+  /** Hội thoại của một kênh, tin gần nhất trước (màn Hội thoại của nhân viên). */
+  listConversationStates(channel: ChannelId, limit: number): Promise<ConversationState[]>;
 }
